@@ -69,7 +69,8 @@ export default function RiderOnboarding({ user, onComplete }) {
     try {
       // In a real scenario we'd use the configured api wrapper, but let's just use fetch for multipart
       const token = localStorage.getItem('zypergo_token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+      const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+      const res = await fetch(`${apiBase}/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData

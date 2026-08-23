@@ -7,9 +7,17 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*',
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
+    if (!origin) return callback(null, true);
+    // Allow all origins in production/dev for IP and domain access
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -89,29 +97,60 @@ app.use('/api/blogs', blogRoutes);
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  
-  // Create HTTP Server
-  const http = require('http');
-  const server = http.createServer(app);
-  
-  // Initialize Socket.io
-  const socketService = require('./socket');
-  socketService.init(server);
+// Serve static files in production if SERVE_STATIC is true or client dist exists
+const path = require('path');
+const fs = require('fs');
 
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (process.env.SERVE_STATIC === 'true' || (process.env.NODE_ENV === 'production' && fs.existsSync(clientDistPath))) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
+// Start server (runs in both production and development on EC2 / Node servers)
+const PORT = process.env.PORT || 5000;
+const http = require('http');
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const socketService = require('./socket');
+socketService.init(server);
+
+// Only listen if not running in Vercel serverless environment
+if (!process.env.VERCEL) {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[ZYPERGO] Server is running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   });
 
   server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
-      console.error(`Port ${PORT} is already in use. Please kill the process using this port or change the PORT in .env`);
+      console.error(`Port ${PORT} is already in use. Please kill the process using this port or change PORT in .env`);
       process.exit(1);
     } else {
       console.error('Server error:', e);
     }
   });
+
+  // Graceful shutdown handling for PM2 / EC2
+  const handleShutdown = (signal) => {
+    console.log(`Received ${signal}. Shutting down gracefully...`);
+    server.close(() => {
+      console.log('HTTP server closed.');
+      mongoose.connection.close(false, () => {
+        console.log('MongoDB connection closed.');
+        process.exit(0);
+      });
+    });
+  };
+
+  process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleShutdown('SIGINT'));
 }
 
 module.exports = app;
+

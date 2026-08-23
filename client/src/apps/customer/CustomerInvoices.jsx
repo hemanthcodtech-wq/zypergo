@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Clock, CheckCircle2, Search, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import api from '../../api';
 
 export default function CustomerInvoices() {
   const [invoices, setInvoices] = useState([]);
@@ -18,10 +19,9 @@ export default function CustomerInvoices() {
 
   const fetchInvoices = async () => {
     try {
-      const res = await fetch('/api/bookings/my-shipments');
-      const data = await res.json();
-      if (data.success) {
-        setInvoices(data.data);
+      const res = await api.get('/bookings/my-shipments');
+      if (res.data && res.data.success) {
+        setInvoices(res.data.data);
       }
     } catch (err) {
       console.error('Error fetching invoices:', err);

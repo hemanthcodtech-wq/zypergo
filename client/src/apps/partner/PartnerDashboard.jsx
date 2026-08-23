@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Truck, Scan, CheckCircle2, AlertTriangle, User, RefreshCcw } from 'lucide-react';
+import api from '../../api';
 
 export default function PartnerDashboard() {
   const [shipments, setShipments] = useState([]);
@@ -10,10 +11,9 @@ export default function PartnerDashboard() {
   const fetchShipments = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/partner/shipments');
-      const data = await res.json();
-      if (res.ok) {
-        setShipments(data.data);
+      const res = await api.get('/partner/shipments');
+      if (res.data && res.data.data) {
+        setShipments(res.data.data);
       }
     } catch (err) {
       console.error(err);
@@ -31,38 +31,21 @@ export default function PartnerDashboard() {
     if (!scanId) return;
     
     try {
-      const res = await fetch('/api/partner/shipments/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackingId: scanId })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setScanResult({ success: true, message: 'Shipment Found!', data: data.data });
-      } else {
-        setScanResult({ success: false, message: data.error || 'Shipment not found in your network.' });
-      }
+      const res = await api.post('/partner/shipments/scan', { trackingId: scanId });
+      setScanResult({ success: true, message: 'Shipment Found!', data: res.data.data });
     } catch (err) {
-      setScanResult({ success: false, message: 'Network error during scan.' });
+      setScanResult({ success: false, message: err.response?.data?.error || 'Shipment not found in your network.' });
     }
   };
 
   const updateStatus = async (trackingId, newStatus) => {
     try {
-      const res = await fetch('/api/partner/shipments/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackingId, status: newStatus })
-      });
-      if (res.ok) {
-        fetchShipments();
-        setScanResult(null); // Close scan result
-        setScanId('');
-      } else {
-        alert('Failed to update status');
-      }
+      await api.post('/partner/shipments/update-status', { trackingId, status: newStatus });
+      fetchShipments();
+      setScanResult(null); // Close scan result
+      setScanId('');
     } catch (err) {
-      alert('Network Error');
+      alert(err.response?.data?.error || 'Failed to update status');
     }
   };
 

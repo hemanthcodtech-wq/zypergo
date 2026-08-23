@@ -49,8 +49,9 @@ class NotificationService {
     
     try {
       const transporter = await this.getTransporter();
+      const sender = process.env.EMAIL_FROM || `"ZyperGo Logistics" <${process.env.SMTP_USER || 'noreply@zypergo.com'}>`;
       const info = await transporter.sendMail({
-        from: '"ZyperGo Logistics" <noreply@zypergo.com>',
+        from: sender,
         to: email,
         subject: subject,
         html: htmlBody,
@@ -118,7 +119,7 @@ class NotificationService {
             ${footerHtml}
           </div>
           <div class="footer">
-            <p class="footer-text">ZyperGo Logistics &copy; ${new Date().getFullYear()} | <a href="mailto:support@zypergo.com" style="color: #fb5c00; text-decoration: none;">support@zypergo.com</a></p>
+            <p class="footer-text">ZyperGo Logistics &copy; ${new Date().getFullYear()} | <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@zypergo.com'}" style="color: #fb5c00; text-decoration: none;">${process.env.SUPPORT_EMAIL || 'support@zypergo.com'}</a></p>
           </div>
         </div>
       </body>
@@ -129,7 +130,8 @@ class NotificationService {
   // --- High Level Event Handlers ---
 
   static getFrontendBaseUrl() {
-    return process.env.FRONTEND_URL || 'http://localhost:5173';
+    const urlHelper = require('../utils/urlHelper');
+    return urlHelper.getFrontendUrl();
   }
 
   static notifyBookingConfirmed(booking, customerPhone, customerEmail) {

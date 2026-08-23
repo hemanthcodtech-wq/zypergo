@@ -48,11 +48,29 @@ export default function LoginPage() {
   const handleRoleSelect = (roleId) => {
     const currentHost = window.location.hostname;
     const port = window.location.port ? `:${window.location.port}` : '';
-    const baseDomain = currentHost.replace(/^(admin[.-]|customer[.-]|rider[.-]|hamali[.-]|partner[.-]|hub[.-])/, '');
-    
-    // Redirect to subdomain login (using hyphen for Vercel support)
     const protocol = window.location.protocol;
-    window.location.assign(`${protocol}//${roleId}-${baseDomain}${port}/login`);
+    
+    // Check if hostname is an IP address or localhost or single-domain without DNS wildcard
+    const isIpOrLocal = /^(localhost|127\.0\.0\.1|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(currentHost);
+    
+    if (isIpOrLocal) {
+      sessionStorage.setItem('zypergo_portal', roleId);
+      window.location.href = `/?portal=${roleId}`;
+      return;
+    }
+
+    if (currentHost.includes('.')) {
+      const baseDomain = currentHost.replace(/^(admin[.-]|customer[.-]|rider[.-]|hamali[.-]|partner[.-]|hub[.-])/, '');
+      // If host is Vercel app or custom domain
+      if (currentHost.includes('vercel.app')) {
+        window.location.assign(`${protocol}//${roleId}-${baseDomain}${port}/login`);
+      } else {
+        window.location.assign(`${protocol}//${roleId}.${baseDomain}${port}/login`);
+      }
+    } else {
+      sessionStorage.setItem('zypergo_portal', roleId);
+      window.location.href = `/?portal=${roleId}`;
+    }
   };
 
   return (

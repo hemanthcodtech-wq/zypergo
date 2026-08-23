@@ -6,13 +6,14 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: true, // Listen on all local IPs
-    allowedHosts: 'all', // Allow subdomains like admin.localhost
-    hmr: {
-      host: 'localhost'
-    },
+    host: true, // Listen on all network interfaces
+    allowedHosts: 'all', // Allow any host/IP/subdomain
     proxy: {
-      '/api': 'http://localhost:5000'
+      '/api': {
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000',
+        changeOrigin: true,
+        ws: true
+      }
     }
   }
 })

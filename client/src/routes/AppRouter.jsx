@@ -46,16 +46,48 @@ function AppRouter() {
   }, []);
 
   const subdomain = useMemo(() => {
+    // 1. Check URL query parameter (e.g. ?portal=admin or ?role=admin)
+    const params = new URLSearchParams(window.location.search);
+    const portalParam = params.get('portal') || params.get('role');
+    const validPortals = ['admin', 'customer', 'rider', 'hamali', 'partner', 'hub'];
+    
+    if (portalParam) {
+      const p = portalParam.toLowerCase();
+      if (p === 'portal' || p === 'main') {
+        sessionStorage.removeItem('zypergo_portal');
+        return 'portal';
+      }
+      if (validPortals.includes(p)) {
+        sessionStorage.setItem('zypergo_portal', p);
+        return p;
+      }
+    }
+
+    // 2. Check hostname subdomains (e.g. admin.zypergo.com, admin-zypergo.vercel.app)
     const hostname = window.location.hostname;
-    // Check if the hostname starts with any of our subdomains or Vercel hyphenated prefixes
-    if (hostname.startsWith('admin.') || hostname.startsWith('admin-')) return 'admin';
-    if (hostname.startsWith('customer.') || hostname.startsWith('customer-')) return 'customer';
-    if (hostname.startsWith('rider.') || hostname.startsWith('rider-')) return 'rider';
-    if (hostname.startsWith('hamali.') || hostname.startsWith('hamali-')) return 'hamali';
-    if (hostname.startsWith('partner.') || hostname.startsWith('partner-')) return 'partner';
-    if (hostname.startsWith('hub.') || hostname.startsWith('hub-')) return 'hub';
-    return 'portal'; // Default for www, localhost without subdomain, or any other domain
-  }, []);
+    for (const portal of validPortals) {
+      if (hostname.startsWith(`${portal}.`) || hostname.startsWith(`${portal}-`)) {
+        return portal;
+      }
+    }
+
+    // 3. Check path prefix (e.g. /admin, /hub, /rider)
+    const pathname = window.location.pathname.toLowerCase();
+    for (const portal of validPortals) {
+      if (pathname === `/${portal}` || pathname.startsWith(`/${portal}/`)) {
+        sessionStorage.setItem('zypergo_portal', portal);
+        return portal;
+      }
+    }
+
+    // 4. Check sessionStorage active portal (useful for single-IP EC2 deployments)
+    const storedPortal = sessionStorage.getItem('zypergo_portal');
+    if (storedPortal && validPortals.includes(storedPortal)) {
+      return storedPortal;
+    }
+
+    return 'portal'; // Default for public portal
+  }, [location]);
 
   if (!authChecked) return null;
 

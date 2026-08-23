@@ -70,8 +70,8 @@ exports.sendOtp = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'OTP sent successfully. Check your email or phone.' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: `Error: ${error.message}. SMTP_USER: ${process.env.SMTP_USER}` });
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ success: false, error: 'Failed to send OTP. Please check your contact information and try again.' });
   }
 };
 
@@ -282,8 +282,9 @@ exports.forgotPassword = async (req, res) => {
     
     await user.save();
 
-    // Construct reset URL based on origin (the frontend application) or FRONTEND_URL
-    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Construct reset URL based on origin (the frontend application) or configured frontend URL
+    const { getFrontendUrl } = require('../utils/urlHelper');
+    const origin = req.headers.origin || getFrontendUrl();
     const resetUrl = `${origin.replace(/\/+$/, '')}/reset-password?token=${resetToken}`;
 
     const htmlBody = NotificationService.generateEmailTemplate({

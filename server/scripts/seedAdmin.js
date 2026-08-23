@@ -9,12 +9,14 @@ const seedSuperAdmin = async () => {
     });
     console.log('Connected to MongoDB');
 
-    const adminEmail = 'admin@zypergo.com';
+    const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@zypergo.com';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'AdminPassword123!';
+    const adminPhone = process.env.SEED_ADMIN_PHONE || '+919999999999';
     
     // Check if superadmin already exists
-    const existingAdmin = await User.findOne({ email: adminEmail });
+    const existingAdmin = await User.findOne({ $or: [{ email: adminEmail }, { phone: adminPhone }] });
     if (existingAdmin) {
-      console.log('SuperAdmin already exists with email:', adminEmail);
+      console.log('SuperAdmin already exists with email / phone:', existingAdmin.email, existingAdmin.phone);
       process.exit(0);
     }
 
@@ -22,8 +24,8 @@ const seedSuperAdmin = async () => {
       role: 'SuperAdmin',
       name: 'System Administrator',
       email: adminEmail,
-      phone: '+919999999999',
-      password: 'AdminPassword123!', // This will be hashed automatically by the pre-save hook in User model
+      phone: adminPhone,
+      password: adminPassword, // This will be hashed automatically by the pre-save hook in User model
       isActive: true,
       kycVerified: true
     });
@@ -31,8 +33,8 @@ const seedSuperAdmin = async () => {
     await superAdmin.save();
     console.log('Successfully seeded SuperAdmin user:');
     console.log('Email:', adminEmail);
-    console.log('Password: AdminPassword123!');
-    console.log('Phone:', '+919999999999');
+    console.log('Password:', adminPassword);
+    console.log('Phone:', adminPhone);
 
   } catch (error) {
     console.error('Error seeding SuperAdmin:', error);

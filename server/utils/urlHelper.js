@@ -19,9 +19,11 @@ function getFrontendUrl(subdomain = '') {
     const protocol = parsed.protocol;
     const port = parsed.port ? `:${parsed.port}` : '';
 
-    // If running on localhost / 127.0.0.1
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `${protocol}//${subdomain}.localhost${port}`;
+    // Check if host is an IP address or localhost
+    const isIpOrLocal = /^(localhost|127\.0\.0\.1|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(host);
+    if (isIpOrLocal) {
+      // In IP/Local mode, subdomains don't resolve via DNS, use query or path
+      return `${baseUrl}/?portal=${subdomain}`;
     }
 
     // If host already starts with subdomain
@@ -29,7 +31,7 @@ function getFrontendUrl(subdomain = '') {
       return `${protocol}//${host}${port}`;
     }
 
-    // For standard domains like zypergo.com or app.zypergo.com
+    // For standard domains like zypergo.com or custom domain
     return `${protocol}//${subdomain}.${host}${port}`;
   } catch (e) {
     return baseUrl;
