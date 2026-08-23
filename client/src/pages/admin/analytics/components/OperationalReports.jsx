@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
+import api from '../../../../api';
 
 export default function OperationalReports() {
   const [data, setData] = useState(null);
@@ -8,11 +9,8 @@ export default function OperationalReports() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/analytics/operational', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('zypergo_token')}` }
-        });
-        const json = await res.json();
-        if (json.success) setData(json.data);
+        const res = await api.get('/analytics/operational');
+        if (res.data.success) setData(res.data.data);
       } catch (err) {
         console.error("Failed to fetch operational reports:", err);
       } finally {
@@ -21,6 +19,12 @@ export default function OperationalReports() {
     };
     fetchReports();
   }, []);
+
+  const handleExport = (endpoint) => {
+    const baseUrl = api.defaults.baseURL || '/api';
+    const token = localStorage.getItem('zypergo_token');
+    window.open(`${baseUrl}${endpoint}?token=${token || ''}`, '_blank');
+  };
 
   if (loading) return <div className="p-8 text-center text-slate-500">Loading Operational Reports...</div>;
 
@@ -33,7 +37,7 @@ export default function OperationalReports() {
           <h3 className="font-bold text-slate-800">Daily Operations Summary</h3>
           <button 
             className="text-sm font-bold text-[#006D77] flex items-center gap-1 hover:underline"
-            onClick={() => window.open('http://localhost:5000/api/analytics/export/daily-bookings', '_blank')}
+            onClick={() => handleExport('/analytics/export/daily-bookings')}
           >
             <Download size={14} /> Export CSV
           </button>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, Package, CheckCircle2, Navigation, ArrowLeft, Phone, X } from 'lucide-react';
+import { Search, Package, CheckCircle2, Navigation, ArrowLeft, Phone, X, Truck, Clock, MapPin, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import api from '../../api';
 
 export default function TrackShipment() {
   const { id } = useParams();
@@ -29,20 +30,28 @@ export default function TrackShipment() {
     setError('');
     
     try {
-      const res = await fetch(`/api/bookings/${searchId}`);
-      const data = await res.json();
-      if (res.ok && data.data) {
-        setShipment(data.data);
+      const res = await api.get(`/bookings/${searchId}`);
+      if (res.data && res.data.data) {
+        setShipment(res.data.data);
         if (!forceId) navigate(`/track/${searchId}`);
       } else {
         setError('Tracking ID not found. Please check and try again.');
         setShipment(null);
       }
     } catch (err) {
-      setError('Network error. Could not connect to tracking server.');
+      setError(err.response?.data?.message || 'Tracking ID not found. Please verify the code.');
+      setShipment(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusIndex = (status = '') => {
+    const s = status.toUpperCase();
+    if (s.includes('DELIVERED')) return 3;
+    if (s.includes('OUT FOR DELIVERY')) return 2;
+    if (s.includes('TRANSIT') || s.includes('PICKED')) return 1;
+    return 0;
   };
 
   const allStatuses = [
@@ -52,210 +61,137 @@ export default function TrackShipment() {
     'Delivered'
   ];
 
-  const getStatusIndex = (status) => {
-    if (status === 'Delivered') return 3;
-    if (status === 'Out for Delivery' || status === 'Rider On the Way') return 2;
-    if (status === 'In Transit' || status === 'Picked Up' || status === 'Partner Handover') return 1;
-    return 0; // Booking Confirmed or Pending
-  };
-
   if (!shipment && !loading) {
     return (
-      <div className="flex-1 bg-slate-50 min-h-screen py-12 px-4 flex flex-col items-center">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6">Track Your Package</h1>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 w-full max-w-md">
-          <form onSubmit={handleSearch} className="flex flex-col gap-4">
+      <div className="flex-1 bg-[#F8FAFC] min-h-screen py-12 px-4 flex flex-col items-center justify-center font-sans">
+        <div className="w-full max-w-md bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+          <div className="text-center">
+            <img src="/images/logo.png" alt="ZyperGo" className="h-8 mx-auto mb-3 object-contain" />
+            <h1 className="text-2xl font-black text-slate-900 leading-tight">
+              Track Your <span className="text-[#FF6B00]">Package</span>
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Enter your tracking number to get real-time delivery status
+            </p>
+          </div>
+
+          <form onSubmit={handleSearch} className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" 
                 value={trackingId}
                 onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                placeholder="Tracking number"
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-indigo-500 outline-none font-bold text-lg uppercase"
+                placeholder="e.g. ZYP95589497"
+                className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-mono font-bold text-base uppercase text-slate-900 transition-all"
+                required
               />
             </div>
-            <button type="submit" disabled={loading || !trackingId} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 disabled:opacity-50">
-              Track Order
+            <button 
+              type="submit" 
+              disabled={loading || !trackingId}
+              className="w-full bg-[#0052CC] hover:bg-[#0047cc] text-white py-3.5 rounded-2xl font-black text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <span>Track Order</span>
+              <ArrowRight size={17} />
             </button>
           </form>
-          {error && <p className="text-red-500 font-bold mt-4 text-center text-sm">{error}</p>}
+
+          {error && (
+            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center border border-red-200">
+              {error}
+            </div>
+          )}
+
+          <div className="pt-2 text-center">
+            <p className="text-[11px] font-bold text-slate-400">Trusted logistics made simple. Fast • Secure • Reliable</p>
+          </div>
         </div>
       </div>
     );
   }
 
   if (loading) {
-    return <div className="flex-1 bg-slate-50 min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-    </div>;
+    return (
+      <div className="flex-1 bg-[#F8FAFC] min-h-screen flex flex-col items-center justify-center text-slate-400">
+        <Truck className="animate-bounce text-[#0052CC] mb-3" size={36} />
+        <p className="text-xs font-bold">Searching shipment records...</p>
+      </div>
+    );
   }
 
   const currentStep = getStatusIndex(shipment.status);
-  const position = [38.889248, -77.0253];
+  const position = [15.4989, 77.2750];
 
   return (
-    <div className="max-w-md mx-auto bg-slate-50 min-h-screen relative overflow-hidden">
+    <div className="max-w-md md:max-w-xl mx-auto bg-[#F8FAFC] min-h-screen pb-24 font-sans text-slate-900">
       
-      {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors">
-          <ArrowLeft size={24} />
+      {/* Top Header */}
+      <div className="bg-white px-4 py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-xs border-b border-slate-100">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors">
+          <ArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-bold text-slate-900">Tracking Details</h1>
-        <div className="w-10"></div> {/* spacer */}
+        <div className="flex items-center gap-2">
+          <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
+        </div>
+        <button onClick={() => setShipment(null)} className="text-xs font-bold text-[#0052CC]">
+          New Search
+        </button>
       </div>
 
-      <div className="p-4 pb-32 space-y-4">
+      <div className="p-4 space-y-4">
         
-        {/* Package Card */}
-        <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
-          <div className="flex items-start gap-4 mb-5 border-b border-slate-50 pb-5">
-            <div className="w-14 h-14 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center shrink-0">
-              <Package size={28} />
+        {/* Status Hero Card */}
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-blue-50 text-[#0052CC] rounded-2xl flex items-center justify-center shrink-0">
+                <Package size={22} />
+              </div>
+              <div>
+                <h2 className="font-black text-slate-900 text-sm">{shipment.packageDetails?.category || 'Parcel Delivery'}</h2>
+                <p className="text-slate-400 text-xs font-mono font-bold mt-0.5">#{shipment.trackingId}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-slate-900 text-lg">{shipment.packageDetails?.category || 'General Parcel'}</h2>
-              <p className="text-slate-500 text-sm font-medium">#Tracking ID: <span className="font-bold text-slate-700">{shipment.trackingId}</span></p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm mb-4">
-            <div>
-              <p className="text-slate-400 font-medium text-xs mb-1">From</p>
-              <p className="font-bold text-slate-800 truncate">{shipment.pickupLocation?.address?.split(',')[0] || 'Origin'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium text-xs mb-1">Destination</p>
-              <p className="font-bold text-slate-800 truncate">{shipment.dropLocation?.address?.split(',')[0] || 'Destination'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium text-xs mb-1">Customer</p>
-              <p className="font-bold text-slate-800 truncate">{shipment.senderDetails?.name || 'Customer'}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium text-xs mb-1">Weight</p>
-              <p className="font-bold text-slate-800">{shipment.packageDetails?.weight || '0'} KG</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-50">
-            <span className="text-slate-500 font-medium text-sm">Status:</span>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold text-xs rounded-full inline-flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-blue-50 text-[#0052CC]">
               {shipment.status}
             </span>
           </div>
-        </div>
 
-        {/* Rider & OTP Card if assigned */}
-        {(shipment.currentRider || shipment.proofOfDelivery?.otp) && (
-          <div className="bg-indigo-600 p-5 rounded-3xl shadow-md text-white flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
-            <div>
-              <p className="text-indigo-200 text-xs font-medium mb-1">Delivery Partner</p>
-              <p className="font-bold text-lg">{shipment.currentRider?.name || 'Assigned Rider'}</p>
-              <p className="text-indigo-200 text-sm flex items-center gap-1 mt-1">
-                <Phone size={14}/> {shipment.currentRider?.phone || '+91 9876543210'}
-              </p>
+          {/* Stepper Progress */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+            <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-wider">
+              {allStatuses.map((st, i) => (
+                <span key={i} className={i <= currentStep ? 'text-[#0052CC]' : 'text-slate-400'}>
+                  {st.split(' ')[0]}
+                </span>
+              ))}
             </div>
-            <div className="bg-white/20 px-4 py-2 rounded-2xl text-center backdrop-blur-sm border border-white/10">
-              <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-wider mb-0.5">Delivery OTP</p>
-              <p className="font-black text-xl tracking-widest">{shipment.proofOfDelivery?.otp || '1234'}</p>
+            <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className="absolute top-0 bottom-0 left-0 bg-[#0052CC] rounded-full transition-all duration-500"
+                style={{ width: `${((currentStep + 1) / allStatuses.length) * 100}%` }}
+              ></div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Timeline */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mt-2">
-          <div className="relative pl-4 space-y-6">
-            <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-slate-100"></div>
-            
-            {allStatuses.map((statusName, index) => {
-              const isCompleted = index <= currentStep;
-              const isCurrent = index === currentStep;
-              
-              return (
-                <div key={statusName} className={`relative flex gap-4 ${isCompleted ? 'opacity-100' : 'opacity-40'}`}>
-                  <div className={`w-4 h-4 rounded-full border-2 bg-white flex items-center justify-center shrink-0 z-10 ${isCompleted ? 'border-indigo-600' : 'border-slate-300'}`}>
-                    {isCompleted && <div className="w-2 h-2 rounded-full bg-indigo-600"></div>}
-                  </div>
-                  <div className="-mt-1">
-                    <h4 className={`font-bold text-sm ${isCurrent ? 'text-indigo-600 text-base' : 'text-slate-800'}`}>{statusName}</h4>
-                    {isCurrent && shipment.trackingHistory?.length > 0 && (
-                      <p className="text-xs text-slate-500 font-medium mt-1">
-                        {shipment.trackingHistory[shipment.trackingHistory.length - 1].description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {/* Route Details */}
+        <div className="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Delivery Route</h3>
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Origin</p>
+              <p className="font-bold text-slate-800 mt-0.5 truncate">{shipment.pickupLocation?.address?.split(',')[0] || 'Origin'}</p>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Destination</p>
+              <p className="font-bold text-slate-800 mt-0.5 truncate">{shipment.dropLocation?.address?.split(',')[0] || 'Destination'}</p>
+            </div>
           </div>
         </div>
 
       </div>
-
-      {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pt-10 z-30 max-w-md mx-auto">
-        <button 
-          onClick={() => setShowLiveMap(true)} 
-          className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-indigo-700 transition-colors shadow-[0_8px_30px_rgb(79,70,229,0.3)] flex justify-center"
-        >
-          Live Tracking
-        </button>
-      </div>
-
-      {/* Live Map Overlay */}
-      <AnimatePresence>
-        {showLiveMap && (
-          <motion.div 
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 bg-white max-w-md mx-auto flex flex-col"
-          >
-            <div className="absolute top-4 left-4 z-[400]">
-               <button onClick={() => setShowLiveMap(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg text-slate-800">
-                 <X size={20} />
-               </button>
-            </div>
-            
-            <div className="flex-1 bg-slate-200 relative">
-              <MapContainer center={position} zoom={13} scrollWheelZoom={false} className="h-full w-full" zoomControl={false}>
-                <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                />
-                <Marker position={position}>
-                  <Popup>Current Location</Popup>
-                </Marker>
-              </MapContainer>
-            </div>
-
-            <div className="bg-white p-6 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] relative -mt-6 z-[400]">
-               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
-               <h3 className="font-bold text-xl text-slate-900 mb-2">Rider is on the way</h3>
-               <p className="text-slate-500 font-medium mb-6">Arriving in <span className="text-indigo-600 font-bold">10 mins</span></p>
-               
-               <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl">
-                 <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-xl">
-                   {shipment.currentRider?.name?.charAt(0) || 'R'}
-                 </div>
-                 <div className="flex-1">
-                   <p className="font-bold text-slate-800">{shipment.currentRider?.name || 'Assigned Rider'}</p>
-                   <p className="text-sm text-slate-500">Delivery Partner</p>
-                 </div>
-                 <a href={`tel:${shipment.currentRider?.phone}`} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center shadow-md">
-                   <Phone size={18} fill="currentColor" />
-                 </a>
-               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
     </div>
   );
 }
-
-

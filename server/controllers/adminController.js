@@ -279,12 +279,15 @@ exports.approveRider = async (req, res) => {
     await user.save();
 
     if (user.email) {
+       const { getFrontendUrl } = require('../utils/urlHelper');
+       const riderUrl = getFrontendUrl('rider');
+
        const htmlBody = NotificationService.generateEmailTemplate({
          title: 'You are Approved! 🎉',
          message: `Hello ${user.name},<br><br>Your rider application has been <b>approved</b> by the admin team! You can now log in to the Rider App using your email address and the generated password below.`,
          otpCode: generatedPassword,
          buttonText: 'Login to Rider App',
-         buttonUrl: 'http://rider.localhost:5173',
+         buttonUrl: riderUrl,
          footerNote: 'Please change this password immediately after your first login.'
        });
 

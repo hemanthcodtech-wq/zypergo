@@ -85,7 +85,20 @@ export default function HubHome() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        {/* Book Parcel Card */}
+        <div className="bg-gradient-to-br from-[#0052CC] to-[#00388A] rounded-[2rem] p-6 text-white shadow-[0_8px_30px_-6px_rgba(0,82,204,0.5)] relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
+          <Package size={32} className="mb-4 opacity-90 relative z-10 drop-shadow-md text-amber-300" />
+          <h3 className="font-black text-xl relative z-10 tracking-tight">+ Book Customer Parcel</h3>
+          <p className="text-xs font-bold opacity-80 mt-1 mb-6 relative z-10">Walk-in booking, live SMS & Email invoice</p>
+          <button onClick={() => navigate('/dashboard/book')} className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#0052CC] font-black px-5 py-3 rounded-2xl text-sm transition-all flex items-center justify-center sm:justify-start gap-2 relative z-10 shadow-md group-hover:shadow-lg">
+            Book Parcel <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        {/* Scan Desk */}
         <div className="bg-gradient-to-br from-[#006D77] to-[#004d55] rounded-[2rem] p-6 text-white shadow-[0_8px_30px_-6px_rgba(0,109,119,0.5)] relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
           <Scan size={32} className="mb-4 opacity-90 relative z-10 drop-shadow-md" />
@@ -96,6 +109,7 @@ export default function HubHome() {
           </button>
         </div>
 
+        {/* Create Manifest */}
         <div className="bg-gradient-to-br from-[#6366F1] to-[#4338ca] rounded-[2rem] p-6 text-white shadow-[0_8px_30px_-6px_rgba(99,102,241,0.5)] relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150"></div>
           <FileText size={32} className="mb-4 opacity-90 relative z-10 drop-shadow-md" />

@@ -10,6 +10,7 @@ import HubInventory from './hub/HubInventory';
 import HubRecords from './hub/HubRecords';
 import HubHome from './hub/HubHome';
 import HubAccount from './hub/HubAccount';
+import HubBookOrder from './hub/HubBookOrder';
 
 export default function HubApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('zypergo_token'));
@@ -48,6 +49,7 @@ export default function HubApp() {
         </ProtectedRoute>
       }>
         <Route index element={<HubHome />} />
+        <Route path="book" element={<HubBookOrder />} />
         <Route path="scan" element={<HubScan />} />
         <Route path="manifests" element={<HubManifests />} />
         <Route path="inventory" element={<HubInventory />} />

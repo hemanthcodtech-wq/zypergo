@@ -63,12 +63,15 @@ exports.createHub = async (req, res) => {
 
       await createdManager.save();
 
+      const { getFrontendUrl } = require('../utils/urlHelper');
+      const hubUrl = getFrontendUrl('hub');
+
       // Fire-and-forget email
       const htmlBody = NotificationService.generateEmailTemplate({
         title: `Welcome, ${createdManager.name}!`,
-        message: `Your Hub Manager account has been created. You can now log in to the ZyperGo Hub Portal to manage your hub operations.<br><br><b>Login Portal:</b> <a href="http://hub.localhost:5173">hub.localhost:5173</a><br><b>Phone Number:</b> ${createdManager.phone}<br><b>Password:</b> ${generatedPassword}`,
+        message: `Your Hub Manager account has been created. You can now log in to the ZyperGo Hub Portal to manage your hub operations.<br><br><b>Login Portal:</b> <a href="${hubUrl}">${hubUrl}</a><br><b>Phone Number:</b> ${createdManager.phone}<br><b>Password:</b> ${generatedPassword}`,
         buttonText: 'Login to Hub Portal',
-        buttonUrl: 'http://hub.localhost:5173',
+        buttonUrl: hubUrl,
         footerNote: 'Please change your password after first login. If you did not request this access, contact your administrator.'
       });
 

@@ -128,18 +128,80 @@ class NotificationService {
 
   // --- High Level Event Handlers ---
 
+  static getFrontendBaseUrl() {
+    return process.env.FRONTEND_URL || 'http://localhost:5173';
+  }
+
   static notifyBookingConfirmed(booking, customerPhone, customerEmail) {
-    this.sendSMS(customerPhone, `Your ZyperGo booking (${booking.trackingId}) is confirmed! Track here: http://localhost:5173/track/${booking.trackingId}`);
-    this.sendWhatsApp(customerPhone, `Hi, your ZyperGo booking (${booking.trackingId}) is confirmed! Track your shipment live: http://localhost:5173/track/${booking.trackingId}`);
+    const trackingUrl = `${this.getFrontendBaseUrl()}/track/${booking.trackingId}`;
+    const totalAmount = booking.pricing?.total || 0;
+    const origin = booking.pickupLocation?.address || booking.pickupLocation?.city || 'Hub Origin';
+    const destination = booking.dropLocation?.address || booking.dropLocation?.city || 'Destination';
+    const senderName = booking.senderDetails?.name || 'Customer';
+    const receiverName = booking.receiver?.name || 'Receiver';
+
+    this.sendSMS(
+      customerPhone, 
+      `Your ZyperGo booking (${booking.trackingId}) is confirmed! Total: Rs.${totalAmount}. Track here: ${trackingUrl}`
+    );
+    this.sendWhatsApp(
+      customerPhone, 
+      `Hi ${senderName}, your ZyperGo parcel #${booking.trackingId} to ${receiverName} is confirmed! Total: Rs.${totalAmount}. Track shipment live: ${trackingUrl}`
+    );
+
     if (customerEmail) {
+      const invoiceTable = `
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; margin: 20px 0; font-family: sans-serif; text-align: left;">
+          <h3 style="margin: 0 0 12px 0; color: #0052cc; font-size: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Order & Invoice Receipt</h3>
+          
+          <table style="width: 100%; font-size: 13px; color: #334155; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Tracking Number:</strong></td>
+              <td style="padding: 4px 0; text-align: right; font-weight: bold; color: #0052cc;">#${booking.trackingId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Sender:</strong></td>
+              <td style="padding: 4px 0; text-align: right;">${senderName} (${customerPhone || 'N/A'})</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Receiver:</strong></td>
+              <td style="padding: 4px 0; text-align: right;">${receiverName} (${booking.receiver?.phone || 'N/A'})</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Origin:</strong></td>
+              <td style="padding: 4px 0; text-align: right;">${origin}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Destination:</strong></td>
+              <td style="padding: 4px 0; text-align: right;">${destination}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b;"><strong>Package Weight:</strong></td>
+              <td style="padding: 4px 0; text-align: right;">${booking.packageDetails?.weight || 1} kg</td>
+            </tr>
+            <tr style="border-top: 1px dashed #cbd5e1;">
+              <td style="padding: 8px 0 4px 0; font-size: 14px; font-weight: bold; color: #0f172a;"><strong>Total Amount:</strong></td>
+              <td style="padding: 8px 0 4px 0; text-align: right; font-size: 15px; font-weight: bold; color: #16a34a;">₹${totalAmount}</td>
+            </tr>
+            <tr>
+              <td style="padding: 2px 0; color: #64748b; font-size: 11px;">Payment Mode:</td>
+              <td style="padding: 2px 0; text-align: right; font-size: 11px; color: #64748b;">${booking.payment?.mode || 'Paid / COD'}</td>
+            </tr>
+          </table>
+        </div>
+      `;
+
       const htmlBody = this.generateEmailTemplate({
-        title: 'Booking Confirmed',
-        message: 'Your ZyperGo booking has been confirmed and is scheduled for pickup.',
-        buttonText: 'Track Shipment',
-        buttonUrl: `http://localhost:5173/track/${booking.trackingId}`,
-        footerNote: `Tracking ID: <strong>${booking.trackingId}</strong>`
+        title: 'Booking Confirmed & Receipt',
+        message: `Hello <b>${senderName}</b>,<br>Your ZyperGo booking <b>#${booking.trackingId}</b> has been received and confirmed. Below are your shipment and invoice details:`,
+        otpCode: null,
+        buttonText: 'Track Shipment Live',
+        buttonUrl: trackingUrl,
+        footerNote: `${invoiceTable}<p style="font-size: 12px; color: #64748b; margin-top: 10px;">For assistance, contact our 24/7 support at support@zypergo.com</p>`
       });
-      this.sendEmail(customerEmail, 'Booking Confirmed - ZyperGo', htmlBody);
+
+      this.sendEmail(customerEmail, `Booking Confirmed #${booking.trackingId} - ZyperGo Logistics`, htmlBody)
+        .catch(e => console.error(`[Email Error] Failed sending to ${customerEmail}:`, e.message));
     }
   }
 
@@ -162,9 +224,10 @@ class NotificationService {
   }
 
   static notifyPickedUp(booking, customerPhone, receiverPhone) {
+    const trackingUrl = `${this.getFrontendBaseUrl()}/track/${booking.trackingId}`;
     this.sendSMS(customerPhone, `Your shipment (${booking.trackingId}) has been successfully picked up.`);
-    this.sendSMS(receiverPhone, `A ZyperGo shipment (${booking.trackingId}) is on its way to you! Track here: http://localhost:5173/track/${booking.trackingId}`);
-    this.sendWhatsApp(receiverPhone, `Hi! A shipment is heading your way. Track live: http://localhost:5173/track/${booking.trackingId}`);
+    this.sendSMS(receiverPhone, `A ZyperGo shipment (${booking.trackingId}) is on its way to you! Track here: ${trackingUrl}`);
+    this.sendWhatsApp(receiverPhone, `Hi! A shipment is heading your way. Track live: ${trackingUrl}`);
   }
 
   static notifyInTransit(booking, receiverPhone) {

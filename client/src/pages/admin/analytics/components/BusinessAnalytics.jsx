@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import api from '../../../../api';
 
 export default function BusinessAnalytics() {
   const [data, setData] = useState(null);
@@ -8,11 +9,8 @@ export default function BusinessAnalytics() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/analytics/business', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('zypergo_token')}` }
-        });
-        const json = await res.json();
-        if (json.success) setData(json.data);
+        const res = await api.get('/analytics/business');
+        if (res.data.success) setData(res.data.data);
       } catch (err) {
         console.error("Failed to fetch business analytics:", err);
       } finally {

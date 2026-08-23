@@ -282,10 +282,9 @@ exports.forgotPassword = async (req, res) => {
     
     await user.save();
 
-    // Construct reset URL based on origin (the frontend application)
-    // We expect the frontend to pass the origin or we can use headers
-    const origin = req.headers.origin || 'http://localhost:5173';
-    const resetUrl = `${origin}/reset-password?token=${resetToken}`;
+    // Construct reset URL based on origin (the frontend application) or FRONTEND_URL
+    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetUrl = `${origin.replace(/\/+$/, '')}/reset-password?token=${resetToken}`;
 
     const htmlBody = NotificationService.generateEmailTemplate({
       title: 'Password Reset Request',

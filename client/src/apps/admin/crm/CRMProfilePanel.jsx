@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Phone, MapPin, Package, AlertCircle } from 'lucide-react';
+import api from '../../../api';
 
 export default function CRMProfilePanel({ userId, onClose }) {
   const [profile, setProfile] = useState(null);
@@ -8,9 +9,8 @@ export default function CRMProfilePanel({ userId, onClose }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/support/admin/crm/${userId}`);
-        const json = await res.json();
-        if (json.success) setProfile(json.data);
+        const res = await api.get(`/support/admin/crm/${userId}`);
+        if (res.data.success) setProfile(res.data.data);
       } catch (err) {
         console.error("Error fetching CRM profile:", err);
       } finally {

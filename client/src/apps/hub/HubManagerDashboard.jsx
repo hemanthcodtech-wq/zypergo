@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Scan, FileText, Warehouse, Activity, LayoutDashboard, LogOut,
-  User, Bell
+  User, Bell, Package, PlusCircle
 } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import api from '../../api';
 
 const NAV_ITEMS = [
   { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'book', path: '/dashboard/book', label: '+ Book Parcel', icon: PlusCircle },
   { id: 'scan', path: '/dashboard/scan', label: 'Scan', icon: Scan },
   { id: 'manifests', path: '/dashboard/manifests', label: 'Manifests', icon: FileText },
   { id: 'inventory', path: '/dashboard/inventory', label: 'Inventory', icon: Warehouse },

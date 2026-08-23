@@ -3,9 +3,16 @@ import DashboardKPIs from './components/DashboardKPIs';
 import OperationalReports from './components/OperationalReports';
 import BusinessAnalytics from './components/BusinessAnalytics';
 import { BarChart, Activity, PieChart } from 'lucide-react';
+import api from '../../../api';
 
 export default function AnalyticsDashboard() {
   const [activeTab, setActiveTab] = useState('kpi');
+
+  const handleExport = () => {
+    const baseUrl = api.defaults.baseURL || '/api';
+    const token = localStorage.getItem('zypergo_token');
+    window.open(`${baseUrl}/analytics/export/daily-bookings?token=${token || ''}`, '_blank');
+  };
 
   return (
     <div className="space-y-6">
@@ -18,7 +25,7 @@ export default function AnalyticsDashboard() {
         {/* Export Button */}
         <button 
           className="bg-[#006D77] hover:bg-[#005f6a] text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition"
-          onClick={() => window.open('http://localhost:5000/api/analytics/export/daily-bookings', '_blank')}
+          onClick={handleExport}
         >
           Export Daily Report
         </button>

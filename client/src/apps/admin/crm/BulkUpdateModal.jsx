@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Megaphone, X, Send } from 'lucide-react';
+import api from '../../../api';
 
 export default function BulkUpdateModal({ onClose }) {
   const [origin, setOrigin] = useState('');
@@ -12,26 +13,22 @@ export default function BulkUpdateModal({ onClose }) {
     if (!origin || !destination || !message) return;
     setStatus('loading');
     try {
-      const res = await fetch('http://localhost:5000/api/support/admin/bulk-update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('zypergo_token')}`
-        },
-        body: JSON.stringify({ originCity: origin, destinationCity: destination, message })
+      const res = await api.post('/support/admin/bulk-update', {
+        originCity: origin,
+        destinationCity: destination,
+        message
       });
-      const json = await res.json();
-      if (json.success) {
+      if (res.data.success) {
         setStatus('success');
-        setResultMsg(json.message);
+        setResultMsg(res.data.message);
       } else {
         setStatus('error');
-        setResultMsg(json.message);
+        setResultMsg(res.data.message || 'Failed to send bulk update.');
       }
     } catch (err) {
       console.error(err);
       setStatus('error');
-      setResultMsg('Failed to send bulk update.');
+      setResultMsg(err.response?.data?.message || 'Failed to send bulk update.');
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LifeBuoy, AlertCircle, MessageSquare, PhoneCall, CheckCircle, PackageX, UserX, Clock, Send, FileText, Plus, X, Megaphone } from 'lucide-react';
 import CRMProfilePanel from './crm/CRMProfilePanel';
 import BulkUpdateModal from './crm/BulkUpdateModal';
+import api from '../../api';
 
 export default function SupportTickets() {
   const [activeQueue, setActiveQueue] = useState('open');
@@ -20,12 +21,11 @@ export default function SupportTickets() {
     setLoading(true);
     try {
       const statusFilter = activeQueue === 'open' ? 'Open' : 'Resolved';
-      const res = await fetch(`http://localhost:5000/api/support/admin/tickets?status=${statusFilter}`);
-      const json = await res.json();
-      if (json.success) {
-        setTickets(json.data);
-        if (json.data.length > 0 && !selectedTicket) {
-          setSelectedTicket(json.data[0]);
+      const res = await api.get(`/support/admin/tickets?status=${statusFilter}`);
+      if (res.data.success) {
+        setTickets(res.data.data);
+        if (res.data.data.length > 0 && !selectedTicket) {
+          setSelectedTicket(res.data.data[0]);
         }
       }
     } catch (err) {
@@ -38,14 +38,9 @@ export default function SupportTickets() {
   const handleSendNote = async () => {
     if (!newNote.trim() || !selectedTicket) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/support/admin/tickets/${selectedTicket._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ internalNote: newNote })
-      });
-      const json = await res.json();
-      if (json.success) {
-        setSelectedTicket(json.data);
+      const res = await api.put(`/support/admin/tickets/${selectedTicket._id}`, { internalNote: newNote });
+      if (res.data.success) {
+        setSelectedTicket(res.data.data);
         setNewNote('');
         fetchTickets(); // Refresh list to get updated notes
       }
@@ -57,14 +52,9 @@ export default function SupportTickets() {
   const updateStatus = async (newStatus) => {
     if (!selectedTicket) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/support/admin/tickets/${selectedTicket._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      const json = await res.json();
-      if (json.success) {
-        setSelectedTicket(json.data);
+      const res = await api.put(`/support/admin/tickets/${selectedTicket._id}`, { status: newStatus });
+      if (res.data.success) {
+        setSelectedTicket(res.data.data);
         fetchTickets();
       }
     } catch (err) {

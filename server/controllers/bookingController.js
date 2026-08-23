@@ -155,10 +155,30 @@ exports.createBooking = async (req, res) => {
     const booking = new Booking(bookingData);
     await booking.save();
 
-    // Mock Notifications
-    console.log(`[SMS] To Sender (${bookingData.senderDetails?.phone || 'Guest'}): Booking ${trackingId} confirmed.`);
-    console.log(`[PUSH] Booking confirmed. Track here: /track?id=${trackingId}`);
-    console.log(`[SMS] To Receiver (${bookingData.receiver?.phone}): Expect a package! Tracking ID: ${trackingId}`);
+    // Automated Notifications & Invoice Dispatch via NotificationService
+    const NotificationService = require('../services/notificationService');
+    const customerPhone = bookingData.senderDetails?.phone || bookingData.customerPhone;
+    const customerEmail = bookingData.senderDetails?.email || bookingData.customerEmail;
+    const receiverPhone = bookingData.receiver?.phone;
+    const receiverEmail = bookingData.receiver?.email;
+
+    try {
+      NotificationService.notifyBookingConfirmed(booking, customerPhone, customerEmail);
+      
+      if (receiverPhone) {
+        const trackingUrl = `${NotificationService.getFrontendBaseUrl()}/track/${trackingId}`;
+        NotificationService.sendSMS(
+          receiverPhone, 
+          `Hi ${bookingData.receiver?.name || 'there'}! A parcel (${trackingId}) was booked for you by ${bookingData.senderDetails?.name || 'Sender'}. Track live: ${trackingUrl}`
+        );
+        NotificationService.sendWhatsApp(
+          receiverPhone,
+          `Hi ${bookingData.receiver?.name || ''}! A parcel (${trackingId}) is on its way to you. Track live: ${trackingUrl}`
+        );
+      }
+    } catch (notifErr) {
+      console.error('Notification dispatch error:', notifErr.message);
+    }
 
     // Automatically Broadcast to nearby riders
     try {

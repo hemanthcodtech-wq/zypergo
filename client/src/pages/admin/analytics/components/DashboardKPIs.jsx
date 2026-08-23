@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Truck, AlertTriangle, RefreshCcw, DollarSign, Wallet, CheckCircle, Clock } from 'lucide-react';
+import api from '../../../../api';
 
 export default function DashboardKPIs() {
   const [data, setData] = useState(null);
@@ -8,12 +9,8 @@ export default function DashboardKPIs() {
   useEffect(() => {
     const fetchKPIs = async () => {
       try {
-        // Fetching from the new analytics endpoint
-        const res = await fetch('http://localhost:5000/api/analytics/kpis', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('zypergo_token')}` }
-        });
-        const json = await res.json();
-        if (json.success) setData(json.data);
+        const res = await api.get('/analytics/kpis');
+        if (res.data.success) setData(res.data.data);
       } catch (err) {
         console.error("Failed to fetch KPIs:", err);
       } finally {

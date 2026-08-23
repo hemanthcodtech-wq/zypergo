@@ -102,9 +102,9 @@ export default function RateCalculator() {
                     <span className="font-bold text-slate-900">{estimate.eta}</span>
                   </div>
                 </div>
-                <a href="http://customer.localhost:5173" className="w-full block text-center bg-[#FFB703] text-[#0F172A] font-black py-3 rounded-xl shadow hover:bg-[#ffc124]">
+                <Link to="/booking" className="w-full block text-center bg-[#0052CC] text-white font-black py-3.5 rounded-xl shadow-lg hover:bg-[#0047cc] active:scale-95 transition-all">
                   Proceed to Book
-                </a>
+                </Link>
               </div>
             )}
           </div>
