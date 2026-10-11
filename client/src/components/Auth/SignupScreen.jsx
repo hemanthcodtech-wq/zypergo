@@ -3,22 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { User, Phone, Mail, ArrowRight, Camera, UploadCloud, CheckCircle2, FileText, ArrowLeft, ShieldCheck } from 'lucide-react';
 import api from '../../api';
 
-const COUNTRY_CODES = [
-  { code: '+91', country: 'India', flag: '🇮🇳' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+44', country: 'UK', flag: '🇬🇧' },
-  { code: '+971', country: 'UAE', flag: '🇦🇪' },
-  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
-  { code: '+61', country: 'Australia', flag: '🇦🇺' },
-  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
-  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
-  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
-  { code: '+968', country: 'Oman', flag: '🇴🇲' },
-  { code: '+60', country: 'Malaysia', flag: '🇲🇾' },
-  { code: '+49', country: 'Germany', flag: '🇩🇪' },
-  { code: '+33', country: 'France', flag: '🇫🇷' },
-];
-
 export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -26,7 +10,6 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
 
   // Common details requested: Name, Phone, Email, Profile Image
   const [name, setName] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(searchParams.get('email') || '');
   const [profileImage, setProfileImage] = useState(null);
@@ -35,17 +18,8 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
   useEffect(() => {
     const queryPhone = searchParams.get('phone');
     const queryEmail = searchParams.get('email');
-    if (queryPhone) {
-      // Check if it already has country code
-      const matched = COUNTRY_CODES.find(c => queryPhone.startsWith(c.code));
-      if (matched) {
-        setCountryCode(matched.code);
-        setPhone(queryPhone.slice(matched.code.length).replace(/\D/g, ''));
-      } else {
-        setPhone(queryPhone.replace(/\D/g, ''));
-      }
-    }
-    if (queryEmail) setEmail(queryEmail);
+    if (queryPhone) setPhone(queryPhone.trim());
+    if (queryEmail) setEmail(queryEmail.trim());
   }, [searchParams]);
 
   // Rider specific document uploads: Aadhaar Card, PAN Card
@@ -139,7 +113,7 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
         uploadedPhotoUrl = await uploadFile(profileImage);
       }
 
-      const formattedPhone = `${countryCode}${phone.trim().replace(/\D/g, '')}`;
+      const formattedPhone = phone.trim();
 
       if (isRider) {
         let uploadedAadhaarUrl = '';
@@ -323,29 +297,19 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                 </div>
               </div>
 
-              {/* Phone Number with Country Code */}
+              {/* Phone Number */}
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
                   Phone Number
                 </label>
-                <div className="flex rounded-xl border border-slate-200 bg-slate-50 focus-within:bg-white focus-within:border-[#0052CC] focus-within:ring-2 focus-within:ring-[#0052CC]/20 transition-all overflow-hidden">
-                  <select 
-                    value={countryCode} 
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-transparent pl-3 pr-1 py-2.5 font-bold text-xs text-slate-700 outline-none border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
-                  >
-                    {COUNTRY_CODES.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.flag} {c.code}
-                      </option>
-                    ))}
-                  </select>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
                   <input 
                     type="tel" 
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setPhone(e.target.value)}
                     placeholder="Enter mobile number"
-                    className="flex-1 px-3 py-2.5 bg-transparent outline-none font-semibold text-xs text-slate-900"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
                     required
                   />
                 </div>
