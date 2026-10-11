@@ -107,7 +107,6 @@ const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
 
 // Serve static files in production if SERVE_STATIC is true or client dist exists
-const path = require('path');
 const fs = require('fs');
 
 const clientDistPath = path.join(__dirname, '../client/dist');
