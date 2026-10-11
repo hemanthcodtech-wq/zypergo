@@ -171,29 +171,8 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
         }
       }
     } catch (err) {
-      console.warn('Backend register error, using graceful local account creation for demo', err);
-      // Graceful local creation fallback
-      const fallbackUser = {
-        id: 'user_' + Date.now(),
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        role,
-        photoUrl: profilePreview || ''
-      };
-      localStorage.setItem('zypergo_token', 'token_' + Date.now());
-      localStorage.setItem('zypergo_user', JSON.stringify(fallbackUser));
-      
-      if (isRider) {
-        setIsSubmitted(true);
-        setTimeout(() => {
-          if (onLoginSuccess) onLoginSuccess(fallbackUser);
-          else navigate('/dashboard');
-        }, 1500);
-      } else {
-        if (onLoginSuccess) onLoginSuccess(fallbackUser);
-        else navigate('/dashboard');
-      }
+      console.error('Registration error:', err);
+      setError(err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please verify your details and try again.');
     } finally {
       setLoading(false);
     }

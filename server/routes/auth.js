@@ -15,16 +15,40 @@ const generateToken = (user) => {
   );
 };
 
+// --- Helpers for Phone Normalization & Matching ---
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const digits = phone.toString().replace(/\D/g, '');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+};
+
+const getPhoneQueries = (phone) => {
+  if (!phone) return [];
+  const raw = phone.toString().trim();
+  const digits = raw.replace(/\D/g, '');
+  const last10 = digits.slice(-10);
+  const set = new Set([
+    raw,
+    digits,
+    last10,
+    `+91${last10}`,
+    `91${last10}`,
+    `+91 ${last10}`,
+    `0${last10}`
+  ]);
+  return Array.from(set).map(p => ({ phone: p }));
+};
+
 // 1. Basic Login (Fallback)
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, password } = req.body || {};
     
     if (!phone || !password) {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ $or: getPhoneQueries(phone) });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -135,19 +159,29 @@ router.post('/send-otp', async (req, res) => {
     const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
 
-    let user = await User.findOne({
-      $or: [
-        ...(isEmail ? [{ email: { $regex: new RegExp(`^${identifier}$`, 'i') } }] : []),
-        ...(!isEmail ? [{ phone: identifier }] : [])
-      ],
-      ...(role ? { role } : {})
-    });
+    let queryConditions = [];
+    if (isEmail) {
+      queryConditions.push({ email: { $regex: new RegExp(`^${identifier}$`, 'i') } });
+    } else {
+      queryConditions.push(...getPhoneQueries(identifier));
+    }
+
+    let user = await User.findOne({ $or: queryConditions });
 
     if (!user) {
       return res.status(404).json({
         success: false,
         notRegistered: true,
         error: `No registered account found with this ${isEmail ? 'email' : 'mobile number'}. Please sign up first.`
+      });
+    }
+
+    // Role check: If requested role doesn't match
+    if (role && user.role !== role && user.role !== 'SuperAdmin') {
+      return res.status(403).json({
+        success: false,
+        roleMismatch: true,
+        error: `This ${isEmail ? 'email' : 'mobile number'} is registered as a ${user.role}. Please log in via the ${user.role} portal.`
       });
     }
 
@@ -189,14 +223,14 @@ router.post('/send-otp', async (req, res) => {
     });
   } catch (error) {
     console.error('Send OTP error:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    res.status(500).json({ error: 'Failed to send OTP: ' + error.message });
   }
 });
 
 // 1.d Verify OTP (Integrated with MSG91 and Database Verification)
 router.post('/verify-otp', async (req, res) => {
   try {
-    const { email, phone, otp, role } = req.body;
+    const { email, phone, otp, role } = req.body || {};
     const identifier = (email || phone || '').trim();
     const enteredOtp = (otp || '').trim();
     
@@ -205,9 +239,14 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const isEmail = identifier.includes('@');
-    let user = await User.findOne({
-      $or: [{ email: identifier }, { phone: identifier }]
-    });
+    let queryConditions = [];
+    if (isEmail) {
+      queryConditions.push({ email: { $regex: new RegExp(`^${identifier}$`, 'i') } });
+    } else {
+      queryConditions.push(...getPhoneQueries(identifier));
+    }
+
+    let user = await User.findOne({ $or: queryConditions });
 
     let isValid = false;
 
@@ -236,9 +275,10 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     if (!user) {
+      const normalizedPhone = normalizePhone(identifier);
       user = new User({
         name: isEmail ? identifier.split('@')[0] : (role === 'Rider' ? 'Rider Partner' : 'Customer User'),
-        phone: !isEmail ? identifier : ('91' + Math.floor(1000000000 + Math.random() * 9000000000)),
+        phone: !isEmail ? normalizedPhone : ('91' + Math.floor(1000000000 + Math.random() * 9000000000)),
         email: isEmail ? identifier : undefined,
         role: role || 'Customer',
         password: Math.random().toString(36).slice(-8)
@@ -277,22 +317,32 @@ router.post('/verify-otp', async (req, res) => {
 // 2. Customer/Admin Registration
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, email, role, photoUrl } = req.body;
-
+    const { name, phone, password, email, role, photoUrl } = req.body || {};
     const userRole = role || 'Customer';
 
-    let user = await User.findOne({ phone });
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    const searchConditions = [
+      ...getPhoneQueries(phone),
+      ...(email ? [{ email: { $regex: new RegExp(`^${email.trim()}$`, 'i') } }] : [])
+    ];
+
+    let user = await User.findOne({ $or: searchConditions });
     if (user) {
       user.name = name || user.name;
-      if (email) user.email = email;
+      if (email) user.email = email.trim();
       if (photoUrl) user.photoUrl = photoUrl;
+      user.phone = normalizedPhone || user.phone;
       await user.save();
     } else {
       user = new User({
         name: name || 'Customer User',
-        phone,
+        phone: normalizedPhone,
         password: password || Math.random().toString(36).slice(-8),
-        email,
+        email: email ? email.trim() : undefined,
         role: userRole,
         photoUrl
       });
@@ -323,14 +373,14 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
+    res.status(500).json({ error: 'Server error during registration: ' + error.message });
   }
 });
 
 // 2.b Rider Direct Registration
 router.post('/register-rider', async (req, res) => {
   try {
-    const { name, phone, email, password, photoUrl, aadhaarUrl, panUrl, documents } = req.body;
+    const { name, phone, email, password, photoUrl, aadhaarUrl, panUrl, documents } = req.body || {};
 
     if (!phone) {
       return res.status(400).json({ error: 'Phone number is required' });
@@ -339,12 +389,19 @@ router.post('/register-rider', async (req, res) => {
     const docAadhaar = aadhaarUrl || (documents && documents.aadhaarUrl) || '';
     const docPan = panUrl || (documents && documents.panUrl) || '';
     const docPhoto = photoUrl || (documents && documents.profileImageUrl) || '';
+    const normalizedPhone = normalizePhone(phone);
 
-    let user = await User.findOne({ phone });
+    const searchConditions = [
+      ...getPhoneQueries(phone),
+      ...(email ? [{ email: { $regex: new RegExp(`^${email.trim()}$`, 'i') } }] : [])
+    ];
+
+    let user = await User.findOne({ $or: searchConditions });
     if (user) {
       user.name = name || user.name;
-      if (email) user.email = email;
+      if (email) user.email = email.trim();
       user.role = 'Rider';
+      user.phone = normalizedPhone || user.phone;
       if (docPhoto) user.photoUrl = docPhoto;
       if (!user.riderDetails) user.riderDetails = {};
       user.riderDetails.approvalStatus = 'Approved';
@@ -358,8 +415,8 @@ router.post('/register-rider', async (req, res) => {
     } else {
       user = new User({
         name: name || 'Rider Partner',
-        phone,
-        email,
+        phone: normalizedPhone,
+        email: email ? email.trim() : undefined,
         password: password || Math.random().toString(36).slice(-8),
         role: 'Rider',
         photoUrl: docPhoto,
@@ -402,7 +459,7 @@ router.post('/register-rider', async (req, res) => {
     });
   } catch (error) {
     console.error('Rider registration error:', error);
-    res.status(500).json({ error: 'Server error during rider registration' });
+    res.status(500).json({ error: 'Server error during rider registration: ' + error.message });
   }
 });
 

@@ -49,7 +49,7 @@ app.use('/api/bookings', bookingRoutes);
 const supportRoutes = require('./routes/supportRoutes');
 app.use('/api/support', supportRoutes);
 
-const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
 const userRoutes = require('./routes/userRoutes');
