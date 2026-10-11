@@ -123,7 +123,7 @@ router.post('/login-password', async (req, res) => {
 // 1.c Send OTP (Integrated with MSG91 SMS DLT and Gmail SMTP)
 router.post('/send-otp', async (req, res) => {
   try {
-    const { email, phone, role } = req.body;
+    const { email, phone, role } = req.body || {};
     const identifier = (email || phone || '').trim();
     
     if (!identifier) {

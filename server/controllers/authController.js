@@ -10,7 +10,7 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 exports.sendOtp = async (req, res) => {
   try {
-    const { email, phone, role, name, password, riderDetails } = req.body;
+    const { email, phone, role, name, password, riderDetails } = req.body || {};
     
     // We can allow either email or phone for login, but for signup we want both
     if (!email && !phone) return res.status(400).json({ success: false, error: 'Email or phone number is required' });
