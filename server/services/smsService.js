@@ -41,12 +41,14 @@ class SmsService {
     console.log(`[MSG91] Sending OTP ${otp} to ${formattedMobile} using Template ${templateId}...`);
 
     try {
-      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${formattedMobile}&authkey=${authKey}&otp=${otp}`;
+      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${formattedMobile}&otp=${otp}`;
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'authkey': authKey
+        },
+        body: JSON.stringify({ otp })
       });
       const data = await response.json();
       console.log('[MSG91] Response:', data);
@@ -65,11 +67,12 @@ class SmsService {
     const authKey = this.getAuthKey();
 
     try {
-      const url = `https://control.msg91.com/api/v5/otp/verify?otp=${otp}&mobile=${formattedMobile}&authkey=${authKey}`;
+      const url = `https://control.msg91.com/api/v5/otp/verify?otp=${otp}&mobile=${formattedMobile}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'authkey': authKey
         }
       });
       const data = await response.json();
