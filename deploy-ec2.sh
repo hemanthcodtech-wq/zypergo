@@ -30,17 +30,34 @@ fi
 
 # 3. Install PM2 globally if not installed
 if ! [ -x "$(command -v pm2)" ]; then
-    echo "[3/6] Installing PM2 process manager..."
+    echo "[3/7] Installing PM2 process manager..."
     sudo npm install -g pm2
 fi
 
-# 4. Install dependencies and build client
-echo "[4/6] Installing backend and frontend dependencies..."
+# 4. Install MongoDB Community Edition (Self-Hosted on AWS EC2)
+if ! [ -x "$(command -v mongod)" ]; then
+    echo "[4/7] Installing MongoDB on AWS EC2..."
+    if [ -x "$(command -v apt-get)" ]; then
+        sudo apt-get install -y gnupg curl
+        curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor --yes
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs)/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+        sudo apt-get update -y
+        sudo apt-get install -y mongodb-org
+        sudo systemctl start mongod
+        sudo systemctl enable mongod
+    fi
+else
+    echo "[4/7] MongoDB is already installed ($(mongod --version | head -n 1))."
+fi
+
+# 5. Install dependencies and build client
+echo "[5/7] Installing backend and frontend dependencies..."
+sudo mkdir -p server/uploads
 cd server && npm install --production=false && cd ..
 cd client && npm install && npm run build && cd ..
 
-# 5. Configure Nginx
-echo "[5/6] Configuring Nginx reverse proxy..."
+# 6. Configure Nginx
+echo "[6/7] Configuring Nginx reverse proxy..."
 sudo mkdir -p /var/log/nginx
 if [ -f "nginx.conf" ]; then
     # Create web root and copy build

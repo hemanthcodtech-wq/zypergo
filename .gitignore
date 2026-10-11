@@ -46,3 +46,8 @@ pnpm-debug.log*
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Archives and Keys
+*.zip
+*.pem
+

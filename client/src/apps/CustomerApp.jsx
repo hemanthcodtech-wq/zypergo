@@ -16,6 +16,7 @@ import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 import { Search, Bell, ChevronDown, User as UserIcon, Settings, Home, Package, MapPin, Plus, Calendar, HelpCircle } from 'lucide-react';
 import CustomerNotifications from './customer/CustomerNotifications';
 import OrderDetails from './customer/OrderDetails';
+import MobileDeviceFrame from '../components/common/MobileDeviceFrame';
 
 function CustomerLayout() {
   const location = useLocation();
@@ -150,44 +151,46 @@ export default function CustomerApp() {
   };
 
   return (
-    <Routes>
-      <Route path="/login" element={
-        <PublicRoute requiredRole="Customer">
-          <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
-      <Route path="/signup" element={
-        <PublicRoute requiredRole="Customer">
-          <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
+    <MobileDeviceFrame appName="Customer App">
+      <Routes>
+        <Route path="/login" element={
+          <PublicRoute requiredRole="Customer">
+            <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
+        <Route path="/signup" element={
+          <PublicRoute requiredRole="Customer">
+            <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
 
-      <Route path="/" element={
-        <PublicRoute requiredRole="Customer">
-          <CustomerWelcome />
-        </PublicRoute>
-      } />
+        <Route path="/" element={
+          <PublicRoute requiredRole="Customer">
+            <CustomerWelcome />
+          </PublicRoute>
+        } />
 
-      <Route element={
-        <ProtectedRoute requiredRole="Customer">
-          <CustomerLayout />
-        </ProtectedRoute>
-      }>
-        <Route path="/dashboard" element={<CustomerDashboard />} />
-        <Route path="/shipments" element={<MyShipments />} />
-        <Route path="/invoices" element={<CustomerInvoices />} />
-        <Route path="/order/:id" element={<OrderDetails />} />
-        <Route path="/track/:id?" element={<TrackingTimeline />} />
-        <Route path="/address-book" element={<AddressBook />} />
-        <Route path="/addresses" element={<AddressBook />} />
-        <Route path="/support" element={<SupportCenter />} />
-        <Route path="/notifications" element={<CustomerNotifications />} />
-        <Route path="/booking" element={<BookingFlow />} />
-        <Route path="/profile" element={<CustomerProfile />} />
-        <Route path="/settings" element={<CustomerSettings />} />
-      </Route>
-      
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
-    </Routes>
+        <Route element={
+          <ProtectedRoute requiredRole="Customer">
+            <CustomerLayout />
+          </ProtectedRoute>
+        }>
+          <Route path="/dashboard" element={<CustomerDashboard />} />
+          <Route path="/shipments" element={<MyShipments />} />
+          <Route path="/invoices" element={<CustomerInvoices />} />
+          <Route path="/order/:id" element={<OrderDetails />} />
+          <Route path="/track/:id?" element={<TrackingTimeline />} />
+          <Route path="/address-book" element={<AddressBook />} />
+          <Route path="/addresses" element={<AddressBook />} />
+          <Route path="/support" element={<SupportCenter />} />
+          <Route path="/notifications" element={<CustomerNotifications />} />
+          <Route path="/booking" element={<BookingFlow />} />
+          <Route path="/profile" element={<CustomerProfile />} />
+          <Route path="/settings" element={<CustomerSettings />} />
+        </Route>
+        
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
+      </Routes>
+    </MobileDeviceFrame>
   );
 }

@@ -58,8 +58,9 @@ Paste your production environment variables:
 NODE_ENV=production
 PORT=5000
 
-# MongoDB Database Connection
-MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/zypergo
+# AWS Self-Hosted MongoDB Connection
+MONGODB_URI=mongodb://127.0.0.1:27017/zypergo
+# Or with authentication: mongodb://zypergo_user:YOUR_SECURE_PASSWORD@127.0.0.1:27017/zypergo?authSource=admin
 
 # Security Secret Key
 JWT_SECRET=your_super_secret_64_character_hex_key_here
@@ -67,18 +68,18 @@ JWT_SECRET=your_super_secret_64_character_hex_key_here
 # Frontend Application URL (Set this to your EC2 Public IP)
 FRONTEND_URL=http://<YOUR_EC2_PUBLIC_IP>
 
-# Cloudinary Storage (for KYC, signature, and parcel images)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# SMTP Email Configuration (Real Email Delivery)
+# SMTP Email Configuration (Real Email Delivery via Gmail SMTP)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_gmail_app_password
-EMAIL_FROM="ZyperGo Logistics" <your_email@gmail.com>
+SMTP_USER=zypergo2026@gmail.com
+SMTP_PASS=gnxybvcbiliviqak
+EMAIL_FROM="ZyperGo Logistics" <zypergo2026@gmail.com>
 SUPPORT_EMAIL=support@zypergo.com
+
+# MSG91 DLT OTP Configuration
+MSG91_AUTH_KEY=577558AYB5KabYVSmM6ac4b7baP1
+MSG91_TEMPLATE_ID=6ac4b0f9bd697732c0065b32
+MSG91_SENDER_ID=ZYPERG
 
 # Google Authentication
 GOOGLE_CLIENT_ID=your_google_client_id_here

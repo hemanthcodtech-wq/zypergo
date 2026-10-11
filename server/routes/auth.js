@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { upload } = require('../config/cloudinary');
+const { upload } = require('../config/upload');
+const NotificationService = require('../services/notificationService');
+const SmsService = require('../services/smsService');
 
 // --- Helper for generating JWT ---
 const generateToken = (user) => {
@@ -118,69 +120,135 @@ router.post('/login-password', async (req, res) => {
   }
 });
 
-// 1.c Send OTP (Mock)
+// 1.c Send OTP (Integrated with MSG91 SMS DLT and Gmail SMTP)
 router.post('/send-otp', async (req, res) => {
   try {
     const { email, phone, role } = req.body;
-    const identifier = email || phone;
+    const identifier = (email || phone || '').trim();
     
     if (!identifier) {
       return res.status(400).json({ error: 'Email or phone required' });
     }
 
-    // Just check if user exists
-    const user = await User.findOne({
-      $or: [{ email: identifier }, { phone: identifier }]
+    const isEmail = identifier.includes('@');
+    // Generate a 4-digit numeric OTP
+    const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+    let user = await User.findOne({
+      $or: [
+        ...(isEmail ? [{ email: { $regex: new RegExp(`^${identifier}$`, 'i') } }] : []),
+        ...(!isEmail ? [{ phone: identifier }] : [])
+      ],
+      ...(role ? { role } : {})
     });
 
-    if (!user && role !== 'Customer') {
-       // Only customers can auto-create via OTP. Staff must exist.
-       return res.status(404).json({ error: 'Account not found. Please contact Admin.' });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        notRegistered: true,
+        error: `No registered account found with this ${isEmail ? 'email' : 'mobile number'}. Please sign up first.`
+      });
     }
 
-    // In a real app, send OTP via SMS/Email here
-    console.log(`[MOCK OTP] Sent 1234 to ${identifier}`);
+    user.otp = generatedOtp;
+    user.otpExpiry = expiry;
+    await user.save();
 
-    res.json({ success: true, message: 'OTP sent successfully' });
+    let deliveryMethod = 'SMS';
+    if (isEmail) {
+      deliveryMethod = 'Email';
+      try {
+        const htmlBody = NotificationService.generateEmailTemplate({
+          title: 'ZyperGo Verification Code',
+          message: 'Use the following one-time password (OTP) to securely sign in to your ZyperGo account:',
+          otpCode: generatedOtp,
+          footerNote: 'This verification code is valid for 10 minutes. Please do not share it with anyone.'
+        });
+        await NotificationService.sendEmail(identifier, `Your ZyperGo OTP: ${generatedOtp}`, htmlBody);
+        console.log(`[EMAIL OTP] Successfully dispatched ${generatedOtp} to ${identifier}`);
+      } catch (mailErr) {
+        console.error('[EMAIL OTP] Failed to send email via SMTP:', mailErr.message);
+      }
+    } else {
+      // Dispatch SMS OTP via MSG91 DLT API
+      try {
+        const msg91Result = await SmsService.sendOtp(identifier, generatedOtp);
+        console.log(`[SMS OTP MSG91] Dispatched ${generatedOtp} to ${identifier}:`, msg91Result);
+      } catch (smsErr) {
+        console.error('[SMS OTP MSG91] Error sending SMS:', smsErr.message);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `OTP sent successfully via ${deliveryMethod}`,
+      identifier,
+      deliveryMethod,
+      devOtp: generatedOtp
+    });
   } catch (error) {
     console.error('Send OTP error:', error);
     res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
-// 1.d Verify OTP (Mock)
+// 1.d Verify OTP (Integrated with MSG91 and Database Verification)
 router.post('/verify-otp', async (req, res) => {
   try {
     const { email, phone, otp, role } = req.body;
-    const identifier = email || phone;
+    const identifier = (email || phone || '').trim();
+    const enteredOtp = (otp || '').trim();
     
-    if (!identifier || !otp) {
+    if (!identifier || !enteredOtp) {
       return res.status(400).json({ error: 'Identifier and OTP required' });
     }
 
-    if (otp !== '1234') {
-      return res.status(400).json({ error: 'Invalid OTP' });
-    }
-
+    const isEmail = identifier.includes('@');
     let user = await User.findOne({
       $or: [{ email: identifier }, { phone: identifier }]
     });
 
-    if (!user) {
-      if (role === 'Customer') {
-        // Auto-register customer
-        user = new User({
-          name: 'Guest User',
-          phone: phone || identifier,
-          email: email,
-          role: 'Customer',
-          password: Math.random().toString(36).slice(-8)
-        });
-        await user.save();
-      } else {
-        return res.status(404).json({ error: 'Account not found' });
+    let isValid = false;
+
+    // 1. Allow 1234 for development/testing
+    if (enteredOtp === '1234') {
+      isValid = true;
+    }
+
+    // 2. Check stored database OTP
+    if (!isValid && user && user.otp === enteredOtp) {
+      if (user.otpExpiry && new Date() < new Date(user.otpExpiry)) {
+        isValid = true;
       }
     }
+
+    // 3. Check remote verification via MSG91 API
+    if (!isValid && !isEmail) {
+      const msg91Verified = await SmsService.verifyOtp(identifier, enteredOtp);
+      if (msg91Verified) {
+        isValid = true;
+      }
+    }
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    if (!user) {
+      user = new User({
+        name: isEmail ? identifier.split('@')[0] : (role === 'Rider' ? 'Rider Partner' : 'Customer User'),
+        phone: !isEmail ? identifier : ('91' + Math.floor(1000000000 + Math.random() * 9000000000)),
+        email: isEmail ? identifier : undefined,
+        role: role || 'Customer',
+        password: Math.random().toString(36).slice(-8)
+      });
+    }
+
+    // Clear OTP after successful login
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
 
     if (!user.isActive) {
       return res.status(403).json({ error: 'Account is suspended' });
@@ -188,6 +256,7 @@ router.post('/verify-otp', async (req, res) => {
 
     const token = generateToken(user);
     res.json({
+      success: true,
       message: 'Login successful',
       token,
       data: {
@@ -195,7 +264,8 @@ router.post('/verify-otp', async (req, res) => {
         name: user.name,
         role: user.role,
         email: user.email,
-        phone: user.phone
+        phone: user.phone,
+        photoUrl: user.photoUrl
       }
     });
   } catch (error) {
@@ -207,35 +277,48 @@ router.post('/verify-otp', async (req, res) => {
 // 2. Customer/Admin Registration
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, email, role } = req.body;
+    const { name, phone, password, email, role, photoUrl } = req.body;
 
-    // By default, restrict to Customer. Admins should be created internally, but for dev we allow it.
     const userRole = role || 'Customer';
 
-    const existingUser = await User.findOne({ phone });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this phone number already exists' });
+    let user = await User.findOne({ phone });
+    if (user) {
+      user.name = name || user.name;
+      if (email) user.email = email;
+      if (photoUrl) user.photoUrl = photoUrl;
+      await user.save();
+    } else {
+      user = new User({
+        name: name || 'Customer User',
+        phone,
+        password: password || Math.random().toString(36).slice(-8),
+        email,
+        role: userRole,
+        photoUrl
+      });
+      await user.save();
     }
-
-    const user = new User({
-      name,
-      phone,
-      password,
-      email,
-      role: userRole
-    });
-
-    await user.save();
     
     const token = generateToken(user);
     res.status(201).json({
+      success: true,
       message: 'Registration successful',
       token,
+      data: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        email: user.email,
+        photoUrl: user.photoUrl
+      },
       user: {
         id: user._id,
         name: user.name,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        email: user.email,
+        photoUrl: user.photoUrl
       }
     });
   } catch (error) {
@@ -243,6 +326,86 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'Server error during registration' });
   }
 });
+
+// 2.b Rider Direct Registration
+router.post('/register-rider', async (req, res) => {
+  try {
+    const { name, phone, email, password, photoUrl, aadhaarUrl, panUrl, documents } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    const docAadhaar = aadhaarUrl || (documents && documents.aadhaarUrl) || '';
+    const docPan = panUrl || (documents && documents.panUrl) || '';
+    const docPhoto = photoUrl || (documents && documents.profileImageUrl) || '';
+
+    let user = await User.findOne({ phone });
+    if (user) {
+      user.name = name || user.name;
+      if (email) user.email = email;
+      user.role = 'Rider';
+      if (docPhoto) user.photoUrl = docPhoto;
+      if (!user.riderDetails) user.riderDetails = {};
+      user.riderDetails.approvalStatus = 'Approved';
+      user.riderDetails.documents = {
+        ...user.riderDetails.documents,
+        aadhaarUrl: docAadhaar || user.riderDetails.documents?.aadhaarUrl,
+        panUrl: docPan || user.riderDetails.documents?.panUrl,
+        profileImageUrl: docPhoto || user.riderDetails.documents?.profileImageUrl
+      };
+      await user.save();
+    } else {
+      user = new User({
+        name: name || 'Rider Partner',
+        phone,
+        email,
+        password: password || Math.random().toString(36).slice(-8),
+        role: 'Rider',
+        photoUrl: docPhoto,
+        riderDetails: {
+          vehicleType: 'Scooter',
+          approvalStatus: 'Approved',
+          documents: {
+            aadhaarUrl: docAadhaar,
+            panUrl: docPan,
+            profileImageUrl: docPhoto
+          }
+        }
+      });
+      await user.save();
+    }
+
+    const token = generateToken(user);
+    res.status(201).json({
+      success: true,
+      message: 'Rider registration successful',
+      token,
+      data: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        email: user.email,
+        photoUrl: user.photoUrl,
+        riderDetails: user.riderDetails
+      },
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        phone: user.phone,
+        email: user.email,
+        photoUrl: user.photoUrl,
+        riderDetails: user.riderDetails
+      }
+    });
+  } catch (error) {
+    console.error('Rider registration error:', error);
+    res.status(500).json({ error: 'Server error during rider registration' });
+  }
+});
+
 
 // 3. Rider Onboarding with Image Uploads via Cloudinary
 router.post(
@@ -267,11 +430,11 @@ router.post(
         return res.status(400).json({ error: 'User with this phone number already exists' });
       }
 
-      // Extract Cloudinary URLs from multer
-      const profilePhotoUrl = files['profilePhoto'] ? files['profilePhoto'][0].path : null;
-      const drivingLicenseUrl = files['drivingLicense'] ? files['drivingLicense'][0].path : null;
-      const rcDocumentUrl = files['rcDocument'] ? files['rcDocument'][0].path : null;
-      const idProofUrl = files['idProof'] ? files['idProof'][0].path : null;
+      // Stored locally on AWS server disk and served via /uploads
+      const profilePhotoUrl = files['profilePhoto'] ? `/uploads/${files['profilePhoto'][0].filename}` : null;
+      const drivingLicenseUrl = files['drivingLicense'] ? `/uploads/${files['drivingLicense'][0].filename}` : null;
+      const rcDocumentUrl = files['rcDocument'] ? `/uploads/${files['rcDocument'][0].filename}` : null;
+      const idProofUrl = files['idProof'] ? `/uploads/${files['idProof'][0].filename}` : null;
 
       const user = new User({
         name,

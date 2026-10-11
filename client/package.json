@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:customer": "vite --port 8081",
+    "dev:rider": "vite --port 8082",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

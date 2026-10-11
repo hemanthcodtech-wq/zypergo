@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "ZyperGo Rider",
+    "slug": "zypergo-rider",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#006D77"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zypergo.rider"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#006D77"
+      },
+      "package": "com.zypergo.rider",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

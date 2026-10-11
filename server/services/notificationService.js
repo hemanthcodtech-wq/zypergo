@@ -25,10 +25,18 @@ class NotificationService {
     return this.transporter;
   }
 
-  static sendSMS(phone, message, type = 'Standard') {
+  static async sendSMS(phone, message, type = 'Standard') {
     if (!phone) return;
     console.log(`[SMS][${type}] To: ${phone} | Msg: ${message}`);
-    // TODO: Integrate MSG91 or Twilio API
+    try {
+      const SmsService = require('./smsService');
+      const otpMatch = message.match(/\b\d{4,6}\b/);
+      if (otpMatch) {
+        await SmsService.sendOtp(phone, otpMatch[0]);
+      }
+    } catch (err) {
+      console.warn('[NotificationService SMS] Error:', err.message);
+    }
   }
 
   static sendWhatsApp(phone, message, templateId = null) {

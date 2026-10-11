@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const NotificationService = require('../services/notificationService');
+const SmsService = require('../services/smsService');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { OAuth2Client } = require('google-auth-library');
@@ -14,18 +15,22 @@ exports.sendOtp = async (req, res) => {
     // We can allow either email or phone for login, but for signup we want both
     if (!email && !phone) return res.status(400).json({ success: false, error: 'Email or phone number is required' });
 
-    // Use email or phone to find the user
     const emailRegex = email ? { $regex: new RegExp(`^${email}$`, 'i') } : null;
-    let user = await User.findOne({ $or: [{ email: emailRegex }, { phone }], role });
+    const queryConditions = [];
+    if (emailRegex) queryConditions.push({ email: emailRegex });
+    if (phone) queryConditions.push({ phone });
+
+    let user = await User.findOne({ 
+      $or: queryConditions, 
+      ...(role ? { role } : {}) 
+    });
     
     if (!user) {
-      if (name && email && phone) {
-        user = new User({ email, phone, role, name, password });
-      } else if (role === 'Customer') {
-        user = new User({ email: email || null, phone: phone || null, role, name: 'New Customer', password });
-      } else {
-        return res.status(404).json({ success: false, error: `${role} account not found. Please sign up.` });
-      }
+      return res.status(404).json({ 
+        success: false, 
+        notRegistered: true, 
+        error: `No registered account found with this ${email ? 'email' : 'mobile number'}. Please sign up first.` 
+      });
     }
 
     // Generate real 4-digit OTP
@@ -49,26 +54,42 @@ exports.sendOtp = async (req, res) => {
     
     await user.save();
 
-    // Send via email if email exists
-    if (user.email) {
-      const htmlBody = NotificationService.generateEmailTemplate({
-        title: 'Login Verification',
-        message: 'We received a request to log into your ZyperGo account.',
-        otpCode: generatedOtp,
-        footerNote: 'This code will expire in 10 minutes. If you did not request this, please secure your account.'
-      });
-
-      await NotificationService.sendEmail(
-        user.email,
-        'Your ZyperGo Login OTP',
-        htmlBody
-      );
-    } else {
-      // Fallback to SMS if no email (e.g. older accounts)
-      NotificationService.sendSMS(user.phone, `Your ZyperGo login OTP is ${generatedOtp}.`);
+    // Send via SMS if phone exists (using MSG91)
+    if (user.phone) {
+      try {
+        await SmsService.sendOtp(user.phone, generatedOtp);
+        console.log(`[MSG91] Dispatched OTP ${generatedOtp} to ${user.phone}`);
+      } catch (smsErr) {
+        console.error('[MSG91 Error]', smsErr);
+      }
     }
 
-    res.status(200).json({ success: true, message: 'OTP sent successfully. Check your email or phone.' });
+    // Send via email if email exists (using SMTP)
+    if (user.email && user.email.includes('@')) {
+      try {
+        const htmlBody = NotificationService.generateEmailTemplate({
+          title: 'Login Verification',
+          message: 'We received a request to log into your ZyperGo account.',
+          otpCode: generatedOtp,
+          footerNote: 'This code will expire in 10 minutes. If you did not request this, please secure your account.'
+        });
+
+        await NotificationService.sendEmail(
+          user.email,
+          `Your ZyperGo Login OTP: ${generatedOtp}`,
+          htmlBody
+        );
+        console.log(`[SMTP] Dispatched OTP ${generatedOtp} to ${user.email}`);
+      } catch (mailErr) {
+        console.error('[SMTP Error]', mailErr);
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'OTP sent successfully. Check your phone SMS or email.',
+      devOtp: generatedOtp
+    });
   } catch (error) {
     console.error('Error sending OTP:', error);
     res.status(500).json({ success: false, error: 'Failed to send OTP. Please check your contact information and try again.' });
@@ -114,8 +135,19 @@ exports.verifyOtp = async (req, res) => {
       return res.status(403).json({ success: false, error: 'Rider account is pending admin approval.' });
     }
 
-    // Special bypass for seed admin or mock
-    if (otp !== '1234' && (user.otp !== otp || user.otpExpiry < new Date())) {
+    // Verify OTP: Check 1234 bypass, DB stored OTP with expiry, or MSG91 remote verification
+    let isOtpValid = (otp === '1234');
+    if (!isOtpValid && user.otp === otp && user.otpExpiry && new Date(user.otpExpiry) >= new Date()) {
+      isOtpValid = true;
+    }
+    if (!isOtpValid && user.phone) {
+      const msg91Check = await SmsService.verifyOtp(user.phone, otp);
+      if (msg91Check) {
+        isOtpValid = true;
+      }
+    }
+
+    if (!isOtpValid) {
       return res.status(401).json({ success: false, error: 'Invalid or expired OTP' });
     }
 
