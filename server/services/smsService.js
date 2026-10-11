@@ -9,7 +9,7 @@ class SmsService {
   }
 
   static getTemplateId() {
-    return process.env.MSG91_TEMPLATE_ID || '6ac4b0f9bd697732c0065b32';
+    return process.env.MSG91_TEMPLATE_ID || '6acb9a2de6de3b8ff30bda53';
   }
 
   static getSenderId() {
