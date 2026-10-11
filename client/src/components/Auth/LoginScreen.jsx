@@ -4,8 +4,25 @@ import { ShieldCheck, Phone, KeyRound, ArrowRight, UserPlus, Mail } from 'lucide
 import { useGoogleLogin } from '@react-oauth/google';
 import api from '../../api';
 
+const COUNTRY_CODES = [
+  { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺' },
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+  { code: '+968', country: 'Oman', flag: '🇴🇲' },
+  { code: '+60', country: 'Malaysia', flag: '🇲🇾' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪' },
+  { code: '+33', country: 'France', flag: '🇫🇷' },
+];
+
 export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
   const navigate = useNavigate();
+  const [countryCode, setCountryCode] = useState('+91');
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState('input'); // 'input' or 'otp'
@@ -28,8 +45,13 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
     setIsNewUser(false);
     try {
       const payload = { role };
-      if (isEmail) payload.email = identifier.trim();
-      else payload.phone = identifier.trim();
+      if (isEmail) {
+        payload.email = identifier.trim();
+      } else {
+        const rawDigits = identifier.trim().replace(/\D/g, '');
+        const formattedPhone = identifier.startsWith('+') ? identifier.trim() : `${countryCode}${rawDigits}`;
+        payload.phone = formattedPhone;
+      }
       
       const res = await api.post('/auth/send-otp', payload);
       if (res.data?.devOtp) {
@@ -61,8 +83,13 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
     setError('');
     try {
       const payload = { role, otp: otp.trim() };
-      if (isEmail) payload.email = identifier.trim();
-      else payload.phone = identifier.trim();
+      if (isEmail) {
+        payload.email = identifier.trim();
+      } else {
+        const rawDigits = identifier.trim().replace(/\D/g, '');
+        const formattedPhone = identifier.startsWith('+') ? identifier.trim() : `${countryCode}${rawDigits}`;
+        payload.phone = formattedPhone;
+      }
 
       const res = await api.post('/auth/verify-otp', payload);
       const data = res.data;
@@ -213,14 +240,30 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
                   Mobile Number or Email
                 </label>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                <div className="flex rounded-xl border border-slate-200 bg-slate-50 focus-within:bg-white focus-within:border-[#0052CC] focus-within:ring-2 focus-within:ring-[#0052CC]/20 transition-all overflow-hidden">
+                  {!isEmail ? (
+                    <select 
+                      value={countryCode} 
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="bg-transparent pl-3 pr-1 py-2.5 font-bold text-xs text-slate-700 outline-none border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.code}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="pl-3.5 pr-2 py-2.5 flex items-center border-r border-slate-200 text-slate-400">
+                      <Mail size={16} />
+                    </div>
+                  )}
                   <input 
                     type="text" 
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="Enter mobile number or email"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
+                    placeholder={isEmail ? "Enter email address" : "Enter mobile number"}
+                    className="flex-1 px-3 py-2.5 bg-transparent outline-none font-semibold text-xs text-slate-900"
                     required
                   />
                 </div>
