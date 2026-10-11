@@ -288,16 +288,9 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                   required
                 />
               </div>
-              {devOtp ? (
-                <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-2.5 mt-2.5 text-center">
-                  <p className="text-[11px] font-semibold text-slate-700">
-                    OTP Code: <span className="font-mono font-black text-sm text-[#0052CC] bg-white px-2 py-0.5 rounded border border-blue-200 shadow-xs">{devOtp}</span>
-                  </p>
-                  <p className="text-[9.5px] text-slate-400 mt-1">Or enter 1234 for instant testing</p>
-                </div>
-              ) : (
-                <p className="text-[10px] text-slate-400 text-center mt-1">Hint: Use OTP 1234 for instant testing</p>
-              )}
+              <p className="text-[11px] text-slate-500 font-medium text-center mt-2">
+                We have sent an SMS with a 4-digit code to your registered mobile number.
+              </p>
               
               <div className="flex items-center justify-between mt-2.5">
                 <button 

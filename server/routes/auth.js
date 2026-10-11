@@ -218,8 +218,7 @@ router.post('/send-otp', async (req, res) => {
       success: true, 
       message: `OTP sent successfully via ${deliveryMethod}`,
       identifier,
-      deliveryMethod,
-      devOtp: generatedOtp
+      deliveryMethod
     });
   } catch (error) {
     console.error('Send OTP error:', error);
