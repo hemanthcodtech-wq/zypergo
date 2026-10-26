@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navigation, Banknote, ShieldCheck, ArrowRight, Zap, Award } from 'lucide-react';
+import { Navigation, Banknote, ShieldCheck, ArrowRight, Zap } from 'lucide-react';
 
 export default function RiderSplash() {
   const navigate = useNavigate();
@@ -11,10 +11,10 @@ export default function RiderSplash() {
   const signupPath = isPrefix ? '/rider/signup' : '/signup';
 
   useEffect(() => {
-    // 2.2 seconds of animated logo splash screen, then reveal login & onboarding
+    // 2.5 seconds animated logo splash screen, then smoothly reveal welcome & login screen
     const timer = setTimeout(() => {
       setStage('welcome');
-    }, 2200);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -22,51 +22,51 @@ export default function RiderSplash() {
   // 1. Initial Animated Logo Splash Screen
   if (stage === 'splash') {
     return (
-      <div className="flex-1 w-full h-full min-h-[600px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-[#1E293B] via-[#0F172A] to-black text-white font-sans relative overflow-hidden select-none">
-        {/* Radiant amber glow circles */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-yellow-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-amber-50/30 to-amber-100/40 text-slate-900 font-sans relative overflow-hidden select-none animate-in fade-in duration-300">
+        
+        {/* Ambient radiant glow circles */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top spacer */}
-        <div className="pt-6">
-          <span className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-400/80">ZyperGo Fleet</span>
+        <div className="pt-8">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-800/60">
+            ZyperGo Partner Network
+          </span>
         </div>
 
-        {/* Center Animated Logo & Branding */}
-        <div className="flex flex-col items-center text-center my-auto animate-in zoom-in-75 fade-in duration-700">
-          
-          {/* Logo Container with Smooth Pulse & Glow */}
-          <div className="relative mb-6">
-            <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-3xl blur-xl opacity-50 animate-pulse" />
-            <div className="relative w-24 h-24 rounded-3xl bg-white p-4 shadow-2xl flex items-center justify-center border-2 border-amber-400/60">
-              <img 
-                src="/images/logo.png" 
-                alt="ZyperGo Logo" 
-                className="w-full h-full object-contain drop-shadow-md animate-in fade-in duration-1000"
-              />
-            </div>
+        {/* Center: Animated Official Website Logo */}
+        <div className="flex flex-col items-center text-center my-auto w-full px-4">
+          <div className="relative flex flex-col items-center justify-center w-full">
+            {/* Ambient radiant pulse backdrop */}
+            <div className="absolute -inset-10 bg-gradient-to-r from-amber-400/20 via-orange-500/25 to-yellow-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            
+            {/* The Authentic Official Website Logo */}
+            <img 
+              src="/images/logo.png" 
+              alt="ZyperGo Logo" 
+              className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
+            />
           </div>
 
-          <h1 className="text-3xl font-black text-white tracking-tight mb-2 uppercase">
-            Zyper<span className="text-[#FFB703]">Go</span>
-          </h1>
-
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-[#FFB703] text-xs font-black uppercase tracking-wider mb-2">
-            <span>Rider Partner App</span>
+          {/* Sub-label & Tagline */}
+          <div className="mt-8 flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-black uppercase tracking-wider shadow-xs">
+              Rider Partner App
+            </span>
+            <p className="text-xs font-semibold text-slate-600 tracking-wide mt-1">
+              Drive, Deliver & Earn Daily
+            </p>
           </div>
-
-          <p className="text-xs text-slate-400 max-w-[220px]">
-            Drive, Deliver, & Earn Daily.
-          </p>
         </div>
 
         {/* Bottom Loading Progress Bar */}
-        <div className="w-full max-w-[180px] pb-6 flex flex-col items-center gap-2">
-          <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full animate-[progress_2.2s_ease-in-out_forwards] w-full" />
+        <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
+          <div className="w-full h-1.5 bg-amber-200/70 rounded-full overflow-hidden p-0.5">
+            <div className="h-full bg-gradient-to-r from-amber-500 via-[#FF6B00] to-yellow-500 rounded-full animate-splash-progress" />
           </div>
-          <span className="text-[10px] text-amber-400/60 font-medium tracking-widest uppercase">
-            Starting Up...
+          <span className="text-[10px] text-amber-800/60 font-bold tracking-widest uppercase">
+            Loading Partner App...
           </span>
         </div>
 
@@ -74,17 +74,19 @@ export default function RiderSplash() {
     );
   }
 
-  // 2. Welcome & Login Screen (Revealed after Splash Animation)
+  // 2. Welcome & Login Screen (Revealed only after Splash Animation)
   return (
-    <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-amber-50 via-white to-amber-50/40 text-slate-900 font-sans selection:bg-[#FFB703] selection:text-black animate-in fade-in duration-500">
+    <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-amber-50/50 via-white to-amber-50/30 text-slate-900 font-sans selection:bg-[#FFB703] selection:text-black animate-in fade-in duration-500">
       
-      {/* Top Branding */}
-      <div className="flex flex-col items-center pt-6 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-white p-2.5 shadow-md border border-slate-100 mb-3 flex items-center justify-center">
-          <img src="/images/logo.png" alt="ZyperGo" className="w-full h-full object-contain" />
-        </div>
+      {/* Top Branding with Official Logo */}
+      <div className="flex flex-col items-center pt-4 text-center">
+        <img 
+          src="/images/logo.png" 
+          alt="ZyperGo" 
+          className="h-10 w-auto object-contain mb-2.5 drop-shadow-xs" 
+        />
 
-        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 border border-amber-300/80 text-amber-900 text-[10px] font-black uppercase tracking-wider mb-1.5">
+        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 border border-amber-300/80 text-amber-900 text-[10px] font-black uppercase tracking-wider mb-2">
           <span>Rider Partner App</span>
         </span>
 
@@ -98,7 +100,7 @@ export default function RiderSplash() {
       </div>
 
       {/* Hero Visual Card */}
-      <div className="my-auto py-3 flex flex-col items-center justify-center">
+      <div className="my-auto py-2 flex flex-col items-center justify-center">
         <div className="w-full bg-slate-900 text-white rounded-3xl p-5 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl" />
           

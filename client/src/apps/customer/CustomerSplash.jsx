@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Zap, Star, ArrowRight, Package, MapPin } from 'lucide-react';
+import { Shield, Zap, Star, ArrowRight } from 'lucide-react';
 
 export default function CustomerSplash() {
   const navigate = useNavigate();
@@ -11,10 +11,10 @@ export default function CustomerSplash() {
   const signupPath = isPrefix ? '/customer/signup' : '/signup';
 
   useEffect(() => {
-    // 2.2 seconds of animated logo splash screen, then reveal login & onboarding
+    // 2.5 seconds animated logo splash screen, then smoothly reveal welcome & login screen
     const timer = setTimeout(() => {
       setStage('welcome');
-    }, 2200);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -22,51 +22,51 @@ export default function CustomerSplash() {
   // 1. Initial Animated Logo Splash Screen
   if (stage === 'splash') {
     return (
-      <div className="flex-1 w-full h-full min-h-[600px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-[#0052CC] via-[#0041a3] to-[#002d73] text-white font-sans relative overflow-hidden select-none">
-        {/* Radiant glow circles */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-orange-500/15 rounded-full blur-2xl pointer-events-none" />
+      <div className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-slate-50 to-blue-50/50 text-slate-900 font-sans relative overflow-hidden select-none animate-in fade-in duration-300">
+        
+        {/* Soft background ambient glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top spacer */}
-        <div className="pt-6">
-          <span className="text-[11px] font-black uppercase tracking-[0.25em] text-blue-200/70">ZyperGo Platform</span>
+        <div className="pt-8">
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+            ZyperGo Logistics
+          </span>
         </div>
 
-        {/* Center Animated Logo & Branding */}
-        <div className="flex flex-col items-center text-center my-auto animate-in zoom-in-75 fade-in duration-700">
-          
-          {/* Logo Container with Smooth Pulse & Glow */}
-          <div className="relative mb-6">
-            <div className="absolute -inset-4 bg-gradient-to-r from-blue-400 to-orange-400 rounded-3xl blur-xl opacity-60 animate-pulse" />
-            <div className="relative w-24 h-24 rounded-3xl bg-white p-4 shadow-2xl flex items-center justify-center border-2 border-white/80">
-              <img 
-                src="/images/logo.png" 
-                alt="ZyperGo Logo" 
-                className="w-full h-full object-contain drop-shadow-md animate-in fade-in duration-1000"
-              />
-            </div>
+        {/* Center: Animated Official Website Logo */}
+        <div className="flex flex-col items-center text-center my-auto w-full px-4">
+          <div className="relative flex flex-col items-center justify-center w-full">
+            {/* Ambient radiant pulse backdrop */}
+            <div className="absolute -inset-10 bg-gradient-to-r from-blue-500/15 via-orange-500/20 to-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            
+            {/* The Authentic Official Website Logo */}
+            <img 
+              src="/images/logo.png" 
+              alt="ZyperGo Logo" 
+              className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
+            />
           </div>
 
-          <h1 className="text-3xl font-black text-white tracking-tight mb-2">
-            Zyper<span className="text-[#FF6B00]">Go</span>
-          </h1>
-
-          <p className="text-sm font-semibold text-blue-100/90 tracking-wide">
-            Customer App
-          </p>
-
-          <p className="text-xs text-blue-200/70 mt-1 max-w-[220px]">
-            Ship Smarter. Deliver Faster.
-          </p>
+          {/* Sub-label & Tagline */}
+          <div className="mt-8 flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0052CC] text-[11px] font-black uppercase tracking-wider shadow-xs">
+              Customer App
+            </span>
+            <p className="text-xs font-semibold text-slate-500 tracking-wide mt-1">
+              Ship Smarter. Deliver Faster.
+            </p>
+          </div>
         </div>
 
         {/* Bottom Loading Progress Bar */}
-        <div className="w-full max-w-[180px] pb-6 flex flex-col items-center gap-2">
-          <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-orange-400 to-white rounded-full animate-[progress_2.2s_ease-in-out_forwards] w-full" />
+        <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
+          <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden p-0.5">
+            <div className="h-full bg-gradient-to-r from-[#0052CC] via-orange-500 to-[#FF6B00] rounded-full animate-splash-progress" />
           </div>
-          <span className="text-[10px] text-blue-200/60 font-medium tracking-widest uppercase">
-            Loading...
+          <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+            Loading App...
           </span>
         </div>
 
@@ -74,17 +74,19 @@ export default function CustomerSplash() {
     );
   }
 
-  // 2. Welcome & Login Screen (Revealed after Splash Animation)
+  // 2. Welcome & Login Screen (Revealed only after Splash Animation)
   return (
     <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-blue-50/50 via-white to-slate-50 text-slate-900 font-sans selection:bg-[#0052CC] selection:text-white animate-in fade-in duration-500">
       
-      {/* Top Branding */}
-      <div className="flex flex-col items-center pt-6 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-white p-2.5 shadow-md border border-slate-100 mb-3 flex items-center justify-center">
-          <img src="/images/logo.png" alt="ZyperGo" className="w-full h-full object-contain" />
-        </div>
+      {/* Top Branding with Official Logo */}
+      <div className="flex flex-col items-center pt-4 text-center">
+        <img 
+          src="/images/logo.png" 
+          alt="ZyperGo" 
+          className="h-10 w-auto object-contain mb-2.5 drop-shadow-xs" 
+        />
 
-        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-[10px] font-black uppercase tracking-wider mb-1.5">
+        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-[10px] font-black uppercase tracking-wider mb-2">
           <span>Customer App</span>
         </span>
 
@@ -92,13 +94,13 @@ export default function CustomerSplash() {
           Ship Smarter.<br />
           Deliver <span className="text-[#FF6B00]">Faster.</span>
         </h1>
-        <p className="text-xs text-slate-500 font-medium mt-1.5 max-w-[260px] leading-relaxed">
+        <p className="text-xs text-slate-500 font-medium mt-1.5 max-w-[270px] leading-relaxed">
           Doorstep parcel pickup, intercity transport, and live GPS delivery tracking.
         </p>
       </div>
 
       {/* Hero Visual Card */}
-      <div className="my-auto py-3 flex flex-col items-center justify-center">
+      <div className="my-auto py-2 flex flex-col items-center justify-center">
         <div className="relative w-full rounded-2xl overflow-hidden bg-white p-1.5 border border-slate-100 shadow-sm">
           <img 
             src="/images/fleet_hero.jpg" 
