@@ -49,26 +49,37 @@ exports.sendOtp = async (req, res) => {
     
     await user.save();
 
-    // Send via email if email exists
-    if (user.email) {
-      const htmlBody = NotificationService.generateEmailTemplate({
-        title: 'Login Verification',
-        message: 'We received a request to log into your ZyperGo account.',
-        otpCode: generatedOtp,
-        footerNote: 'This code will expire in 10 minutes. If you did not request this, please secure your account.'
-      });
-
-      await NotificationService.sendEmail(
-        user.email,
-        'Your ZyperGo Login OTP',
-        htmlBody
+    // Send SMS via MSG91 if phone exists
+    const targetPhone = user.phone || phone;
+    if (targetPhone) {
+      await NotificationService.sendSMS(
+        targetPhone, 
+        `Your OTP for login to Zypergo is ${generatedOtp}. Valid for 10 minutes. Please do not share this OTP with anyone. - Zypergo`,
+        generatedOtp
       );
-    } else {
-      // Fallback to SMS if no email (e.g. older accounts)
-      NotificationService.sendSMS(user.phone, `Your ZyperGo login OTP is ${generatedOtp}.`);
     }
 
-    res.status(200).json({ success: true, message: 'OTP sent successfully. Check your email or phone.' });
+    // Send via email if email exists
+    if (user.email) {
+      try {
+        const htmlBody = NotificationService.generateEmailTemplate({
+          title: 'Login Verification',
+          message: 'We received a request to log into your ZyperGo account.',
+          otpCode: generatedOtp,
+          footerNote: 'This code will expire in 10 minutes. If you did not request this, please secure your account.'
+        });
+
+        await NotificationService.sendEmail(
+          user.email,
+          'Your ZyperGo Login OTP',
+          htmlBody
+        );
+      } catch (eErr) {
+        console.warn('Email dispatch failed, continuing:', eErr.message);
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'OTP sent successfully. Check your phone or email.' });
   } catch (error) {
     console.error('Error sending OTP:', error);
     res.status(500).json({ success: false, error: 'Failed to send OTP. Please check your contact information and try again.' });

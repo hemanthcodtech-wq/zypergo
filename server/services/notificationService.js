@@ -25,10 +25,49 @@ class NotificationService {
     return this.transporter;
   }
 
-  static sendSMS(phone, message, type = 'Standard') {
-    if (!phone) return;
-    console.log(`[SMS][${type}] To: ${phone} | Msg: ${message}`);
-    // TODO: Integrate MSG91 or Twilio API
+  static async sendSMS(phone, message, otp = null) {
+    if (!phone) return { success: false, error: 'Phone number is required' };
+
+    // Format phone: strip everything except digits
+    let cleanPhone = phone.toString().replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 10) {
+      cleanPhone = `91${cleanPhone}`;
+    }
+
+    const authKey = process.env.MSG91_AUTH_KEY;
+    const templateId = process.env.MSG91_TEMPLATE_ID;
+
+    // Extract OTP digits if not explicitly passed
+    const otpCode = otp || (message && message.match(/\d{4,6}/) ? message.match(/\d{4,6}/)[0] : '1234');
+
+    if (!authKey || !templateId) {
+      console.warn(`[SMS][MSG91] Credentials missing. Mock sent to ${cleanPhone}: ${message}`);
+      return { success: true, mock: true };
+    }
+
+    try {
+      console.log(`[SMS][MSG91] Sending SMS/OTP to ${cleanPhone} (OTP: ${otpCode})`);
+      
+      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${cleanPhone}&otp=${otpCode}&otp_expiry=10`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          authkey: authKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          OTP: otpCode
+        })
+      });
+
+      const data = await response.json();
+      console.log(`[SMS][MSG91] Result:`, data);
+      return { success: data.type === 'success', data };
+    } catch (err) {
+      console.error(`[SMS][MSG91] Network/API Error:`, err.message);
+      return { success: false, error: err.message };
+    }
   }
 
   static sendWhatsApp(phone, message, templateId = null) {
