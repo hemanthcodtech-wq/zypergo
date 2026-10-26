@@ -16,7 +16,7 @@ import ServiceabilityEngine from './admin/ServiceabilityEngine';
 import NdrExceptions from './admin/NdrExceptions';
 import ReverseLogistics from './admin/ReverseLogistics';
 import AnalyticsDashboard from '../pages/admin/analytics/AnalyticsDashboard';
-import LoginScreen from '../components/Auth/LoginScreen';
+import AdminLoginScreen from './admin/AdminLoginScreen';
 import ScanningManifest from './admin/ScanningManifest';
 import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 
@@ -60,12 +60,12 @@ function AdminApp() {
     <Routes>
       <Route path="/admin/login" element={
         <PublicRoute requiredRole="SuperAdmin">
-          <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+          <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/login" element={
         <PublicRoute requiredRole="SuperAdmin">
-          <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+          <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       
@@ -76,7 +76,7 @@ function AdminApp() {
           </ProtectedRoute>
         ) : (
           <PublicRoute requiredRole="SuperAdmin">
-            <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+            <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
           </PublicRoute>
         )
       } />
@@ -96,7 +96,7 @@ function AdminApp() {
           </ProtectedRoute>
         ) : (
           <PublicRoute requiredRole="SuperAdmin">
-            <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+            <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
           </PublicRoute>
         )
       }>
