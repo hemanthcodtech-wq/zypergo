@@ -42,13 +42,22 @@ const getPhoneQueries = (phone) => {
 // 1. Basic Login (Fallback)
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body || {};
+    const { phone, email, identifier, password } = req.body || {};
+    const loginId = phone || email || identifier;
     
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Phone and password are required' });
+    if (!loginId || !password) {
+      return res.status(400).json({ error: 'Phone or email and password are required' });
     }
 
-    const user = await User.findOne({ $or: getPhoneQueries(phone) });
+    const isEmail = loginId.includes('@');
+    let queryConditions = [];
+    if (isEmail) {
+      queryConditions.push({ email: { $regex: new RegExp(`^${loginId.trim()}$`, 'i') } });
+    } else {
+      queryConditions.push(...getPhoneQueries(loginId));
+    }
+
+    const user = await User.findOne({ $or: queryConditions });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -62,7 +71,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Account is suspended or inactive' });
     }
 
-    if (user.role === 'Rider' && user.riderDetails.approvalStatus !== 'Approved') {
+    if (user.role === 'Rider' && user.riderDetails && user.riderDetails.approvalStatus !== 'Approved') {
        return res.status(403).json({ 
          error: 'Account pending admin approval', 
          status: user.riderDetails.approvalStatus 
@@ -70,15 +79,20 @@ router.post('/login', async (req, res) => {
     }
 
     const token = generateToken(user);
+    const userPayload = {
+      id: user._id,
+      name: user.name,
+      role: user.role,
+      phone: user.phone,
+      email: user.email,
+      photoUrl: user.photoUrl
+    };
     res.json({
+      success: true,
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        role: user.role,
-        phone: user.phone
-      }
+      user: userPayload,
+      data: userPayload
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -218,7 +232,8 @@ router.post('/send-otp', async (req, res) => {
       success: true, 
       message: `OTP sent successfully via ${deliveryMethod}`,
       identifier,
-      deliveryMethod
+      deliveryMethod,
+      devOtp: generatedOtp
     });
   } catch (error) {
     console.error('Send OTP error:', error);
@@ -317,7 +332,14 @@ router.post('/verify-otp', async (req, res) => {
 router.post('/register', async (req, res) => {
   try {
     const { name, phone, password, email, role, photoUrl } = req.body || {};
-    const userRole = role || 'Customer';
+    let userRole = 'Customer';
+    if (role) {
+      const lower = role.toString().toLowerCase();
+      if (lower === 'rider') userRole = 'Rider';
+      else if (lower === 'superadmin') userRole = 'SuperAdmin';
+      else if (lower === 'customer') userRole = 'Customer';
+      else userRole = role;
+    }
 
     if (!phone) {
       return res.status(400).json({ error: 'Phone number is required' });

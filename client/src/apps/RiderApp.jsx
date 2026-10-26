@@ -33,19 +33,21 @@ function RiderLayout({ children, onLogout, user }) {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.05)] z-50 px-4 py-2.5 flex justify-between items-center rounded-t-3xl">
+      <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] z-50 px-4 py-2 flex justify-between items-center rounded-t-3xl">
         {navItems.map((item) => {
-          const isActive = currentPath === item.path;
+          const isActive = item.path === '/dashboard' 
+            ? (currentPath === '/dashboard' || currentPath === '/') 
+            : currentPath === item.path;
           return (
             <button 
               key={item.name}
               onClick={() => navigate(item.path)} 
-              className={`flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-800'}`}
+              className={`flex flex-col items-center gap-0.5 w-1/4 transition-colors ${isActive ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-700'}`}
             >
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-emerald-50' : 'bg-transparent'}`}>
+              <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-emerald-50 text-emerald-600 shadow-xs' : 'bg-transparent'}`}>
                 {item.icon}
               </div>
-              <span className={`text-[10px] ${isActive ? 'font-black' : 'font-bold'}`}>{item.name}</span>
+              <span className={`text-[10px] tracking-tight ${isActive ? 'font-black text-emerald-700' : 'font-medium'}`}>{item.name}</span>
             </button>
           );
         })}

@@ -46,13 +46,13 @@ function AppRouter() {
   }, []);
 
   const subdomain = useMemo(() => {
-    // 0. Check Port Number (e.g. 8081 -> customer, 8082 -> rider)
+    // 0. Check Port Number (8081 / 8001 -> customer, 8082 / 8002 -> rider)
     const port = window.location.port;
-    if (port === '8081') {
+    if (port === '8081' || port === '8001') {
       sessionStorage.setItem('zypergo_portal', 'customer');
       return 'customer';
     }
-    if (port === '8082') {
+    if (port === '8082' || port === '8002') {
       sessionStorage.setItem('zypergo_portal', 'rider');
       return 'rider';
     }

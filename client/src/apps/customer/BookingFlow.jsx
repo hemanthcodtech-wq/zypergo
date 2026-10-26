@@ -265,38 +265,44 @@ export default function BookingFlow() {
       <div className="w-full h-full bg-white flex flex-col overflow-hidden relative">
       
       {step === 0 && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex flex-col justify-end pb-[70px] sm:pb-24 md:px-4 animate-in fade-in">
-          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2rem] w-full md:max-w-md mx-auto p-6 sm:p-8 shadow-2xl relative md:mb-4">
-            <button onClick={() => navigate('/')} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+        <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
+          <div className="bg-white rounded-t-[2.5rem] w-full p-6 shadow-2xl relative pb-28">
+            <button onClick={() => navigate('/')} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
               <X size={18} strokeWidth={2.5} />
             </button>
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Choose your service</h2>
+            <h2 className="text-xl font-black text-slate-900 mb-6 tracking-tight">Choose your service</h2>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               <button 
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Within City'})); setStep(1); }}
-                className="w-full bg-white border border-slate-100 hover:border-blue-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-md rounded-2xl p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
               >
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-14 bg-[#F0F5FF] rounded-2xl flex items-center justify-center shrink-0">
-                     <Truck size={24} className="text-blue-500" strokeWidth={2} />
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+                     <Truck size={22} className="text-blue-600" strokeWidth={2} />
                   </div>
-                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Within City</span>
+                  <div className="text-left">
+                    <span className="font-extrabold text-sm text-slate-900 tracking-tight block">Within City</span>
+                    <span className="text-[11px] text-slate-400 font-medium">Instant hyper-local courier</span>
+                  </div>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-3" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-2" />
               </button>
 
               <button 
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Outstation'})); setStep(1); }}
-                className="w-full bg-white border border-slate-100 hover:border-green-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-200/80 hover:border-emerald-400 hover:shadow-md rounded-2xl p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
               >
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-14 bg-[#F0FDF4] rounded-2xl flex items-center justify-center shrink-0">
-                     <Map size={24} className="text-green-600" strokeWidth={2} />
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+                     <Map size={22} className="text-emerald-600" strokeWidth={2} />
                   </div>
-                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Outstation</span>
+                  <div className="text-left">
+                    <span className="font-extrabold text-sm text-slate-900 tracking-tight block">Outstation</span>
+                    <span className="text-[11px] text-slate-400 font-medium">Intercity hub-and-spoke delivery</span>
+                  </div>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-green-600 -rotate-90 transition-colors mr-3" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-emerald-600 -rotate-90 transition-colors mr-2" />
               </button>
             </div>
           </div>

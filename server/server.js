@@ -30,12 +30,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000,
-})
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((error) => console.error('MongoDB connection error:', error));
+// Database Connection with automatic local fallback
+const primaryDbUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zypergo';
+const localDbUri = process.env.MONGODB_LOCAL_URI || 'mongodb://127.0.0.1:27017/zypergo';
+
+async function connectToDatabase() {
+  const isPrimaryLocal = primaryDbUri.includes('127.0.0.1') || primaryDbUri.includes('localhost');
+  try {
+    await mongoose.connect(primaryDbUri, { 
+      serverSelectionTimeoutMS: 4000,
+      ...(isPrimaryLocal ? { directConnection: true } : {})
+    });
+    console.log(`[ZYPERGO DB] Connected successfully to MongoDB (${isPrimaryLocal ? 'Local Self-Hosted' : 'Cloud Atlas'})`);
+  } catch (primaryErr) {
+    console.warn(`[ZYPERGO DB] Primary connection failed: ${primaryErr.message}`);
+    if (primaryDbUri !== localDbUri) {
+      console.log(`[ZYPERGO DB] Attempting fallback to local MongoDB: ${localDbUri}`);
+      try {
+        await mongoose.connect(localDbUri, { 
+          serverSelectionTimeoutMS: 4000,
+          directConnection: true
+        });
+        console.log('[ZYPERGO DB] Connected successfully to Local MongoDB fallback');
+      } catch (localErr) {
+        console.error('[ZYPERGO DB] All MongoDB connection attempts failed:', localErr.message);
+      }
+    }
+  }
+}
+connectToDatabase();
 
 // Routes
 app.get('/api/health', (req, res) => {

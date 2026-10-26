@@ -29,7 +29,7 @@ export default function MobileDeviceFrame({ children, appName = "Customer App" }
         <div className="hidden md:block absolute -right-[14px] top-[170px] w-[4px] h-[75px] bg-slate-700/80 rounded-r-sm"></div>
 
         {/* Inner Phone Screen Container */}
-        <div className="w-full h-full bg-[#F8FAFC] md:rounded-[44px] overflow-hidden flex flex-col relative shadow-inner">
+        <div className="w-full h-full bg-[#F8FAFC] md:rounded-[44px] overflow-hidden flex flex-col relative shadow-inner [transform:translateZ(0)]">
           
           {/* Dynamic Island Notch (Desktop preview) */}
           <div className="hidden md:flex absolute top-2 left-1/2 -translate-x-1/2 w-[116px] h-[28px] bg-black rounded-full z-50 items-center justify-between px-3 shadow-md pointer-events-none">

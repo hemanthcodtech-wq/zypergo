@@ -12,6 +12,8 @@
     "dev:client": "npm --prefix client run dev",
     "dev:customer": "npm --prefix client run dev:customer",
     "dev:rider": "npm --prefix client run dev:rider",
+    "dev:customer:8001": "npm --prefix client run dev:customer:8001",
+    "dev:rider:8002": "npm --prefix client run dev:rider:8002",
     "mobile:customer": "npm --prefix customer-app start",
     "mobile:rider": "npm --prefix rider-app start",
     "seed:admin": "npm --prefix server run seed:admin",
