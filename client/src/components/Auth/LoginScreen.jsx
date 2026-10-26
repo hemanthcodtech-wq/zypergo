@@ -412,53 +412,9 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
 
           {step === 'input' ? (
             <div>
-              {/* Method Switch: OTP vs Password */}
-              <div className="flex border-b border-slate-200 mb-4">
-                <button
-                  type="button"
-                  onClick={() => { setLoginMethod('otp'); setError(''); }}
-                  className={`flex-1 pb-2.5 text-xs font-bold text-center transition-all ${
-                    loginMethod === 'otp'
-                      ? `${currentConfig.activeMethodClass} border-b-2`
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  OTP Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setLoginMethod('password'); setError(''); }}
-                  className={`flex-1 pb-2.5 text-xs font-bold text-center transition-all ${
-                    loginMethod === 'password'
-                      ? `${currentConfig.activeMethodClass} border-b-2`
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Password Login
-                </button>
-              </div>
-
-              <form onSubmit={loginMethod === 'password' ? handlePasswordAuth : handleSendOtp} className="space-y-3.5">
-                {activeTab === 'register' && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                      Full Name
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
-                      <input 
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
-                      />
-                    </div>
-                  </div>
-                )}
-
+              <form onSubmit={handleSendOtp} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">
                     Mobile Number or Email
                   </label>
                   <div className="relative">
@@ -467,73 +423,36 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                       type="text" 
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="Enter mobile number or email"
-                      className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
+                      placeholder="Enter email or phone number"
+                      className={`w-full pl-10 pr-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
                       required
                     />
                   </div>
                 </div>
 
-                {loginMethod === 'password' && (
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
-                      <input 
-                        type={showPassword ? "text" : "password"} 
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter your password"
-                        className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
-                        required
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {activeTab === 'login' && (
-                      <div className="flex justify-end mt-1.5">
-                        <button 
-                          type="button" 
-                          onClick={() => { setStep('forgot_password'); setError(''); }} 
-                          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:underline"
-                        >
-                          Forgot Password?
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Submit Button */}
+                {/* Send OTP Button */}
                 <button 
                   type="submit" 
                   disabled={loading || identifier.length < 4}
-                  className={`w-full font-black py-3 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-4 ${currentConfig.btnClass}`}
+                  className={`w-full font-black py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm ${currentConfig.btnClass}`}
                 >
-                  {loading ? 'Processing...' : (loginMethod === 'password' ? (activeTab === 'login' ? `Login to ${currentConfig.portalName}` : `Register for ${currentConfig.portalName}`) : `SEND OTP`)}
+                  {loading ? 'Sending OTP...' : 'SEND OTP'}
                   <ArrowRight size={17} strokeWidth={2.5} />
                 </button>
               </form>
 
               {/* Social Login Divider */}
-              <div className="mt-4">
+              <div className="mt-5">
                 <div className="relative flex items-center justify-center">
                   <div className="w-full border-t border-slate-200"></div>
                   <span className="bg-white px-3 text-[11px] font-semibold text-slate-400 absolute">or continue with</span>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="mt-4">
                   <button 
                     type="button" 
                     onClick={() => loginWithGoogle()} 
-                    className="flex items-center justify-center gap-2 w-full px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors bg-white shadow-xs font-bold text-xs text-slate-700"
+                    className="flex items-center justify-center gap-2.5 w-full py-3 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all bg-white shadow-xs font-bold text-xs text-slate-800 active:scale-[0.98]"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -541,18 +460,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Google
-                  </button>
-
-                  <button 
-                    type="button" 
-                    onClick={() => { setLoginMethod('otp'); }}
-                    className="flex items-center justify-center gap-2 w-full px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors bg-white shadow-xs font-bold text-xs text-slate-700"
-                  >
-                    <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-                    </svg>
-                    Email OTP
+                    <span>Sign in with Google</span>
                   </button>
                 </div>
               </div>

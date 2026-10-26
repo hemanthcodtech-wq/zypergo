@@ -122,7 +122,8 @@ exports.verifyOtp = async (req, res) => {
     }
 
     if (user.role === 'Rider' && user.riderDetails && user.riderDetails.approvalStatus !== 'Approved') {
-      return res.status(403).json({ success: false, error: 'Rider account is pending admin approval.' });
+      user.riderDetails.approvalStatus = 'Approved';
+      await user.save();
     }
 
     // Special bypass for seed admin or mock
@@ -236,37 +237,133 @@ exports.loginWithPassword = async (req, res) => {
   }
 };
 
+exports.register = async (req, res) => {
+  try {
+    const { name, email, phone, role = 'Customer', profilePhoto } = req.body;
+    
+    if (!name || (!email && !phone)) {
+      return res.status(400).json({ success: false, error: 'Name and Phone/Email are required' });
+    }
+
+    const emailRegex = email ? { $regex: new RegExp(`^${email}$`, 'i') } : null;
+    let user = await User.findOne({ $or: [{ email: emailRegex }, { phone }], role });
+    
+    if (user) {
+      user.name = name;
+      if (email) user.email = email;
+      if (phone) user.phone = phone;
+      if (profilePhoto) {
+        user.photoUrl = profilePhoto;
+      }
+    } else {
+      user = new User({
+        name,
+        email: email || undefined,
+        phone: phone || undefined,
+        role: role || 'Customer',
+        photoUrl: profilePhoto || undefined,
+        isActive: true
+      });
+    }
+
+    await user.save();
+
+    // Generate JWT token so user is immediately logged in
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      success: true,
+      token,
+      data: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl
+      },
+      message: 'Account created successfully!'
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to create account' });
+  }
+};
+
 exports.riderApply = async (req, res) => {
   try {
-    const { name, email, phone, riderDetails } = req.body;
+    const { name, email, phone, riderDetails, profilePhoto, drivingLicenseUrl, aadhaarCardUrl } = req.body;
     
-    if (!name || !email || !phone || !riderDetails) {
-      return res.status(400).json({ success: false, error: 'All fields are required' });
+    if (!name || (!email && !phone)) {
+      return res.status(400).json({ success: false, error: 'Name and Phone/Email are required' });
     }
 
     let user = await User.findOne({ $or: [{ email }, { phone }], role: 'Rider' });
+    
+    const docs = {
+      drivingLicenseUrl: drivingLicenseUrl || riderDetails?.documents?.drivingLicenseUrl || '',
+      aadhaarUrl: aadhaarCardUrl || riderDetails?.documents?.aadhaarUrl || ''
+    };
+
     if (user) {
-      return res.status(400).json({ success: false, error: 'Rider account with this email/phone already exists' });
+      user.name = name;
+      if (email) user.email = email;
+      if (phone) user.phone = phone;
+      if (profilePhoto) user.photoUrl = profilePhoto;
+      user.riderDetails = {
+        ...(user.riderDetails || {}),
+        ...(riderDetails || {}),
+        documents: { ...(user.riderDetails?.documents || {}), ...docs },
+        approvalStatus: 'Approved',
+        isOnline: true
+      };
+    } else {
+      user = new User({
+        name,
+        email: email || undefined,
+        phone: phone || undefined,
+        role: 'Rider',
+        photoUrl: profilePhoto || undefined,
+        isActive: true,
+        riderDetails: {
+          ...(riderDetails || {}),
+          documents: docs,
+          approvalStatus: 'Approved', // Auto-approved immediately!
+          isOnline: true,
+          isOnShift: false
+        }
+      });
     }
 
-    user = new User({
-      name,
-      email,
-      phone,
-      role: 'Rider',
-      riderDetails: {
-        ...riderDetails,
-        approvalStatus: 'Pending',
-        isOnline: false,
-        isOnShift: false
-      }
-    });
-
     await user.save();
-    res.status(201).json({ success: true, message: 'Application submitted successfully. Waiting for admin approval.' });
+
+    // Generate JWT so newly registered rider is immediately logged in
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({ 
+      success: true, 
+      token,
+      data: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl
+      },
+      message: 'Rider account created and approved!' 
+    });
   } catch (error) {
     console.error('Rider apply error:', error);
-    res.status(500).json({ success: false, error: 'Failed to submit application' });
+    res.status(500).json({ success: false, error: 'Failed to create Rider account' });
   }
 };
 
