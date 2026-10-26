@@ -18,7 +18,8 @@ export default function HubApp() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    navigate('/dashboard', { replace: true });
+    const target = window.location.pathname.startsWith('/hub') ? '/hub/dashboard' : '/dashboard';
+    navigate(target, { replace: true });
   };
 
   const handleClearAuth = () => {
@@ -27,10 +28,26 @@ export default function HubApp() {
     setIsAuthenticated(false);
   };
 
+  const renderDashboard = () => (
+    <ProtectedRoute requiredRole="HubManager">
+      <HubManagerDashboard onLogout={handleClearAuth} />
+    </ProtectedRoute>
+  );
+
   return (
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={
+        <PublicRoute requiredRole="HubManager">
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/hub" element={
+        <PublicRoute requiredRole="HubManager">
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/hub/welcome" element={
         <PublicRoute requiredRole="HubManager">
           <HubWelcome />
         </PublicRoute>
@@ -41,13 +58,24 @@ export default function HubApp() {
           <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/hub/login" element={
+        <PublicRoute requiredRole="HubManager">
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
       {/* Protected Routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute requiredRole="HubManager">
-          <HubManagerDashboard onLogout={handleClearAuth} />
-        </ProtectedRoute>
-      }>
+      <Route path="/dashboard" element={renderDashboard()}>
+        <Route index element={<HubHome />} />
+        <Route path="book" element={<HubBookOrder />} />
+        <Route path="scan" element={<HubScan />} />
+        <Route path="manifests" element={<HubManifests />} />
+        <Route path="inventory" element={<HubInventory />} />
+        <Route path="records" element={<HubRecords />} />
+        <Route path="account" element={<HubAccount />} />
+      </Route>
+
+      <Route path="/hub/dashboard" element={renderDashboard()}>
         <Route index element={<HubHome />} />
         <Route path="book" element={<HubBookOrder />} />
         <Route path="scan" element={<HubScan />} />
@@ -58,7 +86,7 @@ export default function HubApp() {
       </Route>
       
       {/* Wildcard */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/hub') ? "/hub/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/hub') ? "/hub/login" : "/login")} replace />} />
     </Routes>
   );
 }

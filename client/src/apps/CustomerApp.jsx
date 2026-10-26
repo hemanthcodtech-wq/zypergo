@@ -24,6 +24,9 @@ function CustomerLayout() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const isCustomerPrefix = location.pathname.startsWith('/customer');
+  const base = isCustomerPrefix ? '/customer' : '';
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -44,16 +47,8 @@ function CustomerLayout() {
   const handleLogout = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
-    window.location.href = '/login';
+    window.location.href = isCustomerPrefix ? '/customer/login' : '/login';
   };
-
-  const navItems = [
-    { path: '/', label: 'Dashboard' },
-    { path: '/shipments', label: 'Shipments' },
-    { path: '/track', label: 'Track' },
-    { path: '/invoices', label: 'Invoices' },
-    { path: '/support', label: 'Support' }
-  ];
 
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center font-sans">
@@ -67,26 +62,26 @@ function CustomerLayout() {
           </div>
           
           <div className="flex flex-col gap-2">
-            <Link to="/dashboard" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/dashboard' ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+            <Link to={`${base}/dashboard`} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.endsWith('/dashboard') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
               <Home size={20} />
               <span className="font-bold text-sm">Dashboard</span>
             </Link>
-            <Link to="/shipments" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/shipments') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+            <Link to={`${base}/shipments`} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/shipments') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
               <Package size={20} />
               <span className="font-bold text-sm">Orders</span>
             </Link>
-            <Link to="/booking" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/booking') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+            <Link to={`${base}/booking`} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/booking') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
               <Calendar size={20} />
               <span className="font-bold text-sm">Bookings</span>
             </Link>
-            <Link to="/track" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/track') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+            <Link to={`${base}/track`} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/track') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
               <MapPin size={20} />
               <span className="font-bold text-sm">Track Order</span>
             </Link>
           </div>
           
           <div className="mt-auto">
-            <Link to="/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/profile') ? 'bg-[#0052CC] text-white shadow-md' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
+            <Link to={`${base}/profile`} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.includes('/profile') ? 'bg-[#0052CC] text-white shadow-md' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
               <UserIcon size={20} />
               <div className="flex flex-col">
                 <span className="font-bold text-sm">{user.name}</span>
@@ -101,31 +96,31 @@ function CustomerLayout() {
           <Outlet />
         </main>
 
-        {/* Mobile Bottom Navigation Bar (Image 3) */}
+        {/* Mobile Bottom Navigation Bar */}
         <nav className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-between items-center px-4 pb-4 pt-2.5 z-[60] shadow-[0_-10px_30px_rgba(0,0,0,0.06)] rounded-t-3xl">
-          <Link to="/dashboard" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname === '/dashboard' ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Home size={22} className={location.pathname === '/dashboard' ? 'stroke-[2.5]' : 'stroke-2'} />
+          <Link to={`${base}/dashboard`} className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.endsWith('/dashboard') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Home size={22} className={location.pathname.endsWith('/dashboard') ? 'stroke-[2.5]' : 'stroke-2'} />
             <span className="text-[10px] font-bold">Home</span>
           </Link>
-          <Link to="/shipments" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/shipments') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Package size={22} className={location.pathname.startsWith('/shipments') ? 'stroke-[2.5]' : 'stroke-2'} />
+          <Link to={`${base}/shipments`} className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.includes('/shipments') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Package size={22} className={location.pathname.includes('/shipments') ? 'stroke-[2.5]' : 'stroke-2'} />
             <span className="text-[10px] font-bold">Orders</span>
           </Link>
           
           {/* Raised Floating Book Action Button */}
-          <Link to="/booking" className="flex flex-col items-center w-1/5 relative group">
+          <Link to={`${base}/booking`} className="flex flex-col items-center w-1/5 relative group">
             <div className="absolute -top-7 w-13 h-13 bg-[#0052CC] hover:bg-[#0047cc] rounded-full border-4 border-white shadow-[0_8px_20px_rgba(0,82,204,0.4)] flex items-center justify-center text-white active:scale-95 transition-all">
               <Plus size={28} strokeWidth={2.8} />
             </div>
-            <span className={`text-[10px] font-bold mt-7 ${location.pathname.startsWith('/booking') ? 'text-[#0052CC]' : 'text-[#0052CC]'}`}>Book</span>
+            <span className={`text-[10px] font-bold mt-7 ${location.pathname.includes('/booking') ? 'text-[#0052CC]' : 'text-[#0052CC]'}`}>Book</span>
           </Link>
           
-          <Link to="/track" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/track') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
-            <MapPin size={22} className={location.pathname.startsWith('/track') ? 'stroke-[2.5]' : 'stroke-2'} />
+          <Link to={`${base}/track`} className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.includes('/track') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <MapPin size={22} className={location.pathname.includes('/track') ? 'stroke-[2.5]' : 'stroke-2'} />
             <span className="text-[10px] font-bold">Track</span>
           </Link>
-          <Link to="/profile" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/profile') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
-            <UserIcon size={22} className={location.pathname.startsWith('/profile') ? 'stroke-[2.5]' : 'stroke-2'} />
+          <Link to={`${base}/profile`} className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.includes('/profile') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <UserIcon size={22} className={location.pathname.includes('/profile') ? 'stroke-[2.5]' : 'stroke-2'} />
             <span className="text-[10px] font-bold">Profile</span>
           </Link>
         </nav>
@@ -146,14 +141,42 @@ export default function CustomerApp() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    navigate('/dashboard', { replace: true });
+    navigate('/customer/dashboard', { replace: true });
   };
+
+  const customerChildRoutes = (
+    <>
+      <Route path="dashboard" element={<CustomerDashboard />} />
+      <Route path="shipments" element={<MyShipments />} />
+      <Route path="invoices" element={<CustomerInvoices />} />
+      <Route path="order/:id" element={<OrderDetails />} />
+      <Route path="track/:id?" element={<TrackingTimeline />} />
+      <Route path="address-book" element={<AddressBook />} />
+      <Route path="addresses" element={<AddressBook />} />
+      <Route path="support" element={<SupportCenter />} />
+      <Route path="notifications" element={<CustomerNotifications />} />
+      <Route path="booking" element={<BookingFlow />} />
+      <Route path="profile" element={<CustomerProfile />} />
+      <Route path="settings" element={<CustomerSettings />} />
+    </>
+  );
 
   return (
     <Routes>
+      <Route path="/customer/login" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
       <Route path="/login" element={
         <PublicRoute requiredRole="Customer">
           <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+
+      <Route path="/customer/signup" element={
+        <PublicRoute requiredRole="Customer">
+          <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/signup" element={
@@ -162,32 +185,39 @@ export default function CustomerApp() {
         </PublicRoute>
       } />
 
-      <Route path="/" element={
+      <Route path="/customer" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/customer/welcome" element={
         <PublicRoute requiredRole="Customer">
           <CustomerWelcome />
         </PublicRoute>
       } />
+      <Route path="/" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+
+      <Route path="/customer/*" element={
+        <ProtectedRoute requiredRole="Customer">
+          <CustomerLayout />
+        </ProtectedRoute>
+      }>
+        {customerChildRoutes}
+      </Route>
 
       <Route element={
         <ProtectedRoute requiredRole="Customer">
           <CustomerLayout />
         </ProtectedRoute>
       }>
-        <Route path="/dashboard" element={<CustomerDashboard />} />
-        <Route path="/shipments" element={<MyShipments />} />
-        <Route path="/invoices" element={<CustomerInvoices />} />
-        <Route path="/order/:id" element={<OrderDetails />} />
-        <Route path="/track/:id?" element={<TrackingTimeline />} />
-        <Route path="/address-book" element={<AddressBook />} />
-        <Route path="/addresses" element={<AddressBook />} />
-        <Route path="/support" element={<SupportCenter />} />
-        <Route path="/notifications" element={<CustomerNotifications />} />
-        <Route path="/booking" element={<BookingFlow />} />
-        <Route path="/profile" element={<CustomerProfile />} />
-        <Route path="/settings" element={<CustomerSettings />} />
+        {customerChildRoutes}
       </Route>
       
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/customer/dashboard" : "/customer"} replace />} />
     </Routes>
   );
 }

@@ -104,7 +104,7 @@ export default function CustomerWelcome() {
         {/* Primary CTA Button */}
         <div className="w-full my-2">
           <button 
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/customer/login')}
             className="w-full bg-[#0052CC] hover:bg-[#0047cc] text-white font-extrabold py-4 px-6 rounded-2xl text-base shadow-[0_10px_25px_-5px_rgba(0,82,204,0.4)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <span>Login / Sign Up</span>

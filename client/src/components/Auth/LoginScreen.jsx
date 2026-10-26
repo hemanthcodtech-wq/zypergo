@@ -1,8 +1,162 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Phone, KeyRound, ArrowRight, Eye, EyeOff, CheckCircle2, User, UserPlus, Mail, Headphones, Shield, Zap, Star, Lock, Award } from 'lucide-react';
+import { 
+  ShieldCheck, Phone, KeyRound, ArrowRight, Eye, EyeOff, 
+  CheckCircle2, User, UserPlus, Mail, Headphones, Shield, 
+  Zap, Star, Lock, Award, Compass, Truck, Package, Handshake 
+} from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import api from '../../api';
+
+const ROLE_CONFIGS = {
+  customer: {
+    portalName: 'Customer Portal',
+    badgeText: 'Customer Login',
+    badgeColor: 'bg-teal-50 text-[#006D77] border-teal-200/90',
+    dotColor: 'bg-[#006D77]',
+    titleHighlight: 'Customer Login',
+    titleSuffix: 'Sign In & Track Orders',
+    subtitle: 'Book parcels, calculate delivery rates, and track orders live in real time.',
+    loginTabLabel: 'Customer Login',
+    registerTabLabel: 'New Customer Sign Up',
+    themeColor: '#006D77',
+    btnClass: 'bg-[#006D77] hover:bg-[#005a63] text-white',
+    activeTabClass: 'bg-[#006D77] text-white shadow-xs',
+    activeMethodClass: 'text-[#006D77] border-[#006D77]',
+    focusRingClass: 'focus:border-[#006D77] focus:ring-[#006D77]/20',
+    badges: [
+      { title: 'Secure', subtitle: '100% Insured & Safe', bg: 'bg-teal-50/80 border-teal-100/80', text: 'text-[#006D77]', icon: Shield },
+      { title: 'Express', subtitle: 'Instant Door Pickup', bg: 'bg-orange-50/80 border-orange-100/80', text: 'text-[#FF6B00]', icon: Zap },
+      { title: 'Reliable', subtitle: 'Live GPS Tracking', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  },
+  rider: {
+    portalName: 'Rider Partner Portal',
+    badgeText: 'Rider Partner Login',
+    badgeColor: 'bg-amber-50 text-amber-800 border-amber-200/90',
+    dotColor: 'bg-amber-500',
+    titleHighlight: 'Rider Partner Login',
+    titleSuffix: 'Driver Login & Tasks',
+    subtitle: 'Accept pickup trips, scan customer OTP handovers, and track your daily payouts.',
+    loginTabLabel: 'Rider Login',
+    registerTabLabel: 'Join as Rider',
+    themeColor: '#D97706',
+    btnClass: 'bg-[#D97706] hover:bg-[#B45309] text-white',
+    activeTabClass: 'bg-[#D97706] text-white shadow-xs',
+    activeMethodClass: 'text-[#D97706] border-[#D97706]',
+    focusRingClass: 'focus:border-[#D97706] focus:ring-[#D97706]/20',
+    badges: [
+      { title: 'Quick Trips', subtitle: 'Instant Trip Alerts', bg: 'bg-amber-50/80 border-amber-100/80', text: 'text-amber-600', icon: Zap },
+      { title: 'OTP Safe', subtitle: 'Zero Dispute Handover', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: ShieldCheck },
+      { title: 'Payouts', subtitle: 'Direct Daily Bank Pay', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  },
+  hubmanager: {
+    portalName: 'Hub Manager Portal',
+    badgeText: 'Hub Manager Portal Login',
+    badgeColor: 'bg-orange-50 text-orange-800 border-orange-200/90',
+    dotColor: 'bg-[#EA580C]',
+    titleHighlight: 'Hub Manager Login',
+    titleSuffix: 'Operations Workspace',
+    subtitle: 'High-speed parcel scanning, bag sorting, vehicle manifests, and hub dispatch control.',
+    loginTabLabel: 'Hub Manager Login',
+    registerTabLabel: 'New Manager Access',
+    themeColor: '#EA580C',
+    btnClass: 'bg-[#EA580C] hover:bg-[#C2410C] text-white',
+    activeTabClass: 'bg-[#EA580C] text-white shadow-xs',
+    activeMethodClass: 'text-[#EA580C] border-[#EA580C]',
+    focusRingClass: 'focus:border-[#EA580C] focus:ring-[#EA580C]/20',
+    badges: [
+      { title: 'Scanner', subtitle: 'Camera & Barcode', bg: 'bg-orange-50/80 border-orange-100/80', text: 'text-[#EA580C]', icon: Zap },
+      { title: 'Sorting', subtitle: 'Intelligent Route Bins', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: Package },
+      { title: 'Manifests', subtitle: 'Linehaul Handover', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Shield },
+    ]
+  },
+  hub: {
+    portalName: 'Hub Manager Portal',
+    badgeText: 'Hub Manager Portal Login',
+    badgeColor: 'bg-orange-50 text-orange-800 border-orange-200/90',
+    dotColor: 'bg-[#EA580C]',
+    titleHighlight: 'Hub Manager Login',
+    titleSuffix: 'Operations Workspace',
+    subtitle: 'High-speed parcel scanning, bag sorting, vehicle manifests, and hub dispatch control.',
+    loginTabLabel: 'Hub Manager Login',
+    registerTabLabel: 'New Manager Access',
+    themeColor: '#EA580C',
+    btnClass: 'bg-[#EA580C] hover:bg-[#C2410C] text-white',
+    activeTabClass: 'bg-[#EA580C] text-white shadow-xs',
+    activeMethodClass: 'text-[#EA580C] border-[#EA580C]',
+    focusRingClass: 'focus:border-[#EA580C] focus:ring-[#EA580C]/20',
+    badges: [
+      { title: 'Scanner', subtitle: 'Camera & Barcode', bg: 'bg-orange-50/80 border-orange-100/80', text: 'text-[#EA580C]', icon: Zap },
+      { title: 'Sorting', subtitle: 'Intelligent Route Bins', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: Package },
+      { title: 'Manifests', subtitle: 'Linehaul Handover', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Shield },
+    ]
+  },
+  partner: {
+    portalName: 'Hauler & Partner Portal',
+    badgeText: 'Hauler & Fleet Portal',
+    badgeColor: 'bg-blue-50 text-[#023E8A] border-blue-200/90',
+    dotColor: 'bg-[#023E8A]',
+    titleHighlight: 'Hauler & Fleet',
+    titleSuffix: 'Partner Workspace',
+    subtitle: 'Manage regional fleet vehicles, linehaul bulk manifests, driver assignments, and settlements.',
+    loginTabLabel: 'Partner Login',
+    registerTabLabel: 'Register Fleet',
+    themeColor: '#023E8A',
+    btnClass: 'bg-[#023E8A] hover:bg-[#002855] text-white',
+    activeTabClass: 'bg-[#023E8A] text-white shadow-xs',
+    activeMethodClass: 'text-[#023E8A] border-[#023E8A]',
+    focusRingClass: 'focus:border-[#023E8A] focus:ring-[#023E8A]/20',
+    badges: [
+      { title: 'Fleet GPS', subtitle: 'Live Vehicle Telemetry', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#023E8A]', icon: Truck },
+      { title: 'Linehaul', subtitle: 'Bulk Route Contracts', bg: 'bg-orange-50/80 border-orange-100/80', text: 'text-[#FF6B00]', icon: Zap },
+      { title: 'Settlement', subtitle: 'Transparent Weekly Pay', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  },
+  superadmin: {
+    portalName: 'SuperAdmin Portal',
+    badgeText: 'SuperAdmin Control Panel',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200/90',
+    dotColor: 'bg-[#7C3AED]',
+    titleHighlight: 'SuperAdmin',
+    titleSuffix: 'Control Center',
+    subtitle: 'Centralized administration for live rider dispatch, KYC verification, hub networks, and finances.',
+    loginTabLabel: 'Admin Login',
+    registerTabLabel: 'Admin Access',
+    themeColor: '#7C3AED',
+    btnClass: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white',
+    activeTabClass: 'bg-[#7C3AED] text-white shadow-xs',
+    activeMethodClass: 'text-[#7C3AED] border-[#7C3AED]',
+    focusRingClass: 'focus:border-[#7C3AED] focus:ring-[#7C3AED]/20',
+    badges: [
+      { title: 'Full Access', subtitle: 'Platform Governance', bg: 'bg-purple-50/80 border-purple-100/80', text: 'text-[#7C3AED]', icon: Shield },
+      { title: 'Live Map', subtitle: 'Real-Time Dispatch', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: Zap },
+      { title: 'Security', subtitle: 'KYC & Audit Compliance', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  },
+  admin: {
+    portalName: 'SuperAdmin Portal',
+    badgeText: 'SuperAdmin Control Panel',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200/90',
+    dotColor: 'bg-[#7C3AED]',
+    titleHighlight: 'SuperAdmin',
+    titleSuffix: 'Control Center',
+    subtitle: 'Centralized administration for live rider dispatch, KYC verification, hub networks, and finances.',
+    loginTabLabel: 'Admin Login',
+    registerTabLabel: 'Admin Access',
+    themeColor: '#7C3AED',
+    btnClass: 'bg-[#7C3AED] hover:bg-[#6D28D9] text-white',
+    activeTabClass: 'bg-[#7C3AED] text-white shadow-xs',
+    activeMethodClass: 'text-[#7C3AED] border-[#7C3AED]',
+    focusRingClass: 'focus:border-[#7C3AED] focus:ring-[#7C3AED]/20',
+    badges: [
+      { title: 'Full Access', subtitle: 'Platform Governance', bg: 'bg-purple-50/80 border-purple-100/80', text: 'text-[#7C3AED]', icon: Shield },
+      { title: 'Live Map', subtitle: 'Real-Time Dispatch', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: Zap },
+      { title: 'Security', subtitle: 'KYC & Audit Compliance', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  }
+};
 
 export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
   const navigate = useNavigate();
@@ -17,7 +171,15 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
+  const currentConfig = ROLE_CONFIGS[normalizedKey] || ROLE_CONFIGS.customer;
+
   const isEmail = identifier.includes('@');
+
+  const handleSwitchRole = () => {
+    sessionStorage.removeItem('zypergo_portal');
+    window.location.href = '/login?select=true';
+  };
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -162,51 +324,66 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
           </div>
-          <button 
-            type="button"
-            onClick={() => navigate('/support')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
-          >
-            <Headphones size={15} className="text-slate-600" />
-            <span className="text-xs font-bold">Help</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={handleSwitchRole}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-xs text-xs font-bold"
+              title="Select another portal or role"
+            >
+              <Compass size={14} className="text-slate-500" />
+              <span>Switch Role</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => navigate('/support')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+            >
+              <Headphones size={15} className="text-slate-600" />
+              <span className="text-xs font-bold">Help</span>
+            </button>
+          </div>
         </div>
 
-        {/* Hero Section Matching Reference 2 */}
+        {/* Role Dedicated Header & Hero Section */}
         <div className="mb-4">
+          {/* Prominent Role Identification Badge */}
+          <div className="flex items-center justify-between mb-2">
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-black tracking-wide ${currentConfig.badgeColor}`}>
+              <span className={`w-2 h-2 rounded-full ${currentConfig.dotColor} animate-pulse`} />
+              <span>{currentConfig.badgeText}</span>
+            </div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Dedicated Portal
+            </span>
+          </div>
+
           <h1 className="text-2xl font-black text-slate-900 leading-tight">
-            Ship Smarter.<br />
-            Deliver <span className="text-[#FF6B00]">Faster.</span>
+            {currentConfig.titleHighlight}<br />
+            <span style={{ color: currentConfig.themeColor }}>{currentConfig.titleSuffix}</span>
           </h1>
           <p className="text-slate-500 text-[11px] font-semibold mt-1 mb-3">
-            Reliable parcel delivery and logistics solutions, right at your fingertips.
+            {currentConfig.subtitle}
           </p>
 
-          {/* Badges + Fleet Illustration Side-by-Side (Matching Image 2) */}
+          {/* Badges + Fleet Illustration Side-by-Side */}
           <div className="flex items-center gap-2.5">
-            {/* Left 3 Badges Column */}
-            <div className="flex flex-col gap-2 w-[42%] shrink-0">
-              <div className="p-2 bg-blue-50/80 border border-blue-100/80 rounded-xl flex flex-col items-center text-center">
-                <Shield size={15} className="text-[#0052CC] mb-0.5" />
-                <span className="text-[10px] font-black text-slate-800 leading-tight">Secure</span>
-                <span className="text-[8px] font-medium text-slate-500 mt-0.5">100% Safe & Protected</span>
-              </div>
-              
-              <div className="p-2 bg-orange-50/80 border border-orange-100/80 rounded-xl flex flex-col items-center text-center">
-                <Zap size={15} className="text-[#FF6B00] mb-0.5" />
-                <span className="text-[10px] font-black text-slate-800 leading-tight">Fast</span>
-                <span className="text-[8px] font-medium text-slate-500 mt-0.5">Quick Delivery, On Time</span>
-              </div>
-
-              <div className="p-2 bg-emerald-50/80 border border-emerald-100/80 rounded-xl flex flex-col items-center text-center">
-                <Star size={15} className="text-emerald-600 fill-emerald-600 mb-0.5" />
-                <span className="text-[10px] font-black text-slate-800 leading-tight">Reliable</span>
-                <span className="text-[8px] font-medium text-slate-500 mt-0.5">Trusted by 1000+ Businesses</span>
-              </div>
+            {/* Left 3 Badges Column tailored to Role */}
+            <div className="flex flex-col gap-2 w-[44%] shrink-0">
+              {currentConfig.badges.map((b, idx) => {
+                const IconComponent = b.icon;
+                return (
+                  <div key={idx} className={`p-2 border rounded-xl flex flex-col items-center text-center ${b.bg}`}>
+                    <IconComponent size={15} className={`${b.text} mb-0.5`} />
+                    <span className="text-[10px] font-black text-slate-800 leading-tight">{b.title}</span>
+                    <span className="text-[8px] font-medium text-slate-500 mt-0.5">{b.subtitle}</span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Right Clear 3D Fleet Illustration */}
-            <div className="flex-1 h-[190px] rounded-2xl overflow-hidden bg-gradient-to-b from-blue-50/30 to-white flex items-center justify-center p-0.5">
+            <div className="flex-1 h-[190px] rounded-2xl overflow-hidden bg-gradient-to-b from-slate-50/50 to-white flex items-center justify-center p-0.5 border border-slate-100">
               <img 
                 src="/images/fleet_hero.jpg" 
                 alt="ZyperGo Fleet" 
@@ -227,22 +404,22 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                 onClick={() => { setActiveTab('login'); setStep('input'); setError(''); }}
                 className={`flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-all ${
                   activeTab === 'login' 
-                    ? 'bg-[#0052CC] text-white shadow-xs' 
+                    ? currentConfig.activeTabClass 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <User size={15} /> Login
+                <User size={15} /> {currentConfig.loginTabLabel}
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveTab('register'); setStep('input'); setError(''); }}
                 className={`flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-all ${
                   activeTab === 'register' 
-                    ? 'bg-[#0052CC] text-white shadow-xs' 
+                    ? currentConfig.activeTabClass 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <UserPlus size={15} /> Register
+                <UserPlus size={15} /> {currentConfig.registerTabLabel}
               </button>
             </div>
           )}
@@ -262,7 +439,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                   onClick={() => { setLoginMethod('otp'); setError(''); }}
                   className={`flex-1 pb-2.5 text-xs font-bold text-center transition-all ${
                     loginMethod === 'otp'
-                      ? 'text-[#0052CC] border-b-2 border-[#0052CC]'
+                      ? `${currentConfig.activeMethodClass} border-b-2`
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -273,7 +450,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                   onClick={() => { setLoginMethod('password'); setError(''); }}
                   className={`flex-1 pb-2.5 text-xs font-bold text-center transition-all ${
                     loginMethod === 'password'
-                      ? 'text-[#0052CC] border-b-2 border-[#0052CC]'
+                      ? `${currentConfig.activeMethodClass} border-b-2`
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -294,7 +471,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Enter your full name"
-                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
+                        className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
                       />
                     </div>
                   </div>
@@ -311,7 +488,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       placeholder="Enter mobile number or email"
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
+                      className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
                       required
                     />
                   </div>
@@ -329,7 +506,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
+                        className={`w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
                         required
                       />
                       <button 
@@ -345,7 +522,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                         <button 
                           type="button" 
                           onClick={() => { setStep('forgot_password'); setError(''); }} 
-                          className="text-[11px] font-bold text-[#0052CC] hover:underline"
+                          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:underline"
                         >
                           Forgot Password?
                         </button>
@@ -358,9 +535,9 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                 <button 
                   type="submit" 
                   disabled={loading || identifier.length < 4}
-                  className="w-full bg-[#0052CC] hover:bg-[#0047cc] text-white font-black py-3 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-4"
+                  className={`w-full font-black py-3 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-4 ${currentConfig.btnClass}`}
                 >
-                  {loading ? 'Processing...' : (loginMethod === 'password' ? (activeTab === 'login' ? 'Login Securely' : 'Register Securely') : 'SEND OTP')}
+                  {loading ? 'Processing...' : (loginMethod === 'password' ? (activeTab === 'login' ? `Login to ${currentConfig.portalName}` : `Register for ${currentConfig.portalName}`) : `SEND OTP`)}
                   <ArrowRight size={17} strokeWidth={2.5} />
                 </button>
               </form>
@@ -395,7 +572,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                     <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
                     </svg>
-                    Gmail
+                    Email OTP
                   </button>
                 </div>
               </div>
@@ -405,12 +582,17 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
             <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in">
               <div className="text-center">
                 <p className="text-xs font-bold text-slate-700">Enter OTP sent to</p>
-                <p className="text-xs font-black text-[#0052CC] mt-0.5">{identifier}</p>
+                <p className="text-xs font-black mt-0.5" style={{ color: currentConfig.themeColor }}>{identifier}</p>
+                <div className="mt-1">
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${currentConfig.badgeColor}`}>
+                    {currentConfig.badgeText} Verification
+                  </span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
-                  4-Digit Verification Code
+                  Verification Code
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -420,7 +602,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                     placeholder="••••"
-                    className="w-full text-center py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-mono font-bold text-xl tracking-widest text-slate-900 transition-all"
+                    className={`w-full text-center py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-mono font-bold text-xl tracking-widest text-slate-900 transition-all`}
                     required
                   />
                 </div>
@@ -435,7 +617,8 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                   <button 
                     type="button" 
                     onClick={handleSendOtp} 
-                    className="text-[11px] font-bold text-[#0052CC] hover:underline"
+                    className="text-[11px] font-bold hover:underline"
+                    style={{ color: currentConfig.themeColor }}
                   >
                     Resend Code
                   </button>
@@ -445,9 +628,9 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
               <button 
                 type="submit" 
                 disabled={loading || otp.length < 4}
-                className="w-full bg-[#0052CC] hover:bg-[#0047cc] text-white font-black py-3 rounded-xl shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all"
+                className={`w-full font-black py-3 rounded-xl shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all ${currentConfig.btnClass}`}
               >
-                {loading ? 'Verifying...' : 'Verify & Continue'}
+                {loading ? 'Verifying...' : `Verify & Access ${currentConfig.portalName}`}
                 <ShieldCheck size={18} />
               </button>
             </form>
@@ -455,7 +638,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
             <form onSubmit={handleForgotPassword} className="space-y-4 animate-in fade-in">
               <div className="text-center">
                 <h3 className="text-sm font-black text-slate-900">Reset Your Password</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Enter your registered email address</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Enter your registered email address for {currentConfig.portalName}</p>
               </div>
 
               <div>
@@ -469,7 +652,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 outline-none font-semibold text-xs text-slate-900 transition-all"
+                    className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-semibold text-xs text-slate-900 transition-all`}
                     required
                   />
                 </div>
@@ -478,7 +661,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
               <button 
                 type="submit" 
                 disabled={loading || !identifier.includes('@')}
-                className="w-full bg-[#0052CC] hover:bg-[#0047cc] text-white font-black py-3 rounded-xl shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all"
+                className={`w-full font-black py-3 rounded-xl shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all ${currentConfig.btnClass}`}
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
                 <ArrowRight size={17} />
@@ -509,7 +692,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
               <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1 border border-emerald-100">
                 <CheckCircle2 size={14} />
               </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Verified Partner</span>
+              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Verified Portal</span>
             </div>
 
             <div className="flex flex-col items-center text-center">
@@ -523,7 +706,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
               <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mb-1 border border-purple-100">
                 <Award size={14} />
               </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Compliance Assured</span>
+              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Role Guarded</span>
             </div>
           </div>
 
@@ -532,7 +715,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
         {/* Bottom Tagline */}
         <div className="text-center mt-4">
           <p className="text-xs font-black text-slate-800">Trusted logistics made simple.</p>
-          <p className="text-[10px] font-bold text-slate-500 mt-0.5">Fast • Secure • Reliable</p>
+          <p className="text-[10px] font-bold text-slate-500 mt-0.5">ZyperGo • Fast • Secure • Reliable</p>
         </div>
 
       </div>

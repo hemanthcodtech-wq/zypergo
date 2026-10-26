@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import RiderDashboard from './rider/RiderDashboard';
 import RiderProfile from './rider/RiderProfile';
 import RiderSettings from './rider/RiderSettings';
@@ -13,13 +13,17 @@ import { LayoutDashboard, Wallet, User as UserIcon, Settings, LogOut, Navigation
 
 function RiderLayout({ children, onLogout, user }) {
   const navigate = useNavigate();
-  const currentPath = window.location.pathname;
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isPrefix = currentPath.startsWith('/rider');
+  const base = isPrefix ? '/rider' : '';
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Earnings', path: '/earnings', icon: <Wallet size={20} /> },
-    { name: 'Profile', path: '/profile', icon: <UserIcon size={20} /> },
-    { name: 'Settings', path: '/settings', icon: <Settings size={20} /> }
+    { name: 'Dashboard', path: `${base}/dashboard`, icon: <LayoutDashboard size={20} /> },
+    { name: 'Earnings', path: `${base}/earnings`, icon: <Wallet size={20} /> },
+    { name: 'Profile', path: `${base}/profile`, icon: <UserIcon size={20} /> },
+    { name: 'Settings', path: `${base}/settings`, icon: <Settings size={20} /> }
   ];
 
   return (
@@ -32,7 +36,7 @@ function RiderLayout({ children, onLogout, user }) {
 
         <nav className="flex-1 px-4 py-2 space-y-2 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = currentPath === item.path;
+            const isActive = currentPath === item.path || (item.path.endsWith('/dashboard') && (currentPath === '/rider' || currentPath === '/'));
             return (
               <button
                 key={item.name}
@@ -71,7 +75,7 @@ function RiderLayout({ children, onLogout, user }) {
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.05)] z-50 px-6 py-3 pb-safe-area flex justify-between items-center">
         {navItems.map((item) => {
-          const isActive = currentPath === item.path;
+          const isActive = currentPath === item.path || (item.path.endsWith('/dashboard') && (currentPath === '/rider' || currentPath === '/'));
           return (
             <button 
               key={item.name}
@@ -131,74 +135,122 @@ export default function RiderApp() {
   const handleLoginSuccess = (userData) => {
     setIsAuthenticated(true);
     setUser(userData);
-    navigate('/', { replace: true });
+    const target = window.location.pathname.startsWith('/rider') ? '/rider/dashboard' : '/dashboard';
+    navigate(target, { replace: true });
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center font-bold text-slate-500">Loading Profile...</div>;
 
   const approvalStatus = user?.riderDetails?.approvalStatus;
 
+  const renderDashboard = () => (
+    <ProtectedRoute requiredRole="Rider">
+      <RiderLayout onLogout={handleClearAuth} user={user}>
+        {approvalStatus === 'Approved' ? (
+          <RiderDashboard user={user} onLogout={handleClearAuth} />
+        ) : (
+          <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
+            <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+              <div className="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="text-4xl">⏱</div>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Pending</h2>
+              <p className="text-slate-500 mb-6">Your application is currently under review by our operations team. We will notify you via email once you are approved to start accepting trips.</p>
+              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200">
+                Check Status
+              </button>
+            </div>
+          </div>
+        )}
+      </RiderLayout>
+    </ProtectedRoute>
+  );
+
+  const renderProfile = () => (
+    <ProtectedRoute requiredRole="Rider">
+      <RiderLayout onLogout={handleClearAuth} user={user}>
+        <RiderProfile user={user} onLogout={handleClearAuth} />
+      </RiderLayout>
+    </ProtectedRoute>
+  );
+
+  const renderEarnings = () => (
+    <ProtectedRoute requiredRole="Rider">
+      <RiderLayout onLogout={handleClearAuth} user={user}>
+        <RiderEarnings user={user} onLogout={handleClearAuth} />
+      </RiderLayout>
+    </ProtectedRoute>
+  );
+
+  const renderSettings = () => (
+    <ProtectedRoute requiredRole="Rider">
+      <RiderLayout onLogout={handleClearAuth} user={user}>
+        <RiderSettings user={user} onLogout={handleClearAuth} />
+      </RiderLayout>
+    </ProtectedRoute>
+  );
+
   return (
     <Routes>
+      {/* Root Rider routes */}
       <Route path="/" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/rider" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/rider/welcome" element={
         <PublicRoute requiredRole="Rider">
           <RiderWelcome />
         </PublicRoute>
       } />
+
+      {/* Login routes */}
       <Route path="/login" element={
         <PublicRoute requiredRole="Rider">
           <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/rider/login" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+
+      {/* Signup routes */}
       <Route path="/signup" element={
         <PublicRoute requiredRole="Rider">
           <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
-      <Route path="/dashboard" element={
-        <ProtectedRoute requiredRole="Rider">
-          <RiderLayout onLogout={handleClearAuth} user={user}>
-            {approvalStatus === 'Approved' ? (
-              <RiderDashboard user={user} onLogout={handleClearAuth} />
-            ) : (
-            <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
-              <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-                <div className="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <div className="text-4xl">⏱</div>
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Pending</h2>
-                <p className="text-slate-500 mb-6">Your application is currently under review by our operations team. We will notify you via email once you are approved to start accepting trips.</p>
-                <button onClick={() => window.location.reload()} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200">
-                  Check Status
-                </button>
-              </div>
-              </div>
-            )}
-          </RiderLayout>
-        </ProtectedRoute>
+      <Route path="/rider/signup" element={
+        <PublicRoute requiredRole="Rider">
+          <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
       } />
-      <Route path="/profile" element={
-        <ProtectedRoute requiredRole="Rider">
-          <RiderLayout onLogout={handleClearAuth} user={user}>
-            <RiderProfile user={user} onLogout={handleClearAuth} />
-          </RiderLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/earnings" element={
-        <ProtectedRoute requiredRole="Rider">
-          <RiderLayout onLogout={handleClearAuth} user={user}>
-            <RiderEarnings user={user} onLogout={handleClearAuth} />
-          </RiderLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="/settings" element={
-        <ProtectedRoute requiredRole="Rider">
-          <RiderLayout onLogout={handleClearAuth} user={user}>
-            <RiderSettings user={user} onLogout={handleClearAuth} />
-          </RiderLayout>
-        </ProtectedRoute>
-      } />
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
+
+      {/* Dashboard routes */}
+      <Route path="/dashboard" element={renderDashboard()} />
+      <Route path="/rider/dashboard" element={renderDashboard()} />
+
+      {/* Profile routes */}
+      <Route path="/profile" element={renderProfile()} />
+      <Route path="/rider/profile" element={renderProfile()} />
+
+      {/* Earnings routes */}
+      <Route path="/earnings" element={renderEarnings()} />
+      <Route path="/rider/earnings" element={renderEarnings()} />
+
+      {/* Settings routes */}
+      <Route path="/settings" element={renderSettings()} />
+      <Route path="/rider/settings" element={renderSettings()} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider/login" : "/login")} replace />} />
     </Routes>
   );
 }

@@ -32,14 +32,14 @@ export default function RiderWelcome() {
         {/* Buttons Content Card */}
         <div className="bg-white w-full rounded-3xl p-6 shadow-2xl flex flex-col gap-4 mt-auto relative z-10 border border-slate-100">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/rider/login')}
             className="w-full bg-black text-[#FFB703] font-black py-4 rounded-xl text-lg shadow-lg active:scale-95 transition-all uppercase tracking-wide"
           >
             Login to Rider
           </button>
 
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/rider/signup')}
             className="w-full bg-slate-100 text-black font-black py-4 rounded-xl text-lg hover:bg-slate-200 active:scale-95 transition-all uppercase tracking-wide"
           >
             Apply as New Rider

@@ -32,41 +32,78 @@ function AdminApp() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    navigate('/', { replace: true });
+    navigate('/admin', { replace: true });
   };
+
+  const adminChildRoutes = (
+    <>
+      <Route index element={<AdminDashboard />} />
+      <Route path="bookings" element={<BookingManagement />} />
+      <Route path="hubs" element={<HubManagement />} />
+      <Route path="scanning" element={<ScanningManifest />} />
+      <Route path="dispatch" element={<DispatchRouting />} />
+      <Route path="rider-management" element={<RiderManagementPage />} />
+      <Route path="live-map" element={<LiveMapPage />} />
+      <Route path="finance" element={<FinancePricing />} />
+      <Route path="settlements" element={<FinanceSettlements />} />
+      <Route path="serviceability" element={<ServiceabilityEngine />} />
+      <Route path="ndr" element={<NdrExceptions />} />
+      <Route path="returns" element={<ReverseLogistics />} />
+      <Route path="support" element={<SupportTickets />} />
+      <Route path="reports" element={<AnalyticsDashboard />} />
+      <Route path="marketing" element={<MarketingBroadcast />} />
+      <Route path="settings" element={<PlatformConfig />} />
+    </>
+  );
 
   return (
     <Routes>
+      <Route path="/admin/login" element={
+        <PublicRoute requiredRole="SuperAdmin">
+          <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
       <Route path="/login" element={
         <PublicRoute requiredRole="SuperAdmin">
           <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       
-      <Route path="/" element={
+      <Route path="/admin" element={
+        isAuthenticated ? (
+          <ProtectedRoute requiredRole="SuperAdmin">
+            <AdminLayout />
+          </ProtectedRoute>
+        ) : (
+          <PublicRoute requiredRole="SuperAdmin">
+            <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        )
+      } />
+      
+      <Route path="/admin/*" element={
         <ProtectedRoute requiredRole="SuperAdmin">
           <AdminLayout />
         </ProtectedRoute>
       }>
-        <Route index element={<AdminDashboard />} />
-        <Route path="bookings" element={<BookingManagement />} />
-        <Route path="hubs" element={<HubManagement />} />
-        <Route path="scanning" element={<ScanningManifest />} />
-        <Route path="dispatch" element={<DispatchRouting />} />
-        <Route path="rider-management" element={<RiderManagementPage />} />
-        <Route path="live-map" element={<LiveMapPage />} />
-        <Route path="finance" element={<FinancePricing />} />
-        <Route path="settlements" element={<FinanceSettlements />} />
-        <Route path="serviceability" element={<ServiceabilityEngine />} />
-        <Route path="ndr" element={<NdrExceptions />} />
-        <Route path="returns" element={<ReverseLogistics />} />
-        <Route path="support" element={<SupportTickets />} />
-        <Route path="reports" element={<AnalyticsDashboard />} />
-        <Route path="marketing" element={<MarketingBroadcast />} />
-        <Route path="settings" element={<PlatformConfig />} />
+        {adminChildRoutes}
+      </Route>
+
+      <Route path="/" element={
+        isAuthenticated ? (
+          <ProtectedRoute requiredRole="SuperAdmin">
+            <AdminLayout />
+          </ProtectedRoute>
+        ) : (
+          <PublicRoute requiredRole="SuperAdmin">
+            <LoginScreen role="SuperAdmin" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        )
+      }>
+        {adminChildRoutes}
       </Route>
       
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/admin" : "/admin/login"} replace />} />
     </Routes>
   );
 }

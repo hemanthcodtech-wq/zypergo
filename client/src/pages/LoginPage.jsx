@@ -30,15 +30,6 @@ const roles = [
     color: 'from-[#FFB703] to-[#FFD166]',
     bgIcon: 'text-[#FFB703]/5',
     shadow: 'shadow-[0_10px_40px_-10px_rgba(255,183,3,0.3)]'
-  },
-  {
-    id: 'partner',
-    title: 'Hauler / Partner',
-    description: 'Connect your fleet and scale operations',
-    icon: <Handshake strokeWidth={1.5} />,
-    color: 'from-[#023E8A] to-[#0077B6]',
-    bgIcon: 'text-[#023E8A]/5',
-    shadow: 'shadow-[0_10px_40px_-10px_rgba(2,62,138,0.3)]'
   }
 ];
 
@@ -46,31 +37,8 @@ export default function LoginPage() {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   const handleRoleSelect = (roleId) => {
-    const currentHost = window.location.hostname;
-    const port = window.location.port ? `:${window.location.port}` : '';
-    const protocol = window.location.protocol;
-    
-    // Check if hostname is an IP address or localhost or single-domain without DNS wildcard
-    const isIpOrLocal = /^(localhost|127\.0\.0\.1|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.test(currentHost);
-    
-    if (isIpOrLocal) {
-      sessionStorage.setItem('zypergo_portal', roleId);
-      window.location.href = `/?portal=${roleId}`;
-      return;
-    }
-
-    if (currentHost.includes('.')) {
-      const baseDomain = currentHost.replace(/^(admin[.-]|customer[.-]|rider[.-]|hamali[.-]|partner[.-]|hub[.-])/, '');
-      // If host is Vercel app or custom domain
-      if (currentHost.includes('vercel.app')) {
-        window.location.assign(`${protocol}//${roleId}-${baseDomain}${port}/login`);
-      } else {
-        window.location.assign(`${protocol}//${roleId}.${baseDomain}${port}/login`);
-      }
-    } else {
-      sessionStorage.setItem('zypergo_portal', roleId);
-      window.location.href = `/?portal=${roleId}`;
-    }
+    sessionStorage.setItem('zypergo_portal', roleId);
+    window.location.href = `/${roleId}`;
   };
 
   return (
@@ -102,7 +70,7 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full perspective-1000">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl perspective-1000">
           {roles.map((role, index) => (
             <motion.div
               key={role.id}

@@ -32,6 +32,11 @@ export function ProtectedRoute({ requiredRole, children }) {
   if (isChecking) return null;
 
   if (!isAuth) {
+    const p = location.pathname.toLowerCase();
+    if (p.startsWith('/admin')) return <Navigate to="/admin/login" replace />;
+    if (p.startsWith('/customer')) return <Navigate to="/customer/login" replace />;
+    if (p.startsWith('/rider')) return <Navigate to="/rider/login" replace />;
+    if (p.startsWith('/hub')) return <Navigate to="/hub/login" replace />;
     return <Navigate to="/login" replace />;
   }
   return children ? children : <Outlet />;
@@ -68,6 +73,11 @@ export function PublicRoute({ requiredRole, children }) {
   if (isChecking) return null;
 
   if (isAuth) {
+    const p = location.pathname.toLowerCase();
+    if (p.startsWith('/admin')) return <Navigate to="/admin" replace />;
+    if (p.startsWith('/customer')) return <Navigate to="/customer/dashboard" replace />;
+    if (p.startsWith('/rider')) return <Navigate to="/rider/dashboard" replace />;
+    if (p.startsWith('/hub')) return <Navigate to="/hub/dashboard" replace />;
     return <Navigate to="/dashboard" replace />;
   }
   return children ? children : <Outlet />;

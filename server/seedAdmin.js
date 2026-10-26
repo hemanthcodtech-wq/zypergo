@@ -19,7 +19,7 @@ const seedAdmin = async () => {
     const adminUser = new User({
       name: 'System Admin',
       phone: adminPhone,
-      email: 'admin@zypergo.com',
+      email: 'zypergo2026@gmail.com',
       password: 'admin', // In a real app this should be a strong password, but this is a seed for testing. Hashing is handled by pre-save hook.
       role: 'SuperAdmin',
       isActive: true,
@@ -30,7 +30,7 @@ const seedAdmin = async () => {
     console.log('Seed Admin created successfully!');
     console.log('Phone: 9999999999');
     console.log('Password/OTP bypass: 1234');
-    
+
     process.exit(0);
   } catch (error) {
     console.error('Error seeding admin:', error);

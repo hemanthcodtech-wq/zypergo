@@ -1,11 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { User, UserPlus, Mail, Phone, KeyRound, ArrowRight, ShieldCheck, Truck, FileText, CheckCircle2, Camera, Loader2, AlertTriangle, Eye, EyeOff, Headphones, Shield, Zap, Star } from 'lucide-react';
+import { User, UserPlus, Mail, Phone, KeyRound, ArrowRight, ShieldCheck, Truck, FileText, CheckCircle2, Camera, Loader2, AlertTriangle, Eye, EyeOff, Headphones, Shield, Zap, Star, Compass } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import CameraModal from '../common/CameraModal';
 
 export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
   const navigate = useNavigate();
+
+  const handleSwitchRole = () => {
+    sessionStorage.removeItem('zypergo_portal');
+    window.location.href = '/login?select=true';
+  };
   // Common details
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -146,24 +151,38 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
           </div>
-          <button 
-            type="button"
-            onClick={() => navigate('/support')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
-          >
-            <Headphones size={15} className="text-slate-600" />
-            <span className="text-xs font-bold">Help</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={handleSwitchRole}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-xs text-xs font-bold"
+              title="Select another portal or role"
+            >
+              <Compass size={14} className="text-slate-500" />
+              <span>Switch Role</span>
+            </button>
+            <button 
+              type="button"
+              onClick={() => navigate('/support')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+            >
+              <Headphones size={15} className="text-slate-600" />
+              <span className="text-xs font-bold">Help</span>
+            </button>
+          </div>
         </div>
 
         {/* Header Text */}
         <div className="mb-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-[11px] font-black tracking-wide bg-blue-50 text-[#0052CC] border-blue-200 mb-2">
+            <span>{role === 'Rider' ? 'Rider Partner Onboarding' : (role === 'Partner' ? 'Hauler / Partner Registration' : 'Customer Account Creation')}</span>
+          </div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">
-            Create Account.<br />
-            Ship <span className="text-[#FF6B00]">Smarter.</span>
+            {role === 'Rider' ? 'Become a Rider Partner.' : (role === 'Partner' ? 'Register Your Fleet.' : 'Create Customer Account.')}<br />
+            <span className="text-[#FF6B00]">{role === 'Rider' ? 'Deliver & Earn Daily.' : 'Ship Smarter Today.'}</span>
           </h1>
           <p className="text-slate-500 text-[11px] font-semibold mt-1">
-            {role === 'Rider' ? 'Partner with us and start earning' : 'Fast, secure parcel delivery at your fingertips'}
+            {role === 'Rider' ? 'Partner with ZyperGo to deliver packages with zero deposit & instant payout' : 'Fast, secure parcel delivery at your fingertips across all cities'}
           </p>
         </div>
 
