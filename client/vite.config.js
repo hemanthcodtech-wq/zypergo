@@ -10,8 +10,9 @@ export default defineConfig({
     allowedHosts: 'all', // Allow any host/IP/subdomain
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000',
+        target: process.env.VITE_BACKEND_URL || 'https://zypergo.com',
         changeOrigin: true,
+        secure: false,
         ws: true
       }
     }
