@@ -174,6 +174,12 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
   const currentConfig = ROLE_CONFIGS[normalizedKey] || ROLE_CONFIGS.customer;
 
+  const isPrefixCustomer = window.location.pathname.startsWith('/customer');
+  const isPrefixRider = window.location.pathname.startsWith('/rider');
+  const signupUrl = role === 'Rider' 
+    ? (isPrefixRider ? '/rider/signup' : '/signup') 
+    : (isPrefixCustomer ? '/customer/signup' : '/signup');
+
   const isEmail = identifier.includes('@');
 
   const handleSwitchRole = () => {
@@ -398,34 +404,6 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
         {/* Main Auth Card */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 mt-2">
           
-          {/* Segmented Pill Tabs: Login vs Register */}
-          {step !== 'forgot_password' && (
-            <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
-              <button
-                type="button"
-                onClick={() => { setActiveTab('login'); setStep('input'); setError(''); }}
-                className={`flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                  activeTab === 'login' 
-                    ? currentConfig.activeTabClass 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <User size={15} /> {currentConfig.loginTabLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('register'); setStep('input'); setError(''); }}
-                className={`flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 transition-all ${
-                  activeTab === 'register' 
-                    ? currentConfig.activeTabClass 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <UserPlus size={15} /> {currentConfig.registerTabLabel}
-              </button>
-            </div>
-          )}
-
           {error && (
             <div className="bg-red-50 text-red-600 p-2.5 rounded-xl text-xs font-bold text-center mb-3 border border-red-200 animate-in fade-in">
               {error}
@@ -445,7 +423,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  OTP {activeTab === 'login' ? 'Login' : 'Signup'}
+                  OTP Login
                 </button>
                 <button
                   type="button"
@@ -456,7 +434,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Password {activeTab === 'login' ? 'Login' : 'Signup'}
+                  Password Login
                 </button>
               </div>
 
@@ -577,6 +555,22 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                     Email OTP
                   </button>
                 </div>
+              </div>
+
+              {/* Bottom Sign Up Link / Button as requested */}
+              <div className="mt-5 pt-3.5 border-t border-slate-100 text-center">
+                <p className="text-xs text-slate-500 font-semibold">
+                  {role === 'Customer' ? "Don't have a Customer account?" : (role === 'Rider' ? "New to ZyperGo Fleet?" : "Don't have an account?")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate(signupUrl)}
+                  className="mt-2 inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 text-xs font-black transition-all active:scale-[0.98] shadow-xs"
+                >
+                  <UserPlus size={15} className="text-[#FF6B00]" />
+                  <span>{role === 'Customer' ? 'New Customer Sign Up' : (role === 'Rider' ? 'Apply as New Rider (Sign Up)' : 'Create New Account')}</span>
+                  <ArrowRight size={14} className="text-slate-400" />
+                </button>
               </div>
 
             </div>

@@ -141,6 +141,12 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
     }
   };
 
+  const isPrefixCustomer = window.location.pathname.startsWith('/customer');
+  const isPrefixRider = window.location.pathname.startsWith('/rider');
+  const loginUrl = role === 'Rider' 
+    ? (isPrefixRider ? '/rider/login' : '/login') 
+    : (isPrefixCustomer ? '/customer/login' : '/login');
+
   return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] flex justify-center font-sans antialiased text-slate-900">
       {/* Mobile-first Constrained App Container */}
@@ -189,25 +195,6 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
         {/* Main Content Card */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 mt-1">
           
-          {/* Segmented Pill Tabs */}
-          {step === 'details' && (
-            <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900 transition-all"
-              >
-                <User size={15} /> Login
-              </button>
-              <button
-                type="button"
-                className="flex-1 py-2.5 text-xs font-black rounded-lg flex items-center justify-center gap-1.5 bg-[#0052CC] text-white shadow-xs"
-              >
-                <UserPlus size={15} /> Register
-              </button>
-            </div>
-          )}
-
           {error && (
             <div className="bg-red-50 text-red-600 p-2.5 rounded-xl text-xs font-bold text-center mb-3 border border-red-200 animate-in fade-in">
               {error}
@@ -291,6 +278,19 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                 {loading ? 'Creating...' : (role === 'Rider' ? 'Next: Vehicle Details' : 'Register Securely')}
                 <ArrowRight size={17} />
               </button>
+
+              {/* Bottom Login Link */}
+              <div className="mt-4 pt-3.5 border-t border-slate-100 text-center">
+                <p className="text-xs text-slate-500 font-semibold">Already have an account?</p>
+                <button
+                  type="button"
+                  onClick={() => navigate(loginUrl)}
+                  className="mt-1.5 text-xs font-black text-[#0052CC] hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Log In to {role === 'Rider' ? 'Rider Partner Portal' : 'Customer Account'}</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
             </form>
           )}
 
