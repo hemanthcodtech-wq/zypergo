@@ -583,37 +583,6 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
             </form>
           )}
 
-          {/* Trust Badges Grid */}
-          <div className="grid grid-cols-4 gap-2 mt-4 pt-3.5 border-t border-slate-100">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0052CC] flex items-center justify-center mb-1 border border-blue-100">
-                <Shield size={14} />
-              </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Secure Transit</span>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1 border border-emerald-100">
-                <CheckCircle2 size={14} />
-              </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Verified Portal</span>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-1 border border-amber-100">
-                <Lock size={14} />
-              </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Bank-Grade Security</span>
-            </div>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="w-8 h-8 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center mb-1 border border-purple-100">
-                <Award size={14} />
-              </div>
-              <span className="text-[8.5px] font-black text-slate-600 leading-tight">Role Guarded</span>
-            </div>
-          </div>
-
         </div>
 
         {/* Bottom Tagline */}
