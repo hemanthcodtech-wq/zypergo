@@ -18,7 +18,7 @@ export default function CustomerProfile() {
   const handleLogout = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
-    window.location.href = '/';
+    window.location.href = '/welcome';
   };
 
   const OptionRow = ({ icon, label, onClick, color = "text-slate-700", noBorder = false }) => (

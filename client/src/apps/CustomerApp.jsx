@@ -16,60 +16,120 @@ import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 import { Search, Bell, ChevronDown, User as UserIcon, Settings, Home, Package, MapPin, Plus, Calendar, HelpCircle } from 'lucide-react';
 import CustomerNotifications from './customer/CustomerNotifications';
 import OrderDetails from './customer/OrderDetails';
-import MobileDeviceFrame from '../components/common/MobileDeviceFrame';
 
 function CustomerLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState({ name: 'Customer User', role: 'Customer' });
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('zypergo_user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('zypergo_token');
+    localStorage.removeItem('zypergo_user');
+    window.location.href = '/login';
+  };
+
+  const navItems = [
+    { path: '/', label: 'Dashboard' },
+    { path: '/shipments', label: 'Shipments' },
+    { path: '/track', label: 'Track' },
+    { path: '/invoices', label: 'Invoices' },
+    { path: '/support', label: 'Support' }
+  ];
 
   return (
-    <div className="w-full h-full bg-[#F8FAFC] flex flex-col font-sans relative overflow-hidden">
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <div className="flex-1 overflow-y-auto pb-24 relative z-10">
-          <Outlet />
-        </div>
-      </main>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-100 flex justify-between items-center px-4 pb-4 pt-2.5 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.06)] rounded-t-3xl">
-        <Link 
-          to="/dashboard" 
-          className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname === '/dashboard' ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <Home size={22} className={location.pathname === '/dashboard' ? 'stroke-[2.5]' : 'stroke-2'} />
-          <span className="text-[10px] font-bold">Home</span>
-        </Link>
-        <Link 
-          to="/shipments" 
-          className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/shipments') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <Package size={22} className={location.pathname.startsWith('/shipments') ? 'stroke-[2.5]' : 'stroke-2'} />
-          <span className="text-[10px] font-bold">Orders</span>
-        </Link>
+    <div className="min-h-screen bg-slate-100 flex justify-center font-sans">
+      {/* App Container */}
+      <div className="w-full max-w-md md:max-w-full bg-white h-[100dvh] relative shadow-2xl md:shadow-none flex flex-col md:flex-row overflow-hidden">
         
-        {/* Raised Floating Book Action Button */}
-        <Link to="/booking" className="flex flex-col items-center w-1/5 relative group">
-          <div className="absolute -top-7 w-13 h-13 bg-[#0052CC] hover:bg-[#0047cc] rounded-full border-4 border-white shadow-[0_8px_20px_rgba(0,82,204,0.4)] flex items-center justify-center text-white active:scale-95 transition-all">
-            <Plus size={28} strokeWidth={2.8} />
+        {/* Desktop Sidebar Navigation */}
+        <nav className="hidden md:flex flex-col w-64 bg-white border-r border-slate-100 p-6 z-50 shadow-[10px_0_40px_rgba(0,0,0,0.02)] shrink-0">
+          <div className="flex items-center gap-2 mb-10">
+            <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
           </div>
-          <span className="text-[10px] font-bold mt-7 text-[#0052CC]">Book</span>
-        </Link>
-        
-        <Link 
-          to="/track" 
-          className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/track') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <MapPin size={22} className={location.pathname.startsWith('/track') ? 'stroke-[2.5]' : 'stroke-2'} />
-          <span className="text-[10px] font-bold">Track</span>
-        </Link>
-        <Link 
-          to="/profile" 
-          className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/profile') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <UserIcon size={22} className={location.pathname.startsWith('/profile') ? 'stroke-[2.5]' : 'stroke-2'} />
-          <span className="text-[10px] font-bold">Profile</span>
-        </Link>
-      </nav>
+          
+          <div className="flex flex-col gap-2">
+            <Link to="/dashboard" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname === '/dashboard' ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+              <Home size={20} />
+              <span className="font-bold text-sm">Dashboard</span>
+            </Link>
+            <Link to="/shipments" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/shipments') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+              <Package size={20} />
+              <span className="font-bold text-sm">Orders</span>
+            </Link>
+            <Link to="/booking" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/booking') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+              <Calendar size={20} />
+              <span className="font-bold text-sm">Bookings</span>
+            </Link>
+            <Link to="/track" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/track') ? 'bg-[#0052CC] text-white shadow-md' : 'text-slate-500 hover:bg-blue-50 hover:text-[#0052CC]'}`}>
+              <MapPin size={20} />
+              <span className="font-bold text-sm">Track Order</span>
+            </Link>
+          </div>
+          
+          <div className="mt-auto">
+            <Link to="/profile" className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${location.pathname.startsWith('/profile') ? 'bg-[#0052CC] text-white shadow-md' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
+              <UserIcon size={20} />
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">{user.name}</span>
+                <span className="text-[10px] font-bold opacity-80 uppercase tracking-widest">{user.role}</span>
+              </div>
+            </Link>
+          </div>
+        </nav>
+
+        {/* Main Content Area */}
+        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] pb-20 md:pb-0 relative">
+          <Outlet />
+        </main>
+
+        {/* Mobile Bottom Navigation Bar (Image 3) */}
+        <nav className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-between items-center px-4 pb-4 pt-2.5 z-[60] shadow-[0_-10px_30px_rgba(0,0,0,0.06)] rounded-t-3xl">
+          <Link to="/dashboard" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname === '/dashboard' ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Home size={22} className={location.pathname === '/dashboard' ? 'stroke-[2.5]' : 'stroke-2'} />
+            <span className="text-[10px] font-bold">Home</span>
+          </Link>
+          <Link to="/shipments" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/shipments') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Package size={22} className={location.pathname.startsWith('/shipments') ? 'stroke-[2.5]' : 'stroke-2'} />
+            <span className="text-[10px] font-bold">Orders</span>
+          </Link>
+          
+          {/* Raised Floating Book Action Button */}
+          <Link to="/booking" className="flex flex-col items-center w-1/5 relative group">
+            <div className="absolute -top-7 w-13 h-13 bg-[#0052CC] hover:bg-[#0047cc] rounded-full border-4 border-white shadow-[0_8px_20px_rgba(0,82,204,0.4)] flex items-center justify-center text-white active:scale-95 transition-all">
+              <Plus size={28} strokeWidth={2.8} />
+            </div>
+            <span className={`text-[10px] font-bold mt-7 ${location.pathname.startsWith('/booking') ? 'text-[#0052CC]' : 'text-[#0052CC]'}`}>Book</span>
+          </Link>
+          
+          <Link to="/track" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/track') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <MapPin size={22} className={location.pathname.startsWith('/track') ? 'stroke-[2.5]' : 'stroke-2'} />
+            <span className="text-[10px] font-bold">Track</span>
+          </Link>
+          <Link to="/profile" className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.startsWith('/profile') ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
+            <UserIcon size={22} className={location.pathname.startsWith('/profile') ? 'stroke-[2.5]' : 'stroke-2'} />
+            <span className="text-[10px] font-bold">Profile</span>
+          </Link>
+        </nav>
+      </div>
     </div>
   );
 }
@@ -90,46 +150,44 @@ export default function CustomerApp() {
   };
 
   return (
-    <MobileDeviceFrame appName="Customer App">
-      <Routes>
-        <Route path="/login" element={
-          <PublicRoute requiredRole="Customer">
-            <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
-        <Route path="/signup" element={
-          <PublicRoute requiredRole="Customer">
-            <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
+    <Routes>
+      <Route path="/login" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/signup" element={
+        <PublicRoute requiredRole="Customer">
+          <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
-        <Route path="/" element={
-          <PublicRoute requiredRole="Customer">
-            <CustomerWelcome />
-          </PublicRoute>
-        } />
+      <Route path="/" element={
+        <PublicRoute requiredRole="Customer">
+          <CustomerWelcome />
+        </PublicRoute>
+      } />
 
-        <Route element={
-          <ProtectedRoute requiredRole="Customer">
-            <CustomerLayout />
-          </ProtectedRoute>
-        }>
-          <Route path="/dashboard" element={<CustomerDashboard />} />
-          <Route path="/shipments" element={<MyShipments />} />
-          <Route path="/invoices" element={<CustomerInvoices />} />
-          <Route path="/order/:id" element={<OrderDetails />} />
-          <Route path="/track/:id?" element={<TrackingTimeline />} />
-          <Route path="/address-book" element={<AddressBook />} />
-          <Route path="/addresses" element={<AddressBook />} />
-          <Route path="/support" element={<SupportCenter />} />
-          <Route path="/notifications" element={<CustomerNotifications />} />
-          <Route path="/booking" element={<BookingFlow />} />
-          <Route path="/profile" element={<CustomerProfile />} />
-          <Route path="/settings" element={<CustomerSettings />} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
-      </Routes>
-    </MobileDeviceFrame>
+      <Route element={
+        <ProtectedRoute requiredRole="Customer">
+          <CustomerLayout />
+        </ProtectedRoute>
+      }>
+        <Route path="/dashboard" element={<CustomerDashboard />} />
+        <Route path="/shipments" element={<MyShipments />} />
+        <Route path="/invoices" element={<CustomerInvoices />} />
+        <Route path="/order/:id" element={<OrderDetails />} />
+        <Route path="/track/:id?" element={<TrackingTimeline />} />
+        <Route path="/address-book" element={<AddressBook />} />
+        <Route path="/addresses" element={<AddressBook />} />
+        <Route path="/support" element={<SupportCenter />} />
+        <Route path="/notifications" element={<CustomerNotifications />} />
+        <Route path="/booking" element={<BookingFlow />} />
+        <Route path="/profile" element={<CustomerProfile />} />
+        <Route path="/settings" element={<CustomerSettings />} />
+      </Route>
+      
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} />
+    </Routes>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, Moon, Sun, Lock, Shield, HelpCircle, LogOut, ChevronRight, Smartphone, Settings as SettingsIcon, ChevronLeft } from 'lucide-react';
+import { Bell, Moon, Sun, Lock, Shield, HelpCircle, LogOut, ChevronRight, Smartphone, Settings as SettingsIcon, ChevronLeft, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function RiderSettings({ user, onLogout }) {
@@ -9,126 +9,128 @@ export default function RiderSettings({ user, onLogout }) {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-full bg-slate-50 flex flex-col font-sans select-none text-slate-900 pb-28">
-      {/* Mobile Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-xs">
-        <button 
-          onClick={() => navigate('/dashboard')} 
-          className="w-9 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 active:scale-95 transition"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <div className="text-center">
-          <h1 className="text-sm font-black text-slate-900 tracking-tight">Preferences</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">App & Account Settings</p>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans p-4 md:p-6 lg:p-8 pb-24">
+      <header className="sticky top-0 z-50 bg-[#F8FAFC]/90 backdrop-blur-xl mb-8 pb-4 pt-4 -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 border-b border-slate-200/50 flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <button onClick={() => navigate('/dashboard')} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors">
+            <ChevronLeft size={24} />
+          </button>
+          <div className="flex items-center justify-center">
+            <img src="/images/logo.png" alt="ZyperGo Logo" className="h-8 object-contain" />
+          </div>
+          <div className="w-10 h-10"></div> {/* Spacer for centering */}
         </div>
-        <div className="w-9 h-9 flex items-center justify-center bg-purple-50 text-purple-600 rounded-xl border border-purple-100">
-          <SettingsIcon size={18} />
+        
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center border border-purple-100 shadow-sm shrink-0">
+            <SettingsIcon size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Settings</h1>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">App preferences</p>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="p-4 space-y-4">
+      <div className="max-w-3xl mx-auto w-full space-y-6">
         
-        {/* App Preferences */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-            System Preferences
-          </h3>
-
+        {/* App Settings */}
+        <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+          <h3 className="text-sm font-black text-[#FFB703] uppercase tracking-widest mb-4">Preferences</h3>
+          
           <div className="space-y-2">
-            {/* Push Notifications */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-                  <Bell size={16} />
+            <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center">
+                  <Bell size={20} />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">Push Alerts</h4>
-                  <p className="text-[10px] text-slate-400">New mission alerts</p>
+                  <h4 className="font-bold text-slate-900">Push Notifications</h4>
+                  <p className="text-xs text-slate-500 font-medium">New jobs and updates</p>
                 </div>
               </div>
               <button 
                 onClick={() => setNotifications(!notifications)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${notifications ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${notifications ? 'bg-emerald-500' : 'bg-slate-300'}`}
               >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${notifications ? 'translate-x-5' : 'translate-x-0.5'}`}></div>
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${notifications ? 'translate-x-6' : 'translate-x-1'}`}></div>
               </button>
             </div>
 
-            {/* GPS Tracking */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-                  <Smartphone size={16} />
+            <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center">
+                  {darkMode ? <Moon size={20} /> : <Sun size={20} />}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">GPS Auto-Track</h4>
-                  <p className="text-[10px] text-slate-400">Real-time route matching</p>
+                  <h4 className="font-bold text-slate-900">Dark Mode</h4>
+                  <p className="text-xs text-slate-500 font-medium">Coming soon</p>
+                </div>
+              </div>
+              <button 
+                disabled
+                onClick={() => setDarkMode(!darkMode)}
+                className={`w-12 h-6 rounded-full transition-colors relative opacity-50 ${darkMode ? 'bg-emerald-500' : 'bg-slate-300'}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-1'}`}></div>
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                  <Smartphone size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900">Location Access</h4>
+                  <p className="text-xs text-slate-500 font-medium">Required for routing</p>
                 </div>
               </div>
               <button 
                 onClick={() => setLocationAccess(!locationAccess)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${locationAccess ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${locationAccess ? 'bg-emerald-500' : 'bg-slate-300'}`}
               >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${locationAccess ? 'translate-x-5' : 'translate-x-0.5'}`}></div>
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${locationAccess ? 'translate-x-6' : 'translate-x-1'}`}></div>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Security & Support Links */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-2">
-          <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-1">
-            Support & Legal
-          </h3>
-
-          <button 
-            onClick={() => alert("Support Hotline: +91 99895 51305 (24/7 Operations Hub)")}
-            className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-                <HelpCircle size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Rider Support Hub</h4>
-                <p className="text-[10px] text-slate-400">24/7 dispatch assistance</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-slate-400" />
-          </button>
-
-          <button 
-            onClick={() => alert("ZyperGo Rider Operations & Safety Policy")}
-            className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-left"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
-                <Shield size={16} />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Safety & Terms</h4>
-                <p className="text-[10px] text-slate-400">Insurance & partner terms</p>
-              </div>
-            </div>
-            <ChevronRight size={16} className="text-slate-400" />
-          </button>
+        {/* Account & Security */}
+        <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+          <h3 className="text-sm font-black text-[#FFB703] uppercase tracking-widest mb-4">Account</h3>
+          
+          <div className="space-y-2">
+            {[
+              { icon: <Lock size={20} />, title: 'Change Password', desc: 'Update your security credentials', color: 'text-slate-600', bg: 'bg-slate-100' },
+              { icon: <Shield size={20} />, title: 'Privacy Policy', desc: 'Read our terms and conditions', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+              { icon: <HelpCircle size={20} />, title: 'Help & Support', desc: 'Contact ZyperGo operations', color: 'text-amber-600', bg: 'bg-amber-50' }
+            ].map((item, i) => (
+              <button key={i} className="w-full flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-100/50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 ${item.bg} ${item.color} rounded-xl flex items-center justify-center`}>
+                    {item.icon}
+                  </div>
+                  <div className="text-left">
+                    <h4 className="font-bold text-slate-900">{item.title}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{item.desc}</p>
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-slate-400" />
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Log Out Button */}
+        {/* Logout */}
         <button 
           onClick={onLogout}
-          className="w-full py-3 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 border border-rose-200 active:scale-98"
+          className="w-full bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 font-black py-4 rounded-[1.5rem] text-lg flex justify-center items-center gap-2 shadow-sm transition-all"
         >
-          <LogOut size={16} />
-          <span>Log Out Rider Account</span>
+          <LogOut size={20} /> Log Out Account
         </button>
-
-        <p className="text-center text-[10px] text-slate-400 font-bold pt-2">
-          ZyperGo Rider App v2.2.0 • Build 2026
-        </p>
-
+        
+        <p className="text-center text-xs text-slate-400 font-bold mt-8">ZyperGo Rider App v2.1.0</p>
       </div>
     </div>
   );

@@ -261,48 +261,42 @@ export default function BookingFlow() {
   );
 
   return (
-    <div className="bg-slate-50 min-h-full flex flex-col font-sans">
-      <div className="w-full h-full bg-white flex flex-col overflow-hidden relative">
+    <div className="bg-slate-50 min-h-full flex flex-col font-sans md:p-8 md:items-center">
+      <div className="w-full h-full md:h-auto md:min-h-[80vh] md:max-w-4xl bg-white flex flex-col md:rounded-3xl md:shadow-2xl md:border border-slate-100 overflow-hidden relative mx-auto">
       
       {step === 0 && (
-        <div className="absolute inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex flex-col justify-end animate-in fade-in">
-          <div className="bg-white rounded-t-[2.5rem] w-full p-6 shadow-2xl relative pb-28">
-            <button onClick={() => navigate('/')} className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex flex-col justify-end pb-[70px] sm:pb-24 md:px-4 animate-in fade-in">
+          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2rem] w-full md:max-w-md mx-auto p-6 sm:p-8 shadow-2xl relative md:mb-4">
+            <button onClick={() => navigate('/')} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
               <X size={18} strokeWidth={2.5} />
             </button>
-            <h2 className="text-xl font-black text-slate-900 mb-6 tracking-tight">Choose your service</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Choose your service</h2>
             
-            <div className="space-y-3">
+            <div className="space-y-4">
               <button 
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Within City'})); setStep(1); }}
-                className="w-full bg-white border border-slate-200/80 hover:border-blue-400 hover:shadow-md rounded-2xl p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-100 hover:border-blue-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                     <Truck size={22} className="text-blue-600" strokeWidth={2} />
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-14 bg-[#F0F5FF] rounded-2xl flex items-center justify-center shrink-0">
+                     <Truck size={24} className="text-blue-500" strokeWidth={2} />
                   </div>
-                  <div className="text-left">
-                    <span className="font-extrabold text-sm text-slate-900 tracking-tight block">Within City</span>
-                    <span className="text-[11px] text-slate-400 font-medium">Instant hyper-local courier</span>
-                  </div>
+                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Within City</span>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-2" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-3" />
               </button>
 
               <button 
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Outstation'})); setStep(1); }}
-                className="w-full bg-white border border-slate-200/80 hover:border-emerald-400 hover:shadow-md rounded-2xl p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-100 hover:border-green-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
-                     <Map size={22} className="text-emerald-600" strokeWidth={2} />
+                <div className="flex items-center gap-5">
+                  <div className="w-16 h-14 bg-[#F0FDF4] rounded-2xl flex items-center justify-center shrink-0">
+                     <Map size={24} className="text-green-600" strokeWidth={2} />
                   </div>
-                  <div className="text-left">
-                    <span className="font-extrabold text-sm text-slate-900 tracking-tight block">Outstation</span>
-                    <span className="text-[11px] text-slate-400 font-medium">Intercity hub-and-spoke delivery</span>
-                  </div>
+                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Outstation</span>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-emerald-600 -rotate-90 transition-colors mr-2" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-green-600 -rotate-90 transition-colors mr-3" />
               </button>
             </div>
           </div>
@@ -313,8 +307,8 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
           <Header title={`Book Parcel ${formData.serviceType ? `(${formData.serviceType})` : ''}`} />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-4">
-            <div>
+          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 md:grid md:grid-cols-2 md:gap-8">
+            <div className="md:col-span-1">
               {/* From/To Box */}
               <div className="border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
                 <div className="relative pl-8 pb-6 border-b border-slate-100">
@@ -438,11 +432,11 @@ export default function BookingFlow() {
             </div>
           </div>
           
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
              <button 
                 onClick={() => setStep(2)}
                 disabled={!formData.dropAddress || !formData.receiverName || !formData.receiverPhone || !formData.weight || !formData.parcelType}
-                className="w-full bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 transition-all hover:bg-[#00585f]"
+                className="w-full md:w-1/3 lg:w-1/4 bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 transition-all hover:bg-[#00585f]"
               >
                Continue
              </button>
@@ -454,7 +448,7 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
           <Header title="Select Vehicle / Service" />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-3">
+          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 lg:gap-6">
              <VehicleOption 
                 name="Scooter" weight="20 Kg" time="10 mins" 
                 icon={<img src="/images/bike.png" alt="Scooter" className="w-20 h-20 object-contain drop-shadow-sm" />}
@@ -505,10 +499,10 @@ export default function BookingFlow() {
              />
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
              <button 
                 onClick={() => setStep(3)}
-                className="w-full bg-[#FFB703] text-slate-900 font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(255,183,3,0.5)] active:scale-95 hover:bg-amber-400 transition-all"
+                className="w-full md:w-1/3 lg:w-1/4 bg-[#FFB703] text-slate-900 font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(255,183,3,0.5)] active:scale-95 hover:bg-amber-400 transition-all"
               >
                Continue
              </button>
@@ -520,7 +514,7 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
           <Header title="Schedule Pickup" />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-4">
+          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 md:grid md:grid-cols-2 md:gap-12">
             <div>
                {error && (
                 <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold mb-4 border border-red-100">
@@ -581,7 +575,7 @@ export default function BookingFlow() {
             </div>
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
              <button 
                 onClick={() => {
                   if (formData.cashOnDelivery) {
@@ -591,7 +585,7 @@ export default function BookingFlow() {
                   }
                 }}
                 disabled={loading}
-                className="w-full bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-[#00585f] transition-all"
+                className="w-full md:w-1/3 lg:w-1/4 bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-[#00585f] transition-all"
               >
                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (formData.cashOnDelivery ? 'Confirm Booking' : 'Proceed to Payment')}
              </button>
@@ -624,14 +618,14 @@ export default function BookingFlow() {
             </div>
           </div>
           
-          <div className="p-4 flex flex-col gap-3 mt-auto mb-10">
-            <button onClick={() => navigate(`/track/${bookingResult.trackingId}`)} className="w-full bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] hover:bg-[#00585f] transition-all">
+          <div className="p-4 flex flex-col md:flex-row md:justify-center gap-3 mt-auto mb-10 md:mb-16">
+            <button onClick={() => navigate(`/track/${bookingResult.trackingId}`)} className="w-full md:w-48 bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] hover:bg-[#00585f] transition-all">
               Track Order
             </button>
-            <button onClick={() => navigate('/')} className="w-full bg-slate-100 text-slate-700 font-black py-4 rounded-xl hover:bg-slate-200 transition-colors">
+            <button onClick={() => navigate('/')} className="w-full md:w-48 bg-slate-100 text-slate-700 font-black py-4 rounded-xl hover:bg-slate-200 transition-colors">
               Back to Home
             </button>
-            <button onClick={cancelBooking} disabled={loading} className="w-full bg-red-50 text-red-600 font-black py-4 rounded-xl hover:bg-red-100 transition-colors border border-red-200">
+            <button onClick={cancelBooking} disabled={loading} className="w-full md:w-48 bg-red-50 text-red-600 font-black py-4 rounded-xl hover:bg-red-100 transition-colors border border-red-200">
               {loading ? 'Cancelling...' : 'Cancel Order'}
             </button>
           </div>

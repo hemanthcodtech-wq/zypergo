@@ -46,17 +46,6 @@ function AppRouter() {
   }, []);
 
   const subdomain = useMemo(() => {
-    // 0. Check Port Number (8081 / 8001 -> customer, 8082 / 8002 -> rider)
-    const port = window.location.port;
-    if (port === '8081' || port === '8001') {
-      sessionStorage.setItem('zypergo_portal', 'customer');
-      return 'customer';
-    }
-    if (port === '8082' || port === '8002') {
-      sessionStorage.setItem('zypergo_portal', 'rider');
-      return 'rider';
-    }
-
     // 1. Check URL query parameter (e.g. ?portal=admin or ?role=admin)
     const params = new URLSearchParams(window.location.search);
     const portalParam = params.get('portal') || params.get('role');
