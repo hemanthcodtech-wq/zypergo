@@ -158,7 +158,7 @@ const ROLE_CONFIGS = {
   }
 };
 
-export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
+export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwitchRole = false }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
   const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'password'
@@ -325,15 +325,17 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess }) {
             <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              type="button"
-              onClick={handleSwitchRole}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-xs text-xs font-bold"
-              title="Select another portal or role"
-            >
-              <Compass size={14} className="text-slate-500" />
-              <span>Switch Role</span>
-            </button>
+            {!hideSwitchRole && window.location.port !== '8081' && window.location.port !== '8082' && (
+              <button 
+                type="button"
+                onClick={handleSwitchRole}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors shadow-xs text-xs font-bold"
+                title="Select another portal or role"
+              >
+                <Compass size={14} className="text-slate-500" />
+                <span>Switch Role</span>
+              </button>
+            )}
             <button 
               type="button"
               onClick={() => navigate('/support')}

@@ -57,7 +57,26 @@ function AppRouter() {
       return 'portal';
     }
 
-    // 2. Check path prefix directly (e.g. /admin, /customer, /rider, /hub)
+    // 2. Port-based detection (e.g. localhost:8081 -> customer, 8082 -> rider, 8080 -> admin, 8083 -> hub)
+    const port = window.location.port;
+    if (port === '8081' || port === '8001') {
+      sessionStorage.setItem('zypergo_portal', 'customer');
+      return 'customer';
+    }
+    if (port === '8082' || port === '8002') {
+      sessionStorage.setItem('zypergo_portal', 'rider');
+      return 'rider';
+    }
+    if (port === '8080' || port === '8000') {
+      sessionStorage.setItem('zypergo_portal', 'admin');
+      return 'admin';
+    }
+    if (port === '8083' || port === '8003') {
+      sessionStorage.setItem('zypergo_portal', 'hub');
+      return 'hub';
+    }
+
+    // 3. Check path prefix directly (e.g. /admin, /customer, /rider, /hub)
     for (const portal of validPortals) {
       if (pathname === `/${portal}` || pathname.startsWith(`/${portal}/`)) {
         sessionStorage.setItem('zypergo_portal', portal);

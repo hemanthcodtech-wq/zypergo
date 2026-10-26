@@ -6,10 +6,11 @@ import RiderSettings from './rider/RiderSettings';
 import RiderEarnings from './rider/RiderEarnings';
 import LoginScreen from '../components/Auth/LoginScreen';
 import SignupScreen from '../components/Auth/SignupScreen';
+import RiderSplash from './rider/RiderSplash';
 import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 import api from '../api';
-import RiderWelcome from './rider/RiderWelcome';
 import { LayoutDashboard, Wallet, User as UserIcon, Settings, LogOut, Navigation } from 'lucide-react';
+import MobileDeviceFrame from '../components/common/MobileDeviceFrame';
 
 function RiderLayout({ children, onLogout, user }) {
   const navigate = useNavigate();
@@ -27,65 +28,26 @@ function RiderLayout({ children, onLogout, user }) {
   ];
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans">
-      {/* Desktop Sidebar (hidden on mobile) */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-100 transition-all duration-300 shadow-[10px_0_40px_rgba(0,0,0,0.02)] z-50">
-        <div className="p-6 flex items-center gap-3 mb-6">
-          <img src="/images/logo.png" alt="ZyperGo Logo" className="h-8 w-auto object-contain" />
-        </div>
-
-        <nav className="flex-1 px-4 py-2 space-y-2 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = currentPath === item.path || (item.path.endsWith('/dashboard') && (currentPath === '/rider' || currentPath === '/'));
-            return (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-[#006D77] text-white shadow-md' 
-                    : 'text-slate-500 hover:bg-teal-50 hover:text-[#006D77] font-bold'
-                }`}
-              >
-                {item.icon}
-                <span className="text-sm">{item.name}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 mt-auto">
-          <button 
-            onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors"
-          >
-            <LogOut size={20} />
-            <span className="text-sm">Logout</span>
-          </button>
-        </div>
-      </aside>
-
+    <div className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden">
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <div className="flex-1 overflow-y-auto pb-24 md:pb-0 relative z-10">
-          {children}
-        </div>
+      <main className="flex-1 w-full overflow-y-auto pb-20 relative z-10">
+        {children}
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(0,0,0,0.05)] z-50 px-6 py-3 pb-safe-area flex justify-between items-center">
+      {/* Mobile App Bottom Navigation Bar */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-8px_25px_rgba(0,0,0,0.05)] z-40 px-6 py-2.5 flex justify-between items-center rounded-t-3xl">
         {navItems.map((item) => {
           const isActive = currentPath === item.path || (item.path.endsWith('/dashboard') && (currentPath === '/rider' || currentPath === '/'));
           return (
             <button 
               key={item.name}
               onClick={() => navigate(item.path)} 
-              className={`flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-800'}`}
+              className={`flex flex-col items-center gap-1 transition-colors ${isActive ? 'text-[#D97706]' : 'text-slate-400 hover:text-slate-800'}`}
             >
-              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-emerald-50' : 'bg-transparent'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-amber-100/60 text-[#D97706]' : 'bg-transparent text-slate-400'}`}>
                 {item.icon}
               </div>
-              <span className={`text-[10px] ${isActive ? 'font-black' : 'font-bold'}`}>{item.name}</span>
+              <span className={`text-[10px] ${isActive ? 'font-black text-[#D97706]' : 'font-bold'}`}>{item.name}</span>
             </button>
           );
         })}
@@ -149,15 +111,15 @@ export default function RiderApp() {
         {approvalStatus === 'Approved' ? (
           <RiderDashboard user={user} onLogout={handleClearAuth} />
         ) : (
-          <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6">
-            <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-              <div className="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <div className="text-4xl">⏱</div>
+          <div className="min-h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
+            <div className="bg-white p-6 rounded-2xl shadow-lg max-w-sm w-full">
+              <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="text-3xl">⏱</div>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Application Pending</h2>
-              <p className="text-slate-500 mb-6">Your application is currently under review by our operations team. We will notify you via email once you are approved to start accepting trips.</p>
-              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200">
-                Check Status
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Application Under Review</h2>
+              <p className="text-slate-500 text-xs mb-5">Your documents are under review. You will be notified via SMS/email once approved to accept trips.</p>
+              <button onClick={() => window.location.reload()} className="px-5 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200">
+                Refresh Status
               </button>
             </div>
           </div>
@@ -191,66 +153,73 @@ export default function RiderApp() {
   );
 
   return (
-    <Routes>
-      {/* Root Rider routes */}
-      <Route path="/" element={
-        <PublicRoute requiredRole="Rider">
-          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
-      <Route path="/rider" element={
-        <PublicRoute requiredRole="Rider">
-          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
-      <Route path="/rider/welcome" element={
-        <PublicRoute requiredRole="Rider">
-          <RiderWelcome />
-        </PublicRoute>
-      } />
+    <MobileDeviceFrame appName="ZyperGo Rider Partner App">
+      <Routes>
+        {/* Splash & Welcome screens */}
+        <Route path="/rider/splash" element={
+          <PublicRoute requiredRole="Rider">
+            <RiderSplash />
+          </PublicRoute>
+        } />
+        <Route path="/splash" element={
+          <PublicRoute requiredRole="Rider">
+            <RiderSplash />
+          </PublicRoute>
+        } />
+        <Route path="/rider" element={
+          <PublicRoute requiredRole="Rider">
+            <RiderSplash />
+          </PublicRoute>
+        } />
+        <Route path="/" element={
+          <PublicRoute requiredRole="Rider">
+            <RiderSplash />
+          </PublicRoute>
+        } />
 
-      {/* Login routes */}
-      <Route path="/login" element={
-        <PublicRoute requiredRole="Rider">
-          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
-      <Route path="/rider/login" element={
-        <PublicRoute requiredRole="Rider">
-          <LoginScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
+        {/* Login routes */}
+        <Route path="/rider/login" element={
+          <PublicRoute requiredRole="Rider">
+            <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
+        <Route path="/login" element={
+          <PublicRoute requiredRole="Rider">
+            <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
 
-      {/* Signup routes */}
-      <Route path="/signup" element={
-        <PublicRoute requiredRole="Rider">
-          <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
-      <Route path="/rider/signup" element={
-        <PublicRoute requiredRole="Rider">
-          <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-        </PublicRoute>
-      } />
+        {/* Signup routes */}
+        <Route path="/rider/signup" element={
+          <PublicRoute requiredRole="Rider">
+            <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
+        <Route path="/signup" element={
+          <PublicRoute requiredRole="Rider">
+            <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+          </PublicRoute>
+        } />
 
-      {/* Dashboard routes */}
-      <Route path="/dashboard" element={renderDashboard()} />
-      <Route path="/rider/dashboard" element={renderDashboard()} />
+        {/* Dashboard routes */}
+        <Route path="/dashboard" element={renderDashboard()} />
+        <Route path="/rider/dashboard" element={renderDashboard()} />
 
-      {/* Profile routes */}
-      <Route path="/profile" element={renderProfile()} />
-      <Route path="/rider/profile" element={renderProfile()} />
+        {/* Profile routes */}
+        <Route path="/profile" element={renderProfile()} />
+        <Route path="/rider/profile" element={renderProfile()} />
 
-      {/* Earnings routes */}
-      <Route path="/earnings" element={renderEarnings()} />
-      <Route path="/rider/earnings" element={renderEarnings()} />
+        {/* Earnings routes */}
+        <Route path="/earnings" element={renderEarnings()} />
+        <Route path="/rider/earnings" element={renderEarnings()} />
 
-      {/* Settings routes */}
-      <Route path="/settings" element={renderSettings()} />
-      <Route path="/rider/settings" element={renderSettings()} />
+        {/* Settings routes */}
+        <Route path="/settings" element={renderSettings()} />
+        <Route path="/rider/settings" element={renderSettings()} />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider/login" : "/login")} replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider" : "/")} replace />} />
+      </Routes>
+    </MobileDeviceFrame>
   );
 }
