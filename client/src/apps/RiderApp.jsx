@@ -152,74 +152,84 @@ export default function RiderApp() {
     </ProtectedRoute>
   );
 
-  return (
-    <MobileDeviceFrame appName="ZyperGo Rider Partner App">
-      <Routes>
-        {/* Splash & Welcome screens */}
-        <Route path="/rider/splash" element={
-          <PublicRoute requiredRole="Rider">
-            <RiderSplash />
-          </PublicRoute>
-        } />
-        <Route path="/splash" element={
-          <PublicRoute requiredRole="Rider">
-            <RiderSplash />
-          </PublicRoute>
-        } />
-        <Route path="/rider" element={
-          <PublicRoute requiredRole="Rider">
-            <RiderSplash />
-          </PublicRoute>
-        } />
-        <Route path="/" element={
-          <PublicRoute requiredRole="Rider">
-            <RiderSplash />
-          </PublicRoute>
-        } />
+  const isStandaloneApp = window.location.port === '8082' || window.location.port === '8002';
 
-        {/* Login routes */}
-        <Route path="/rider/login" element={
-          <PublicRoute requiredRole="Rider">
-            <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
-        <Route path="/login" element={
-          <PublicRoute requiredRole="Rider">
-            <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
+  const routesContent = (
+    <Routes>
+      {/* Splash & Welcome screens (Splash only on standalone app) */}
+      <Route path="/rider/splash" element={
+        <PublicRoute requiredRole="Rider">
+          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/splash" element={
+        <PublicRoute requiredRole="Rider">
+          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/rider" element={
+        <PublicRoute requiredRole="Rider">
+          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/" element={
+        <PublicRoute requiredRole="Rider">
+          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
 
-        {/* Signup routes */}
-        <Route path="/rider/signup" element={
-          <PublicRoute requiredRole="Rider">
-            <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
-        <Route path="/signup" element={
-          <PublicRoute requiredRole="Rider">
-            <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
+      {/* Login routes */}
+      <Route path="/rider/login" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/login" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
-        {/* Dashboard routes */}
-        <Route path="/dashboard" element={renderDashboard()} />
-        <Route path="/rider/dashboard" element={renderDashboard()} />
+      {/* Signup routes */}
+      <Route path="/rider/signup" element={
+        <PublicRoute requiredRole="Rider">
+          <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/signup" element={
+        <PublicRoute requiredRole="Rider">
+          <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
-        {/* Profile routes */}
-        <Route path="/profile" element={renderProfile()} />
-        <Route path="/rider/profile" element={renderProfile()} />
+      {/* Dashboard routes */}
+      <Route path="/dashboard" element={renderDashboard()} />
+      <Route path="/rider/dashboard" element={renderDashboard()} />
 
-        {/* Earnings routes */}
-        <Route path="/earnings" element={renderEarnings()} />
-        <Route path="/rider/earnings" element={renderEarnings()} />
+      {/* Profile routes */}
+      <Route path="/profile" element={renderProfile()} />
+      <Route path="/rider/profile" element={renderProfile()} />
 
-        {/* Settings routes */}
-        <Route path="/settings" element={renderSettings()} />
-        <Route path="/rider/settings" element={renderSettings()} />
+      {/* Earnings routes */}
+      <Route path="/earnings" element={renderEarnings()} />
+      <Route path="/rider/earnings" element={renderEarnings()} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider" : "/")} replace />} />
-      </Routes>
-    </MobileDeviceFrame>
+      {/* Settings routes */}
+      <Route path="/settings" element={renderSettings()} />
+      <Route path="/rider/settings" element={renderSettings()} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider" : "/")} replace />} />
+    </Routes>
   );
+
+  if (isStandaloneApp) {
+    return (
+      <MobileDeviceFrame appName="ZyperGo Rider Partner App" deviceTheme="gold">
+        {routesContent}
+      </MobileDeviceFrame>
+    );
+  }
+
+  return routesContent;
 }

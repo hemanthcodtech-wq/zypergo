@@ -115,74 +115,84 @@ export default function CustomerApp() {
     </>
   );
 
-  return (
-    <MobileDeviceFrame appName="ZyperGo Customer App">
-      <Routes>
-        {/* Splash & Welcome Screens */}
-        <Route path="/customer/splash" element={
-          <PublicRoute requiredRole="Customer">
-            <CustomerSplash />
-          </PublicRoute>
-        } />
-        <Route path="/splash" element={
-          <PublicRoute requiredRole="Customer">
-            <CustomerSplash />
-          </PublicRoute>
-        } />
-        <Route path="/customer" element={
-          <PublicRoute requiredRole="Customer">
-            <CustomerSplash />
-          </PublicRoute>
-        } />
-        <Route path="/" element={
-          <PublicRoute requiredRole="Customer">
-            <CustomerSplash />
-          </PublicRoute>
-        } />
+  const isStandaloneApp = window.location.port === '8081' || window.location.port === '8001';
 
-        {/* Customer Login & Signup Routes */}
-        <Route path="/customer/login" element={
-          <PublicRoute requiredRole="Customer">
-            <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
-        <Route path="/login" element={
-          <PublicRoute requiredRole="Customer">
-            <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
+  const routesContent = (
+    <Routes>
+      {/* Splash & Welcome Screens (Splash only on standalone app) */}
+      <Route path="/customer/splash" element={
+        <PublicRoute requiredRole="Customer">
+          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/splash" element={
+        <PublicRoute requiredRole="Customer">
+          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/customer" element={
+        <PublicRoute requiredRole="Customer">
+          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
+      <Route path="/" element={
+        <PublicRoute requiredRole="Customer">
+          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+        </PublicRoute>
+      } />
 
-        <Route path="/customer/signup" element={
-          <PublicRoute requiredRole="Customer">
-            <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
-        <Route path="/signup" element={
-          <PublicRoute requiredRole="Customer">
-            <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
-          </PublicRoute>
-        } />
+      {/* Customer Login & Signup Routes */}
+      <Route path="/customer/login" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/login" element={
+        <PublicRoute requiredRole="Customer">
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
-        {/* Protected Customer Routes */}
-        <Route path="/customer/*" element={
-          <ProtectedRoute requiredRole="Customer">
-            <CustomerLayout />
-          </ProtectedRoute>
-        }>
-          {customerChildRoutes}
-        </Route>
+      <Route path="/customer/signup" element={
+        <PublicRoute requiredRole="Customer">
+          <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/signup" element={
+        <PublicRoute requiredRole="Customer">
+          <SignupScreen role="Customer" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
-        <Route element={
-          <ProtectedRoute requiredRole="Customer">
-            <CustomerLayout />
-          </ProtectedRoute>
-        }>
-          {customerChildRoutes}
-        </Route>
-        
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/customer') ? "/customer/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/customer') ? "/customer" : "/")} replace />} />
-      </Routes>
-    </MobileDeviceFrame>
+      {/* Protected Customer Routes */}
+      <Route path="/customer/*" element={
+        <ProtectedRoute requiredRole="Customer">
+          <CustomerLayout />
+        </ProtectedRoute>
+      }>
+        {customerChildRoutes}
+      </Route>
+
+      <Route element={
+        <ProtectedRoute requiredRole="Customer">
+          <CustomerLayout />
+        </ProtectedRoute>
+      }>
+        {customerChildRoutes}
+      </Route>
+      
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/customer') ? "/customer/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/customer') ? "/customer" : "/")} replace />} />
+    </Routes>
   );
+
+  if (isStandaloneApp) {
+    return (
+      <MobileDeviceFrame appName="ZyperGo Customer App">
+        {routesContent}
+      </MobileDeviceFrame>
+    );
+  }
+
+  return routesContent;
 }
