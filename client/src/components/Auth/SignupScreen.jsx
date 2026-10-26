@@ -134,8 +134,8 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#F8FAFC] flex justify-center font-sans antialiased text-slate-900">
-      <div className="w-full max-w-md bg-white min-h-[100dvh] relative shadow-2xl flex flex-col pt-5 pb-8 px-5 overflow-y-auto">
+    <div className="w-full min-h-full flex justify-center font-sans antialiased text-slate-900">
+      <div className="w-full max-w-md bg-white relative flex flex-col pt-3 pb-8 px-5">
         
         {/* Top Header */}
         <div className="flex items-center justify-between mb-3">

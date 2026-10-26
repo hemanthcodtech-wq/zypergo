@@ -53,8 +53,14 @@ export default function MobileDeviceFrame({ children, appName = "ZyperGo App" })
             </div>
           </div>
 
-          {/* App Scrollable Content */}
-          <div className="flex-1 w-full overflow-y-auto relative flex flex-col scrollbar-none">
+          {/* App Scrollable Content - Single Smooth Scroll Container */}
+          <div 
+            className="flex-1 w-full overflow-y-auto relative flex flex-col no-scrollbar overscroll-contain"
+            style={{ 
+              WebkitOverflowScrolling: 'touch', 
+              scrollBehavior: 'smooth' 
+            }}
+          >
             {children}
           </div>
 
