@@ -3,7 +3,6 @@
     "name": "customer-app",
     "slug": "customer-app",
     "version": "1.0.0",
-    "sdkVersion": "52.0.0",
     "platforms": ["android", "ios"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
