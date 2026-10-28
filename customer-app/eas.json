@@ -10,14 +10,13 @@
     },
     "preview": {
       "distribution": "internal",
-      "image": "latest",
       "android": {
         "buildType": "apk",
         "image": "latest"
       },
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64",
-        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx2560m -XX:MaxMetaspaceSize=512m\""
+        "GRADLE_OPTS": "-Dorg.gradle.jvmargs=\"-Xmx2560m -XX:MaxMetaspaceSize=512m\" -Dorg.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64"
       }
     },
     "production": {
