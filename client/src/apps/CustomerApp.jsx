@@ -129,7 +129,7 @@ export default function CustomerApp() {
     </>
   );
 
-  const isStandaloneApp = window.location.port === '8081' || window.location.port === '8001';
+  const isStandaloneApp = window.location.port === '8081' || window.location.port === '8001' || navigator.userAgent.includes('ZyperGoCustomer') || window.location.pathname.startsWith('/customer');
 
   const routesContent = (
     <Routes>

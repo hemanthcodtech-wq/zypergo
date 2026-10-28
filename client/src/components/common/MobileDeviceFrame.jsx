@@ -54,7 +54,7 @@ export default function MobileDeviceFrame({ children, appName = "ZyperGo App", d
           </div>
 
           {/* iOS Style Mobile Status Bar */}
-          <div className="w-full h-10 px-6 pt-2 shrink-0 flex items-center justify-between text-slate-800 text-xs font-bold select-none z-40 bg-transparent">
+          <div className="hidden md:flex w-full h-10 px-6 pt-2 shrink-0 items-center justify-between text-slate-800 text-xs font-bold select-none z-40 bg-transparent">
             <span>{currentTime}</span>
             <div className="flex items-center gap-1.5">
               <Signal size={13} strokeWidth={2.5} />

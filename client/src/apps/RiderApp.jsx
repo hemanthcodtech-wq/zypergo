@@ -197,7 +197,7 @@ export default function RiderApp() {
     </ProtectedRoute>
   );
 
-  const isStandaloneApp = window.location.port === '8082' || window.location.port === '8002';
+  const isStandaloneApp = window.location.port === '8082' || window.location.port === '8002' || navigator.userAgent.includes('ZyperGoRider') || window.location.pathname.startsWith('/rider');
 
   const routesContent = (
     <Routes>

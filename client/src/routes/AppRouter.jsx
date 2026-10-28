@@ -66,11 +66,11 @@ function AppRouter() {
 
     // 2. Port-based detection (e.g. localhost:8081 -> customer, 8082 -> rider, 8080 -> admin, 8083 -> hub)
     const port = window.location.port;
-    if (port === '8081' || port === '8001') {
+    if (port === '8081' || port === '8001' || navigator.userAgent.includes('ZyperGoCustomer')) {
       sessionStorage.setItem('zypergo_portal', 'customer');
       return 'customer';
     }
-    if (port === '8082' || port === '8002') {
+    if (port === '8082' || port === '8002' || navigator.userAgent.includes('ZyperGoRider')) {
       sessionStorage.setItem('zypergo_portal', 'rider');
       return 'rider';
     }
