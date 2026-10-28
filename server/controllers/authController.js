@@ -507,14 +507,19 @@ exports.googleLogin = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Google token is required' });
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID || '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
+    const webClientId = process.env.GOOGLE_CLIENT_ID || '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
+    const allowedAudiences = [
+      webClientId,
+      process.env.GOOGLE_ANDROID_CUSTOMER_CLIENT_ID || '435325462650-s8j2monrem33ggstba7cgmtr7j5vdp0l.apps.googleusercontent.com',
+      process.env.GOOGLE_ANDROID_RIDER_CLIENT_ID || '435325462650-4ltvrrdbl4uf7t9k9hh1u04vu7quhkuk.apps.googleusercontent.com'
+    ];
 
     if (token) {
       // Verify the Google token (id_token flow)
-      const client = new OAuth2Client(clientId);
+      const client = new OAuth2Client(webClientId);
       const ticket = await client.verifyIdToken({
         idToken: token,
-        audience: clientId,
+        audience: allowedAudiences,
       });
       const payload = ticket.getPayload();
       email = payload.email;

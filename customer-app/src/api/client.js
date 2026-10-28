@@ -1,11 +1,7 @@
 // API Client with automatic server detection and fallback
 import { Platform } from 'react-native';
 
-const DEFAULT_SERVER_URL = Platform.select({
-  android: 'http://10.0.2.2:5000/api',
-  ios: 'http://localhost:5000/api',
-  default: 'http://localhost:5000/api'
-});
+const DEFAULT_SERVER_URL = 'https://zypergo.com/api';
 
 class ApiClient {
   constructor() {

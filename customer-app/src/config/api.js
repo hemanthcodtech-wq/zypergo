@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// For Android emulator 10.0.2.2 points to host machine localhost, for web/iOS localhost works
-const DEFAULT_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+const DEFAULT_URL = 'https://zypergo.com/api';
 
 let API_BASE_URL = DEFAULT_URL;
 
