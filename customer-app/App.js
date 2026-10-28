@@ -4,7 +4,6 @@ import {
   View,
   StatusBar,
   BackHandler,
-  ActivityIndicator,
   Text,
   TouchableOpacity,
   SafeAreaView,
@@ -22,7 +21,6 @@ export default function App() {
   const webViewRef = useRef(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_URL);
-  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
@@ -74,7 +72,6 @@ export default function App() {
       setCurrentUrl(trimmed);
       setShowConfigModal(false);
       setHasError(false);
-      setIsLoading(true);
       if (webViewRef.current) {
         webViewRef.current.reload();
       }
@@ -90,7 +87,6 @@ export default function App() {
       setCustomUrlInput(DEFAULT_URL);
       setShowConfigModal(false);
       setHasError(false);
-      setIsLoading(true);
       if (webViewRef.current) {
         webViewRef.current.reload();
       }
@@ -119,43 +115,30 @@ export default function App() {
           mediaPlaybackRequiresUserAction={false}
           mixedContentMode="always"
           androidHardwareAccelerationDisabled={false}
+          androidLayerType="hardware"
           cacheEnabled={true}
           setSupportMultipleWindows={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          overScrollMode="never"
           originWhitelist={['*']}
           onNavigationStateChange={(navState) => {
             setCanGoBack(navState.canGoBack);
           }}
-          onLoadStart={() => {
-            setIsLoading(true);
-            setHasError(false);
-          }}
-          onLoadEnd={() => {
-            setIsLoading(false);
-          }}
           onError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
-            setIsLoading(false);
-            setHasError(true);
-            setErrorMessage(nativeEvent.description || 'Failed to connect to server');
-          }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            if (nativeEvent.statusCode >= 500) {
+            // Only show error screen for real network connection failures
+            if (nativeEvent.description && nativeEvent.description.includes('net::ERR_NAME_NOT_RESOLVED')) {
               setHasError(true);
-              setErrorMessage(`Server error (${nativeEvent.statusCode})`);
+              setErrorMessage('Cannot resolve server address. Check your internet connection.');
+            } else if (nativeEvent.description && nativeEvent.description.includes('net::ERR_CONNECTION_REFUSED')) {
+              setHasError(true);
+              setErrorMessage('Connection refused. Verify server is online.');
             }
           }}
         />
 
-        {/* Initial Loading Indicator */}
-        {isLoading && !hasError && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#0052CC" />
-            <Text style={styles.loadingText}>Loading ZyperGo...</Text>
-          </View>
-        )}
-
-        {/* Friendly Error / Offline Screen */}
+        {/* Friendly Error / Offline Screen (Shown only if actual network connection fails) */}
         {hasError && (
           <View style={styles.errorOverlay}>
             <View style={styles.errorCard}>
@@ -172,7 +155,6 @@ export default function App() {
                 style={styles.primaryButton}
                 onPress={() => {
                   setHasError(false);
-                  setIsLoading(true);
                   if (webViewRef.current) {
                     webViewRef.current.reload();
                   }
@@ -247,23 +229,11 @@ const styles = StyleSheet.create({
   webViewContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#FFFFFF',
   },
   webView: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  loadingText: {
-    marginTop: 14,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#0052CC',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,

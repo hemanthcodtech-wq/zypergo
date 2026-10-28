@@ -18,20 +18,25 @@ function AppRouter() {
 
 
   useEffect(() => {
+    // Zero-latency instant unblock: if no token or cached user exists, render immediately!
+    const token = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('zypergo_token');
+    const cachedUser = localStorage.getItem('zypergo_user');
+    if (!token || cachedUser) {
+      setAuthChecked(true);
+    }
+
     const verifyAuth = async () => {
-      // Check if there is a token passed from the portal login
       const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
-      if (token) {
-        localStorage.setItem('zypergo_token', token);
-        // Remove token from URL to keep it clean and secure
+      const urlToken = params.get('token');
+      if (urlToken) {
+        localStorage.setItem('zypergo_token', urlToken);
         window.history.replaceState({}, document.title, window.location.pathname);
       }
       
       const currentToken = localStorage.getItem('zypergo_token');
       if (currentToken) {
         try {
-          const res = await api.get('/auth/me');
+          const res = await api.get('/auth/me', { timeout: 6000 });
           if (res.data.success) {
             const userId = res.data.data._id || res.data.data.id || res.data.data.phone;
             const savedPhoto = localStorage.getItem('zypergo_profile_photo_' + userId);
@@ -42,8 +47,10 @@ function AppRouter() {
             localStorage.setItem('zypergo_user', JSON.stringify(userWithPhoto));
           }
         } catch (err) {
-          localStorage.removeItem('zypergo_token');
-          localStorage.removeItem('zypergo_user');
+          if (err.response && err.response.status === 401) {
+            localStorage.removeItem('zypergo_token');
+            localStorage.removeItem('zypergo_user');
+          }
         }
       }
       setAuthChecked(true);
