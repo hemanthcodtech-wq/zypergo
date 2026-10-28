@@ -3,6 +3,7 @@
     "name": "ZyperGo Rider",
     "slug": "zypergo-rider",
     "version": "1.0.0",
+    "sdkVersion": "52.0.0",
     "newArchEnabled": false,
     "platforms": ["android", "ios"],
     "orientation": "portrait",
