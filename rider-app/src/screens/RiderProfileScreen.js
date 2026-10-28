@@ -5,7 +5,7 @@ import RiderHeader from '../components/RiderHeader';
 import { useAuth } from '../context/AuthContext';
 import { getApiBaseUrl, setApiBaseUrl } from '../config/api';
 
-export default function RiderProfileScreen() {
+export default function RiderProfileScreen({ onNavigateTab, goBack }) {
   const { user, logout } = useAuth();
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
 
@@ -23,7 +23,11 @@ export default function RiderProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <RiderHeader title="Rider Profile" subtitle="Account and vehicle information" />
+      <RiderHeader 
+        title="Rider Profile" 
+        subtitle="Account and vehicle information" 
+        onBack={goBack || (() => onNavigateTab && onNavigateTab('dashboard'))}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Rider Profile Card */}
@@ -107,7 +111,7 @@ const styles = StyleSheet.create({
   scroll: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   profileCard: {
     backgroundColor: COLORS.white,

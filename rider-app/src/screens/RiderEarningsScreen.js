@@ -4,7 +4,7 @@ import { COLORS, SHADOWS } from '../theme';
 import RiderHeader from '../components/RiderHeader';
 import api from '../config/api';
 
-export default function RiderEarningsScreen() {
+export default function RiderEarningsScreen({ onNavigateTab, goBack }) {
   const [walletBalance, setWalletBalance] = useState(2450);
   const [loading, setLoading] = useState(false);
 
@@ -37,7 +37,11 @@ export default function RiderEarningsScreen() {
 
   return (
     <View style={styles.container}>
-      <RiderHeader title="Wallet & Earnings" subtitle="Track your payouts and trip bonuses" />
+      <RiderHeader 
+        title="Wallet & Earnings" 
+        subtitle="Track your payouts and trip bonuses" 
+        onBack={goBack || (() => onNavigateTab && onNavigateTab('dashboard'))}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Wallet Balance Card */}
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
   scroll: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   balanceCard: {
     backgroundColor: COLORS.primary,

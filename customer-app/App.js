@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, StatusBar, BackHandler } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -12,32 +13,70 @@ import { colors } from './src/theme/colors';
 
 function MainApp() {
   const { user } = useAuth();
-  const [currentScreen, setCurrentScreen] = useState('home');
+  const [history, setHistory] = useState(['home']);
   const [screenParams, setScreenParams] = useState({});
+
+  const currentScreen = history[history.length - 1] || 'home';
+
+  const navigateTo = useCallback((screen, params = {}) => {
+    setScreenParams(params);
+    setHistory((prev) => {
+      // If clicking the current screen, do nothing
+      if (prev[prev.length - 1] === screen) return prev;
+      // If navigating to home, reset history to just home
+      if (screen === 'home') return ['home'];
+      // Otherwise push to navigation history
+      return [...prev, screen];
+    });
+  }, []);
+
+  const goBack = useCallback(() => {
+    setHistory((prev) => {
+      if (prev.length > 1) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+  }, []);
+
+  // Listen to Android hardware back button and edge swipe gestures
+  useEffect(() => {
+    const onBackPress = () => {
+      if (history.length > 1) {
+        goBack();
+        return true; // handled, do not exit app
+      }
+      return false; // at home screen, allow default OS exit
+    };
+
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, [history, goBack]);
 
   if (!user) {
     return <AuthScreen />;
   }
 
-  const navigateTo = (screen, params = {}) => {
-    setScreenParams(params);
-    setCurrentScreen(screen);
+  const screenProps = {
+    onNavigate: navigateTo,
+    goBack: goBack,
+    canGoBack: history.length > 1,
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       <View style={styles.screenContainer}>
-        {currentScreen === 'home' && <HomeScreen onNavigate={navigateTo} />}
-        {currentScreen === 'book' && <BookShipmentScreen onNavigate={navigateTo} />}
+        {currentScreen === 'home' && <HomeScreen {...screenProps} />}
+        {currentScreen === 'book' && <BookShipmentScreen {...screenProps} />}
         {currentScreen === 'track' && (
           <TrackingScreen
+            {...screenProps}
             initialTrackingNumber={screenParams.trackingNumber}
-            onNavigate={navigateTo}
           />
         )}
-        {currentScreen === 'shipments' && <ShipmentsScreen onNavigate={navigateTo} />}
-        {currentScreen === 'profile' && <ProfileScreen onNavigate={navigateTo} />}
+        {currentScreen === 'shipments' && <ShipmentsScreen {...screenProps} />}
+        {currentScreen === 'profile' && <ProfileScreen {...screenProps} />}
       </View>
       <BottomNav currentScreen={currentScreen} onNavigate={navigateTo} />
     </SafeAreaView>
@@ -46,9 +85,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 

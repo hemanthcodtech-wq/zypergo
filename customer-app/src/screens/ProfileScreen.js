@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 
-export default function ProfileScreen({ onNavigate }) {
+export default function ProfileScreen({ onNavigate, goBack }) {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -19,8 +19,17 @@ export default function ProfileScreen({ onNavigate }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.screenHeading}>Account & Settings</Text>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 120 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+        <TouchableOpacity
+          onPress={() => (goBack ? goBack() : onNavigate('home'))}
+          style={{ marginRight: 12, padding: 4 }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={[styles.screenHeading, { marginBottom: 0 }]}>Account & Settings</Text>
+      </View>
 
       {/* User Info Card */}
       <View style={styles.userCard}>

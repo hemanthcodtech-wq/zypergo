@@ -5,7 +5,7 @@ import RiderHeader from '../components/RiderHeader';
 import { useAuth } from '../context/AuthContext';
 import api from '../config/api';
 
-export default function AvailableJobsScreen({ onJobAccepted }) {
+export default function AvailableJobsScreen({ onJobAccepted, onNavigateTab, goBack }) {
   const { isOnDuty } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,11 @@ export default function AvailableJobsScreen({ onJobAccepted }) {
 
   return (
     <View style={styles.container}>
-      <RiderHeader title="Available Pickups" subtitle={`${jobs.length} delivery requests nearby`} />
+      <RiderHeader 
+        title="Available Pickups" 
+        subtitle={`${jobs.length} delivery requests nearby`} 
+        onBack={goBack || (() => onNavigateTab && onNavigateTab('dashboard'))}
+      />
 
       {!isOnDuty ? (
         <View style={styles.dutyWarning}>
@@ -234,7 +238,7 @@ const styles = StyleSheet.create({
   list: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   jobCard: {
     backgroundColor: COLORS.white,

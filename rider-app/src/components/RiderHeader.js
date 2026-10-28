@@ -1,16 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '../theme';
 import { useAuth } from '../context/AuthContext';
 
-export default function RiderHeader({ title, subtitle }) {
+export default function RiderHeader({ title, subtitle, onBack }) {
   const { isOnDuty } = useAuth();
 
   return (
     <View style={styles.header}>
-      <View>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+        {onBack && (
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <Text style={styles.backArrow}>←</Text>
+          </TouchableOpacity>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
+        </View>
       </View>
       <View style={[styles.statusChip, isOnDuty ? styles.chipOnline : styles.chipOffline]}>
         <View style={[styles.dot, isOnDuty ? styles.dotOnline : styles.dotOffline]} />
@@ -32,6 +39,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  backBtn: {
+    paddingRight: 6,
+    paddingVertical: 4,
+  },
+  backArrow: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.text,
   },
   title: {
     fontSize: 20,

@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
-export default function TrackingScreen({ initialTrackingNumber, onNavigate }) {
+export default function TrackingScreen({ initialTrackingNumber, onNavigate, goBack }) {
   const [trackingId, setTrackingId] = useState(initialTrackingNumber || 'ZP-849204');
   const [currentStep, setCurrentStep] = useState(3); // 3 = Out for Delivery
 
@@ -28,8 +28,17 @@ export default function TrackingScreen({ initialTrackingNumber, onNavigate }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.screenHeading}>Shipment Tracking</Text>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 120 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+        <TouchableOpacity
+          onPress={() => (goBack ? goBack() : onNavigate('home'))}
+          style={{ marginRight: 12, padding: 4 }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={[styles.screenHeading, { marginBottom: 0 }]}>Shipment Tracking</Text>
+      </View>
 
       {/* Tracking Input Bar */}
       <View style={styles.searchBar}>

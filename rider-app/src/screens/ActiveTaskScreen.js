@@ -4,7 +4,7 @@ import { COLORS, SHADOWS } from '../theme';
 import RiderHeader from '../components/RiderHeader';
 import api from '../config/api';
 
-export default function ActiveTaskScreen({ activeJob, onTaskCompleted }) {
+export default function ActiveTaskScreen({ activeJob, onTaskCompleted, onNavigateTab, goBack }) {
   const [stage, setStage] = useState('HEADING_TO_PICKUP'); // HEADING_TO_PICKUP, AT_PICKUP, IN_TRANSIT, AT_DELIVERY
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,7 +79,11 @@ export default function ActiveTaskScreen({ activeJob, onTaskCompleted }) {
 
   return (
     <View style={styles.container}>
-      <RiderHeader title={info.title} subtitle={info.sub} />
+      <RiderHeader 
+        title={info.title} 
+        subtitle={info.sub} 
+        onBack={goBack || (() => onNavigateTab && onNavigateTab('dashboard'))}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Status Card */}
@@ -172,7 +176,7 @@ const styles = StyleSheet.create({
   scroll: {
     padding: 20,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   mainCard: {
     backgroundColor: COLORS.white,

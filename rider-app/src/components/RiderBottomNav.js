@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
 
 export default function RiderBottomNav({ activeTab, onSelectTab }) {
+  const insets = useSafeAreaInsets();
   const tabs = [
     { key: 'dashboard', label: 'Dashboard', icon: '📊' },
     { key: 'jobs', label: 'Pickups', icon: '📦' },
@@ -11,8 +13,10 @@ export default function RiderBottomNav({ activeTab, onSelectTab }) {
     { key: 'profile', label: 'Profile', icon: '👤' },
   ];
 
+  const bottomInset = Math.max(insets.bottom, 10);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInset, height: 60 + bottomInset }]}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -20,6 +24,7 @@ export default function RiderBottomNav({ activeTab, onSelectTab }) {
             key={tab.key}
             style={styles.tab}
             onPress={() => onSelectTab(tab.key)}
+            activeOpacity={0.7}
           >
             <Text style={[styles.icon, isActive && styles.iconActive]}>{tab.icon}</Text>
             <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
@@ -36,8 +41,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingVertical: 8,
-    paddingBottom: 20,
+    paddingVertical: 6,
     justifyContent: 'space-around',
     elevation: 8,
     shadowColor: '#000',

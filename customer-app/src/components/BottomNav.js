@@ -1,9 +1,11 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 
 export default function BottomNav({ currentScreen, onNavigate }) {
+  const insets = useSafeAreaInsets();
   const tabs = [
     { key: 'home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
     { key: 'book', label: 'Book', icon: 'add-circle-outline', activeIcon: 'add-circle' },
@@ -12,8 +14,10 @@ export default function BottomNav({ currentScreen, onNavigate }) {
     { key: 'profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person' }
   ];
 
+  const bottomInset = Math.max(insets.bottom, 8);
+
   return (
-    <View style={styles.navContainer}>
+    <View style={[styles.navContainer, { paddingBottom: bottomInset, height: 60 + bottomInset }]}>
       {tabs.map((tab) => {
         const isActive = currentScreen === tab.key;
         return (

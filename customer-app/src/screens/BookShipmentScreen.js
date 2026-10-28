@@ -14,7 +14,7 @@ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 
-export default function BookShipmentScreen({ onNavigate }) {
+export default function BookShipmentScreen({ onNavigate, goBack }) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -112,10 +112,25 @@ export default function BookShipmentScreen({ onNavigate }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 120 }]}>
       {/* Step Indicator */}
       <View style={styles.stepHeader}>
-        <Text style={styles.screenHeading}>Book a Delivery</Text>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => {
+            if (step > 1) {
+              setStep(step - 1);
+            } else if (goBack) {
+              goBack();
+            } else {
+              onNavigate('home');
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={styles.screenHeading}>Book Delivery</Text>
         <Text style={styles.stepCounter}>Step {step} of 3</Text>
       </View>
 
