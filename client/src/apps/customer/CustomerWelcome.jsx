@@ -112,22 +112,6 @@ export default function CustomerWelcome() {
           </button>
         </div>
 
-        {/* Bottom Banner */}
-        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 mt-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-100/60 flex items-center justify-center text-[#0052CC] shrink-0">
-              <ShieldCheck size={20} strokeWidth={2.2} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-slate-800 leading-tight">Trusted logistics made simple.</p>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Fast • Secure • Reliable</p>
-            </div>
-          </div>
-          <img 
-            src="/images/box_asset.jpg" 
-            alt="Package" 
-            className="w-11 h-11 object-contain rounded-lg shadow-xs"
-          />
         </div>
 
       </div>

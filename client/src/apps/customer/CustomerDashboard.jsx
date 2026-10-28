@@ -2,17 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, Bell, Package, Calendar, Map, FileText, ChevronRight, 
-  CheckCircle2, Clock, Truck, ChevronDown, Menu, ArrowRight, X, Search 
+  CheckCircle2, Clock, Truck, ChevronDown, Menu, ArrowRight, X, Search, Sparkles, Navigation 
 } from 'lucide-react';
 import api from '../../api';
+import { reverseGeocode } from '../../utils/locationService';
+import PinLocationModal from '../../components/common/PinLocationModal';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState({ name: 'Customer' });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCity, setSelectedCity] = useState('Adoni, Andhra Pradesh');
-  const [showCityModal, setShowCityModal] = useState(false);
+  
+  // Pinned Location State - automatically asks to pin location on every app open
+  const [showPinModal, setShowPinModal] = useState(true);
+  const [pinnedLocation, setPinnedLocation] = useState(() => {
+    const saved = localStorage.getItem('zypergo_customer_location');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return null;
+  });
+
+  const [selectedCity, setSelectedCity] = useState(
+    pinnedLocation?.city ? `${pinnedLocation.city}, ${pinnedLocation.state || 'Telangana'}` : 'Kosgi, Telangana'
+  );
   const [activeSlide, setActiveSlide] = useState(0);
 
   const availableCities = [
@@ -30,22 +44,21 @@ export default function CustomerDashboard() {
       setUser(JSON.parse(userData));
     }
     
-    // Fetch Location
+    // Fetch Location with Google Maps Geocoding & high accuracy
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          const city = data.address.city || data.address.town || data.address.village || 'Adoni';
-          const state = data.address.state || 'Andhra Pradesh';
-          setSelectedCity(`${city}, ${state}`);
+          const loc = await reverseGeocode(latitude, longitude);
+          if (loc && loc.city) {
+            setSelectedCity(`${loc.city}, ${loc.state}`);
+          }
         } catch (error) {
-          console.error("Error geocoding:", error);
+          console.error("Error geocoding location:", error);
         }
       }, (err) => {
         console.warn("Geolocation warning:", err.message);
-      });
+      }, { enableHighAccuracy: true, timeout: 8000 });
     }
 
     // Fetch recent orders
@@ -209,12 +222,18 @@ export default function CustomerDashboard() {
         <div className="flex items-center gap-2">
           {/* Location Selector Pill */}
           <button 
-            onClick={() => setShowCityModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50/80 text-slate-800 hover:bg-slate-100 active:scale-95 transition-all"
+            type="button"
+            onClick={() => setShowPinModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50/70 text-slate-800 hover:bg-blue-100/70 active:scale-95 transition-all cursor-pointer shadow-2xs max-w-[170px]"
+            title="Click to pin or change exact delivery location"
           >
-            <MapPin size={14} className="text-[#0052CC]" />
-            <span className="text-xs font-bold">{cityNameOnly}</span>
-            <ChevronDown size={14} className="text-slate-400" />
+            <MapPin size={14} className="text-[#0052CC] shrink-0" />
+            <div className="text-left truncate">
+              <span className="text-xs font-black text-slate-900 block truncate">
+                {pinnedLocation?.colony || pinnedLocation?.city || cityNameOnly}
+              </span>
+            </div>
+            <ChevronDown size={14} className="text-slate-400 shrink-0" />
           </button>
 
           {/* Notification Bell */}
@@ -228,6 +247,27 @@ export default function CustomerDashboard() {
             </span>
           </button>
         </div>
+      </div>
+
+      {/* Pinned Delivery Location Banner */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50/40 border-b border-blue-100/80 px-4 py-2 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2 text-slate-700 truncate pr-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider shrink-0">Delivery at:</span>
+          <span className="font-black text-slate-800 truncate text-[11px]">
+            {pinnedLocation?.plotNumber ? `${pinnedLocation.plotNumber}, ` : ''}
+            {pinnedLocation?.colony ? `${pinnedLocation.colony}, ` : ''}
+            {pinnedLocation?.city || selectedCity}
+            {pinnedLocation?.landmark ? ` (Near ${pinnedLocation.landmark})` : ''}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowPinModal(true)}
+          className="text-[11px] font-black text-[#0052CC] hover:underline shrink-0 cursor-pointer"
+        >
+          Change Pin
+        </button>
       </div>
 
       <div className="max-w-md md:max-w-4xl mx-auto px-4 pt-4 space-y-4">
@@ -411,39 +451,19 @@ export default function CustomerDashboard() {
 
       </div>
 
-      {/* City Selector Modal */}
-      {showCityModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-black text-slate-900">Select City</h3>
-              <button onClick={() => setShowCityModal(false)} className="p-1 rounded-full hover:bg-slate-100 text-slate-500">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {availableCities.map((city) => (
-                <button
-                  key={city}
-                  onClick={() => {
-                    setSelectedCity(city);
-                    setShowCityModal(false);
-                  }}
-                  className={`w-full p-3 rounded-xl text-left text-xs font-bold flex items-center justify-between transition-colors ${
-                    selectedCity === city 
-                      ? 'bg-blue-50 text-[#0052CC] border border-blue-200' 
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  <span>{city}</span>
-                  {selectedCity === city && <CheckCircle2 size={16} className="text-[#0052CC]" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Interactive Pin Location Modal - Prompts on load and on click */}
+      <PinLocationModal 
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        initialLocation={pinnedLocation}
+        onConfirm={(newLocation) => {
+          setPinnedLocation(newLocation);
+          if (newLocation.city) {
+            setSelectedCity(`${newLocation.city}, ${newLocation.state || 'Telangana'}`);
+          }
+          setShowPinModal(false);
+        }}
+      />
 
     </div>
   );

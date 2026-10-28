@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import RiderTaskFlow from './RiderTaskFlow';
 import RiderHeader from './RiderHeader';
+import { reverseGeocode } from '../../utils/locationService';
 
 export default function RiderDashboard({ user, onLogout }) {
   const [availableJobs, setAvailableJobs] = useState([]);
@@ -12,10 +13,26 @@ export default function RiderDashboard({ user, onLogout }) {
   
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [riderDetails, setRiderDetails] = useState({
+    isOnline: user?.riderDetails?.isOnline || false,
+    isOnBreak: user?.riderDetails?.isOnBreak || false,
+    isOnShift: user?.riderDetails?.isOnShift || false
+  });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.riderDetails) {
+      setRiderDetails({
+        isOnline: user.riderDetails.isOnline || false,
+        isOnBreak: user.riderDetails.isOnBreak || false,
+        isOnShift: user.riderDetails.isOnShift || false
+      });
+    }
+  }, [user]);
 
   // Location State
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [currentAddress, setCurrentAddress] = useState('');
   const watchIdRef = useRef(null);
 
   // Form State
@@ -70,10 +87,23 @@ export default function RiderDashboard({ user, onLogout }) {
           async (position) => {
             const { latitude, longitude } = position.coords;
             setCurrentLocation({ lat: latitude, lng: longitude });
+
+            // Reverse geocode with Google Maps Platform
+            let resolvedAddress = '';
+            try {
+              const loc = await reverseGeocode(latitude, longitude);
+              if (loc?.area || loc?.city) {
+                resolvedAddress = loc.area ? `${loc.area}, ${loc.city}` : loc.city;
+                setCurrentAddress(resolvedAddress);
+              }
+            } catch (e) {
+              // Ignore geocode errors
+            }
+
             // Push to backend
             if (user?._id) {
                try {
-                 await api.post('/rider/location', { userId: user._id, lat: latitude, lng: longitude });
+                 await api.post('/rider/location', { userId: user._id, lat: latitude, lng: longitude, address: resolvedAddress });
                } catch (e) {
                  // Ignore background ping fails
                }
@@ -92,11 +122,11 @@ export default function RiderDashboard({ user, onLogout }) {
       }
     };
 
-    if (user?.riderDetails?.isOnline && user?.riderDetails?.isOnShift) {
+    if (riderDetails.isOnline && !riderDetails.isOnBreak) {
       startTracking();
     } else {
       stopTracking();
-      // Also clear available jobs if offline
+      // Also clear available jobs if offline or on break
       setAvailableJobs([]);
     }
 
@@ -106,7 +136,7 @@ export default function RiderDashboard({ user, onLogout }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [user?.riderDetails?.isOnline, user?.riderDetails?.isOnShift]);
+  }, [riderDetails.isOnline, riderDetails.isOnBreak]);
 
   const handleStatusUpdate = async (newStatus, payload = {}) => {
     if (!activeJob) return;
@@ -227,7 +257,15 @@ export default function RiderDashboard({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans flex flex-col text-slate-900">
-      <RiderHeader user={user} onLogout={onLogout} onShowEarnings={() => {}} />
+      <RiderHeader 
+        user={user} 
+        onLogout={onLogout} 
+        onShowEarnings={() => {}} 
+        onStatusChange={(status) => {
+          setRiderDetails(prev => ({ ...prev, ...status }));
+          fetchJobs();
+        }} 
+      />
       
       {isOffline && (
         <div className="bg-red-600 text-white text-center py-2 text-sm font-bold flex items-center justify-center gap-2 z-50">
@@ -251,32 +289,40 @@ export default function RiderDashboard({ user, onLogout }) {
              </div>
            ) : (
              <div className="flex flex-col items-center text-center">
-                {(!user?.riderDetails?.isOnline || !user?.riderDetails?.isOnShift) ? (
-                   // Offline State
-                   <div className="bg-white/70 backdrop-blur-xl p-10 rounded-3xl border border-white/60 max-w-sm w-full shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-                     <div className="w-20 h-20 bg-slate-100 rounded-full mx-auto mb-6 flex items-center justify-center border border-slate-200 shadow-inner">
-                       <Clock size={32} className="text-slate-400" />
+                {(!riderDetails.isOnline || riderDetails.isOnBreak) ? (
+                    // Offline / On Break State
+                    <div className="bg-white/85 backdrop-blur-xl p-6 rounded-3xl border border-white/60 max-w-sm w-full shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+                       <div className="w-14 h-14 bg-slate-100 rounded-full mx-auto mb-3 flex items-center justify-center border border-slate-200 shadow-inner">
+                         <Clock size={24} className={riderDetails.isOnBreak ? "text-amber-500" : "text-slate-400"} />
+                       </div>
+                       <h2 className="text-lg font-black uppercase tracking-wide text-slate-800 mb-1">
+                         {riderDetails.isOnBreak ? 'You are on Break' : 'You are Offline'}
+                       </h2>
+                       <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mx-auto">
+                         {riderDetails.isOnBreak 
+                           ? 'Tap "End Break" above when you are ready to receive delivery missions.' 
+                           : 'To start receiving delivery missions, tap "Go Online" above.'}
+                       </p>
+                       
+                       {!riderDetails.isOnBreak && (
+                         <button 
+                           onClick={() => {
+                             if ('geolocation' in navigator) {
+                               navigator.geolocation.getCurrentPosition(
+                                 (pos) => alert("Location access granted! You can now tap 'Go Online' above."),
+                                 (err) => alert("Please allow location access in your browser settings to continue.")
+                               );
+                             } else {
+                               alert("Geolocation is not supported by your browser.");
+                             }
+                           }}
+                           className="w-full mt-4 bg-[#FFB703] hover:bg-[#e5a400] text-slate-900 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl shadow-md transition-all active:scale-[0.98]"
+                         >
+                           Grant Location Access
+                         </button>
+                       )}
                      </div>
-                     <h2 className="text-2xl font-black uppercase tracking-widest text-slate-800 mb-2">You are Offline</h2>
-                     <p className="text-sm text-slate-500 font-medium leading-relaxed">To start receiving missions, you must grant location access and start your shift.</p>
-                     
-                     <button 
-                       onClick={() => {
-                         if ('geolocation' in navigator) {
-                           navigator.geolocation.getCurrentPosition(
-                             (pos) => alert("Location access granted! You can now turn your shift ON in the header."),
-                             (err) => alert("Please allow location access in your browser settings to continue.")
-                           );
-                         } else {
-                           alert("Geolocation is not supported by your browser.");
-                         }
-                       }}
-                       className="w-full mt-6 bg-[#FFB703] hover:bg-[#e5a400] text-black font-black uppercase tracking-widest py-4 rounded-xl shadow-md transition-colors"
-                     >
-                       Grant Location Access
-                     </button>
-                   </div>
-                ) : (
+                 ) : (
                    // Online / Radar State
                    <div className="flex flex-col items-center relative">
                      {/* Pulsing Radar Rings */}
@@ -305,7 +351,7 @@ export default function RiderDashboard({ user, onLogout }) {
 
         </div>
 
-        {(!activeJob && availableJobs.length > 0 && user?.riderDetails?.isOnline && user?.riderDetails?.isOnShift) && (() => {
+        {(!activeJob && availableJobs.length > 0 && riderDetails.isOnline && !riderDetails.isOnBreak) && (() => {
           const job = availableJobs[0];
           const pickupParts = (job.pickupLocation?.address || '').toLowerCase().split(',').map(s => s.trim());
           const dropParts = (job.dropLocation?.address || '').toLowerCase().split(',').map(s => s.trim());

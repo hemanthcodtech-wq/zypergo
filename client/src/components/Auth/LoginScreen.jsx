@@ -169,6 +169,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   const [step, setStep] = useState('input'); // 'input', 'otp', or 'forgot_password'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notRegisteredError, setNotRegisteredError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
@@ -297,10 +298,12 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       setError('');
+      setNotRegisteredError(false);
       try {
         const res = await api.post('/auth/google', { 
           accessToken: tokenResponse.access_token, 
-          role 
+          role,
+          isSignup: false
         });
         const data = res.data;
         
@@ -312,7 +315,11 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
           navigate('/dashboard');
         }
       } catch (err) {
-        setError(err.response?.data?.error || 'Google login failed');
+        const errorMsg = err.response?.data?.error || 'Google login failed';
+        setError(errorMsg);
+        if (err.response?.data?.notRegistered) {
+          setNotRegisteredError(true);
+        }
       } finally {
         setLoading(false);
       }
@@ -323,7 +330,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   return (
     <div className="w-full min-h-full flex justify-center font-sans antialiased text-slate-900">
       {/* Mobile-first Constrained App Container */}
-      <div className="w-full max-w-md bg-white relative flex flex-col pt-3 pb-8 px-5">
+      <div className="w-full max-w-md bg-white relative flex flex-col pt-3 pb-16 px-5">
         
         {/* Top Header */}
         <div className="flex items-center justify-between mb-4">
@@ -405,8 +412,18 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 mt-2">
           
           {error && (
-            <div className="bg-red-50 text-red-600 p-2.5 rounded-xl text-xs font-bold text-center mb-3 border border-red-200 animate-in fade-in">
-              {error}
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold text-center mb-3 border border-red-200 animate-in fade-in flex flex-col items-center">
+              <p>{error}</p>
+              {notRegisteredError && (
+                <button
+                  type="button"
+                  onClick={() => navigate(signupUrl)}
+                  className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF6B00] text-white text-xs font-black shadow-xs hover:bg-[#e05e00] transition-colors cursor-pointer"
+                >
+                  <span>Sign Up Now</span>
+                  <ArrowRight size={13} />
+                </button>
+              )}
             </div>
           )}
 
@@ -583,12 +600,6 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
             </form>
           )}
 
-        </div>
-
-        {/* Bottom Tagline */}
-        <div className="text-center mt-4">
-          <p className="text-xs font-black text-slate-800">Trusted logistics made simple.</p>
-          <p className="text-[10px] font-bold text-slate-500 mt-0.5">ZyperGo • Fast • Secure • Reliable</p>
         </div>
 
       </div>

@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const User = require('../models/User');
 const ExceptionNDR = require('../models/ExceptionNDR');
 const NotificationService = require('../services/notificationService');
+const locationService = require('../services/locationService');
 
 exports.getAvailableJobs = async (req, res) => {
   try {
@@ -33,15 +34,21 @@ exports.getAvailableJobs = async (req, res) => {
 
 exports.updateLocation = async (req, res) => {
   try {
-    const { userId, lat, lng } = req.body;
+    const { userId, lat, lng, address } = req.body;
     if (!userId) return res.status(400).json({ success: false, error: 'User ID is required' });
     
+    let resolvedAddress = address;
+    if (!resolvedAddress && lat && lng) {
+      const loc = await locationService.reverseGeocode(lat, lng);
+      if (loc) resolvedAddress = loc.formattedAddress;
+    }
+
     await User.findByIdAndUpdate(userId, {
-      'riderDetails.currentLocation': { lat, lng },
+      'riderDetails.currentLocation': { lat, lng, address: resolvedAddress, updatedAt: new Date() },
       'riderDetails.lastLocationUpdate': new Date()
     });
 
-    res.status(200).json({ success: true, message: 'Location updated' });
+    res.status(200).json({ success: true, message: 'Location updated', address: resolvedAddress });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update location' });
   }
@@ -422,13 +429,30 @@ exports.getHistory = async (req, res) => {
     const { userId } = req.query;
     if (!userId) return res.status(400).json({ success: false, error: 'User ID is required' });
 
-    const history = await Booking.find({
-      'assignedRiders.riderId': userId,
-      status: { $in: ['Delivered', 'Source Hub Received'] }
-    }).sort({ updatedAt: -1 });
+    const ongoingStatuses = ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery', 'Relay Handoff Pending', 'Transhipment Pending'];
+    const completedStatuses = ['Delivered', 'Source Hub Received', 'Destination Hub Received', 'Cancelled', 'Failed'];
 
-    res.status(200).json({ success: true, data: history });
+    const allRiderBookings = await Booking.find({
+      $or: [
+        { currentRider: userId },
+        { 'assignedRiders.riderId': userId }
+      ]
+    })
+    .populate('metadata.sourceHub')
+    .populate('metadata.destinationHub')
+    .sort({ updatedAt: -1 });
+
+    const ongoing = allRiderBookings.filter(b => ongoingStatuses.includes(b.status));
+    const completed = allRiderBookings.filter(b => completedStatuses.includes(b.status));
+
+    res.status(200).json({ 
+      success: true, 
+      data: allRiderBookings,
+      ongoing,
+      completed
+    });
   } catch (error) {
+    console.error('Error fetching rider history:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch history' });
   }
 };

@@ -14,6 +14,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true
+      },
+      '/uploads': {
+        target: process.env.VITE_BACKEND_URL || 'https://zypergo.com',
+        changeOrigin: true,
+        secure: false
       }
     }
   }

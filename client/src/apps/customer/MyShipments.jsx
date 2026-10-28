@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, CheckCircle2, XCircle, Package, Search, ChevronRight, Loader2, ArrowRight, MapPin, Calendar, Filter, Headphones } from 'lucide-react';
+import {
+  Truck,
+  ChevronLeft,
+  ArrowLeft, CheckCircle2, XCircle, Package, Search, ChevronRight, Loader2, ArrowRight, MapPin, Calendar, Filter, Headphones } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 
@@ -166,7 +169,15 @@ export default function MyShipments() {
       
       {/* Top Sticky Header */}
       <div className="bg-white px-4 py-3 sticky top-0 z-20 shadow-xs border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
+            className="p-1 -ml-1 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            title="Go back"
+          >
+            <ChevronLeft size={22} />
+          </button>
           <img 
             src="/images/logo.png" 
             alt="ZyperGo" 

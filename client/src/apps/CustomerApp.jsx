@@ -9,6 +9,7 @@ import AddressBook from './customer/AddressBook';
 import CustomerInvoices from './customer/CustomerInvoices';
 import CustomerProfile from './customer/CustomerProfile';
 import CustomerSettings from './customer/CustomerSettings';
+import BookingHistory from './customer/BookingHistory';
 import LoginScreen from '../components/Auth/LoginScreen';
 import SignupScreen from '../components/Auth/SignupScreen';
 import CustomerSplash from './customer/CustomerSplash';
@@ -25,6 +26,7 @@ function CustomerLayout() {
 
   const isCustomerPrefix = location.pathname.startsWith('/customer');
   const base = isCustomerPrefix ? '/customer' : '';
+  const isBookingPage = location.pathname.includes('/booking');
 
   useEffect(() => {
     const userData = localStorage.getItem('zypergo_user');
@@ -36,19 +38,24 @@ function CustomerLayout() {
   const handleLogout = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
-    window.location.href = isCustomerPrefix ? '/customer/login' : '/login';
+    sessionStorage.removeItem('zypergo_portal');
+    window.location.href = '/customer/login';
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden">
+    <div 
+      className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden"
+      style={{ transform: 'translate3d(0, 0, 0)' }}
+    >
       
       {/* App Main Content View */}
-      <main className="flex-1 w-full overflow-y-auto pb-20 relative">
+      <main className={`flex-1 w-full overflow-y-auto relative ${isBookingPage ? 'pb-0' : 'pb-20'}`}>
         <Outlet />
       </main>
 
       {/* Mobile App Bottom Navigation Bar */}
-      <nav className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 flex justify-between items-center px-4 pb-4 pt-2.5 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.05)] rounded-t-3xl">
+      {!isBookingPage && (
+        <nav className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-100 flex justify-between items-center px-4 pb-4 pt-2.5 z-40 shadow-[0_-10px_25px_rgba(0,0,0,0.05)] rounded-t-3xl">
         <Link to={`${base}/dashboard`} className={`flex flex-col items-center gap-1 w-1/5 transition-colors ${location.pathname.endsWith('/dashboard') || location.pathname === base || location.pathname === `${base}/` ? 'text-[#0052CC]' : 'text-slate-400 hover:text-slate-600'}`}>
           <Home size={22} className={location.pathname.endsWith('/dashboard') || location.pathname === base || location.pathname === `${base}/` ? 'stroke-[2.5]' : 'stroke-2'} />
           <span className="text-[10px] font-bold">Home</span>
@@ -77,6 +84,7 @@ function CustomerLayout() {
           <span className="text-[10px] font-bold">Profile</span>
         </Link>
       </nav>
+      )}
 
     </div>
   );
@@ -89,7 +97,9 @@ export default function CustomerApp() {
   const handleClearAuth = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
+    sessionStorage.removeItem('zypergo_portal');
     setIsAuthenticated(false);
+    window.location.href = '/customer/login';
   };
 
   const handleLoginSuccess = () => {
@@ -110,7 +120,11 @@ export default function CustomerApp() {
       <Route path="support" element={<SupportCenter />} />
       <Route path="notifications" element={<CustomerNotifications />} />
       <Route path="booking" element={<BookingFlow />} />
+      <Route path="booking-history" element={<BookingHistory />} />
+      <Route path="history" element={<BookingHistory />} />
       <Route path="profile" element={<CustomerProfile />} />
+      <Route path="wallet" element={<CustomerProfile defaultView="wallet" />} />
+      <Route path="rate-card" element={<CustomerProfile defaultView="rateCard" />} />
       <Route path="settings" element={<CustomerSettings />} />
     </>
   );

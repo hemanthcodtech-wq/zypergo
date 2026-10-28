@@ -4,13 +4,15 @@ import RiderDashboard from './rider/RiderDashboard';
 import RiderProfile from './rider/RiderProfile';
 import RiderSettings from './rider/RiderSettings';
 import RiderEarnings from './rider/RiderEarnings';
+import RiderHistory from './rider/RiderHistory';
 import LoginScreen from '../components/Auth/LoginScreen';
 import SignupScreen from '../components/Auth/SignupScreen';
 import RiderSplash from './rider/RiderSplash';
 import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 import api from '../api';
-import { LayoutDashboard, Wallet, User as UserIcon, Settings, LogOut, Navigation } from 'lucide-react';
+import { LayoutDashboard, Wallet, User as UserIcon, Clock, Settings, LogOut, Navigation } from 'lucide-react';
 import MobileDeviceFrame from '../components/common/MobileDeviceFrame';
+import { getImageUrl } from '../utils/imageUrl';
 
 function RiderLayout({ children, onLogout, user }) {
   const navigate = useNavigate();
@@ -19,16 +21,49 @@ function RiderLayout({ children, onLogout, user }) {
 
   const isPrefix = currentPath.startsWith('/rider');
   const base = isPrefix ? '/rider' : '';
+  const getProfilePhoto = () => {
+    const userId = user?.id || user?._id || user?.phone;
+    let photo = user?.photoUrl || user?.riderDetails?.documents?.profileImageUrl;
+    if (!photo && userId) {
+      photo = localStorage.getItem('zypergo_profile_photo_' + userId);
+    }
+    if (!photo) {
+      const stored = localStorage.getItem('zypergo_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          const uId = u.id || u._id || u.phone;
+          photo = u.photoUrl || u.riderDetails?.documents?.profileImageUrl || (uId ? localStorage.getItem('zypergo_profile_photo_' + uId) : null);
+        } catch (e) {}
+      }
+    }
+    return photo;
+  };
+
+  const navProfilePhoto = getProfilePhoto();
 
   const navItems = [
     { name: 'Dashboard', path: `${base}/dashboard`, icon: <LayoutDashboard size={20} /> },
     { name: 'Earnings', path: `${base}/earnings`, icon: <Wallet size={20} /> },
-    { name: 'Profile', path: `${base}/profile`, icon: <UserIcon size={20} /> },
-    { name: 'Settings', path: `${base}/settings`, icon: <Settings size={20} /> }
+    { name: 'History', path: `${base}/history`, icon: <Clock size={20} /> },
+    { 
+      name: 'Profile', 
+      path: `${base}/profile`, 
+      icon: navProfilePhoto ? (
+        <div className="w-5 h-5 rounded-full overflow-hidden border border-amber-400 shadow-2xs">
+          <img src={getImageUrl(navProfilePhoto)} alt="Profile" className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <UserIcon size={20} />
+      ) 
+    }
   ];
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden">
+    <div 
+      className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden"
+      style={{ transform: 'translate3d(0, 0, 0)' }}
+    >
       {/* Main Content Area */}
       <main className="flex-1 w-full overflow-y-auto pb-20 relative z-10">
         {children}
@@ -65,8 +100,10 @@ export default function RiderApp() {
   const handleClearAuth = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
+    sessionStorage.removeItem('zypergo_portal');
     setIsAuthenticated(false);
     setUser(null);
+    window.location.href = '/rider/login';
   };
 
   useEffect(() => {
@@ -144,6 +181,14 @@ export default function RiderApp() {
     </ProtectedRoute>
   );
 
+  const renderHistory = () => (
+    <ProtectedRoute requiredRole="Rider">
+      <RiderLayout onLogout={handleClearAuth} user={user}>
+        <RiderHistory user={user} />
+      </RiderLayout>
+    </ProtectedRoute>
+  );
+
   const renderSettings = () => (
     <ProtectedRoute requiredRole="Rider">
       <RiderLayout onLogout={handleClearAuth} user={user}>
@@ -214,9 +259,13 @@ export default function RiderApp() {
       <Route path="/earnings" element={renderEarnings()} />
       <Route path="/rider/earnings" element={renderEarnings()} />
 
-      {/* Settings routes */}
-      <Route path="/settings" element={renderSettings()} />
-      <Route path="/rider/settings" element={renderSettings()} />
+      {/* History routes */}
+      <Route path="/history" element={renderHistory()} />
+      <Route path="/rider/history" element={renderHistory()} />
+
+      {/* Settings routes - redirected to Profile tab where settings and preferences are now embedded */}
+      <Route path="/settings" element={<Navigate to="/profile" replace />} />
+      <Route path="/rider/settings" element={<Navigate to="/rider/profile" replace />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to={isAuthenticated ? (window.location.pathname.startsWith('/rider') ? "/rider/dashboard" : "/dashboard") : (window.location.pathname.startsWith('/rider') ? "/rider" : "/")} replace />} />

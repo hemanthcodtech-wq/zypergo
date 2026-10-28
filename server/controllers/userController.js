@@ -24,24 +24,77 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, company, address } = req.body;
+    const { name, phone, email, photoUrl, address, riderDetails } = req.body;
     
-    // Hardcoded to update the first customer for mock purposes
-    let user = await User.findOne({ role: 'Customer' });
-    if (!user) user = await User.findOne();
+    // Find user by JWT id or phone or email
+    let user;
+    if (req.user && req.user.id) {
+      user = await User.findById(req.user.id);
+    }
+    if (!user && phone) {
+      user = await User.findOne({ phone });
+    }
+    if (!user && email) {
+      user = await User.findOne({ email });
+    }
+    if (!user) {
+      user = await User.findOne();
+    }
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    user.name = name || user.name;
-    user.phone = phone || user.phone;
-    if (company !== undefined) user.company = company;
-    if (address !== undefined) user.address = address;
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (email) user.email = email;
+    if (photoUrl) {
+      user.photoUrl = photoUrl;
+    }
+    if (address !== undefined) {
+      if (typeof address === 'string') {
+        user.address = address;
+        if (user.role === 'Rider') {
+          user.riderDetails = { ...(user.riderDetails || {}), address };
+        }
+      }
+    }
+    if (user.role === 'Rider') {
+      const { vehicleType, vehicleNumber, vehicleRegistration, vehicleImageUrl } = req.body;
+      const vehReg = vehicleNumber || vehicleRegistration || riderDetails?.vehicleRegistration;
+      const vehType = vehicleType || riderDetails?.vehicleType;
+      const vehImg = vehicleImageUrl || riderDetails?.vehicleImageUrl || riderDetails?.documents?.vehiclePicUrl;
+
+      user.riderDetails = {
+        ...(user.riderDetails || {}),
+        ...(riderDetails || {}),
+        ...(vehType ? { vehicleType: vehType } : {}),
+        ...(vehReg !== undefined ? { vehicleRegistration: vehReg } : {}),
+        ...(vehImg !== undefined ? { vehicleImageUrl: vehImg } : {}),
+        documents: {
+          ...(user.riderDetails?.documents || {}),
+          ...(riderDetails?.documents || {}),
+          ...(vehImg ? { vehiclePicUrl: vehImg } : {}),
+          profileImageUrl: photoUrl || riderDetails?.documents?.profileImageUrl || user.riderDetails?.documents?.profileImageUrl
+        }
+      };
+    }
 
     await user.save();
 
-    res.status(200).json({ success: true, message: 'Profile updated successfully', data: user });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Profile updated successfully', 
+      data: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl,
+        riderDetails: user.riderDetails
+      } 
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
     res.status(500).json({ success: false, error: 'Failed to update profile' });

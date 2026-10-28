@@ -49,14 +49,13 @@ export default function CustomerSplash() {
             />
           </div>
 
-          {/* Sub-label & Tagline */}
-          <div className="mt-8 flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[#0052CC] text-[11px] font-black uppercase tracking-wider shadow-xs">
+          {/* Sub-label & Tagline under Logo */}
+          <div className="mt-6 flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-[10px] font-black uppercase tracking-wider shadow-xs mb-3">
               Customer App
             </span>
-            <p className="text-xs font-semibold text-slate-500 tracking-wide mt-1">
-              Ship Smarter. Deliver Faster.
-            </p>
+            <p className="text-sm font-black text-slate-800 tracking-tight">Trusted logistics made simple.</p>
+            <p className="text-xs font-bold text-slate-500 mt-1">ZyperGo • Fast • Secure • Reliable</p>
           </div>
         </div>
 

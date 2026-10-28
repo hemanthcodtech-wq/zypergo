@@ -35,6 +35,14 @@ export default function CustomerSettings() {
     }, 1500);
   };
 
+
+  const handleLogout = () => {
+    localStorage.removeItem('zypergo_token');
+    localStorage.removeItem('zypergo_user');
+    sessionStorage.removeItem('zypergo_portal');
+    window.location.href = '/customer/login';
+  };
+
   const handleDeactivate = () => {
     if (window.confirm('Are you sure you want to deactivate your account? This action cannot be undone.')) {
       setIsDeactivating(true);
@@ -147,6 +155,17 @@ export default function CustomerSettings() {
             </button>
           </form>
         </motion.div>
+
+        {/* Logout Session */}
+        <div className="pt-1">
+          <button 
+            type="button"
+            onClick={handleLogout}
+            className="w-full py-3.5 bg-red-50 hover:bg-red-100 text-red-600 font-black text-xs rounded-2xl border border-red-200 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+          >
+            <span>Logout Customer Session</span>
+          </button>
+        </div>
 
         {/* Danger Zone */}
         <motion.div 

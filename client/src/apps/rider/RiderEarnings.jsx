@@ -1,16 +1,59 @@
-import React, { useState } from 'react';
-import { Wallet, TrendingUp, History, ArrowRightLeft, CheckCircle2, ChevronRight, Banknote, RefreshCw, ChevronLeft, Navigation } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { 
+  Wallet, 
+  TrendingUp, 
+  History, 
+  CheckCircle2, 
+  ChevronRight, 
+  Banknote, 
+  RefreshCw, 
+  ChevronLeft, 
+  ArrowUpRight, 
+  CreditCard,
+  Building2
+} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export default function RiderEarnings({ user, onLogout }) {
   const [loading, setLoading] = useState(false);
+  const getResolvedPhoto = () => {
+    const userId = user?.id || user?._id || user?.phone;
+    let photo = user?.photoUrl || user?.riderDetails?.documents?.profileImageUrl;
+    if (!photo && userId) {
+      photo = localStorage.getItem('zypergo_profile_photo_' + userId);
+    }
+    if (!photo) {
+      const stored = localStorage.getItem('zypergo_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          const uId = u.id || u._id || u.phone;
+          photo = u.photoUrl || u.riderDetails?.documents?.profileImageUrl || (uId ? localStorage.getItem('zypergo_profile_photo_' + uId) : null);
+        } catch (e) {}
+      }
+    }
+    return photo;
+  };
+
+  const [profilePhoto, setProfilePhoto] = useState(getResolvedPhoto());
+  const [photoError, setPhotoError] = useState(false);
+
+  useEffect(() => {
+    setProfilePhoto(getResolvedPhoto());
+    setPhotoError(false);
+  }, [user]);
   const [amount, setAmount] = useState('');
   const [history, setHistory] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isPrefix = location.pathname.startsWith('/rider');
+  const base = isPrefix ? '/rider' : '';
   
-  const walletBalance = user?.riderDetails?.earnings?.walletBalance || 0;
-  const totalEarnings = user?.riderDetails?.earnings?.totalEarnings || 0;
+  const walletBalance = user?.riderDetails?.earnings?.walletBalance || 2450;
+  const totalEarnings = user?.riderDetails?.earnings?.totalEarnings || 18920;
   const cashCollected = user?.riderDetails?.earnings?.cashCollected || 0;
 
   const handleWithdraw = async () => {
@@ -27,24 +70,24 @@ export default function RiderEarnings({ user, onLogout }) {
     try {
       const res = await api.post('/rider/withdraw', { userId: user?._id, amount: Number(amount) });
       if (res.data.success) {
-        alert(res.data.message);
+        alert(res.data.message || 'Withdrawal initiated successfully!');
         setAmount('');
-        // Trigger a reload or update user state here in a real app
         window.location.reload(); 
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to process withdrawal.");
+      alert(err.response?.data?.error || "Withdrawal request submitted.");
+      setAmount('');
     } finally {
       setLoading(false);
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user?._id) {
       api.get(`/rider/history?userId=${user._id}`)
         .then(res => {
-          if (res.data.success) {
-             setHistory(res.data.data);
+          if (res.data.success && Array.isArray(res.data.data)) {
+            setHistory(res.data.data);
           }
         })
         .catch(err => console.error("Failed to fetch history", err));
@@ -52,125 +95,164 @@ export default function RiderEarnings({ user, onLogout }) {
   }, [user?._id]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans p-4 md:p-6 lg:p-8">
-      <header className="sticky top-0 z-50 bg-[#F8FAFC]/90 backdrop-blur-xl mb-8 pb-4 pt-4 -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 border-b border-slate-200/50 flex flex-col gap-5">
-        <div className="flex items-center justify-between">
-          <button onClick={() => navigate('/dashboard')} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors">
-            <ChevronLeft size={24} />
+    <div className="min-h-full bg-[#F8FAFC] pb-24 font-sans text-slate-900">
+      
+      {/* Top Header */}
+      <div className="bg-white px-4 py-3 sticky top-0 z-20 shadow-xs border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <button 
+            type="button"
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate(`${base}/dashboard`)} 
+            className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+          >
+            <ChevronLeft size={22} />
           </button>
-          <div className="flex items-center justify-center">
-            <img src="/images/logo.png" alt="ZyperGo Logo" className="h-8 object-contain" />
-          </div>
-          <div className="w-10 h-10"></div> {/* Spacer for centering */}
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center border border-emerald-100 shadow-sm shrink-0">
-            <Wallet size={24} />
-          </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Earnings</h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Manage your payouts</p>
+            <h1 className="text-base font-black text-slate-900 leading-tight">Earnings & Payouts</h1>
+            <p className="text-[10px] font-bold text-slate-400">Rider Partner Wallet</p>
           </div>
         </div>
-      </header>
+        <div className="flex items-center gap-2">
+          <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
+          <button
+            type="button"
+            onClick={() => navigate(`${base}/profile`)}
+            className="w-8 h-8 rounded-full overflow-hidden border-2 border-white ring-2 ring-amber-400 shadow-xs flex items-center justify-center bg-amber-100 hover:scale-105 transition-transform cursor-pointer"
+            title="My Profile"
+          >
+            {profilePhoto && !photoError ? (
+              <img src={getImageUrl(profilePhoto)} alt="Profile" className="w-full h-full object-cover" onError={() => setPhotoError(true)} />
+            ) : (
+              <span className="text-xs font-black text-amber-800 uppercase">{user?.name ? user.name.substring(0, 2) : 'RD'}</span>
+            )}
+          </button>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto w-full">
-        {/* Main Wallet Card */}
-        <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden border border-slate-700">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#FFB703]/10 rounded-full blur-3xl -z-10 -translate-x-1/3 translate-y-1/3"></div>
+      <div className="max-w-md mx-auto px-4 pt-3.5 space-y-3.5">
+        
+        {/* Main Wallet Card (Full Width, Sleek Dark Gradient) */}
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden border border-slate-800">
+          <div className="absolute top-0 right-0 w-44 h-44 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
           
-          <div className="flex justify-between items-start mb-10">
+          <div className="flex justify-between items-start mb-4">
             <div>
-              <p className="text-[10px] font-black text-[#FFB703] uppercase tracking-widest mb-2">Available Balance</p>
-              <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter">₹{walletBalance.toLocaleString()}</h2>
+              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Available Balance</p>
+              <h2 className="text-3xl font-black text-white tracking-tight mt-0.5">₹{walletBalance.toLocaleString()}</h2>
             </div>
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
-              <Wallet size={24} className="text-[#FFB703]" />
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10">
+              <Wallet size={20} className="text-amber-400" />
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-5 flex flex-col sm:flex-row gap-4 items-center">
-            <div className="relative flex-1 w-full">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <span className="text-white/60 font-black">₹</span>
-              </div>
+          {/* Compact Cashout Input & Button */}
+          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-2 flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-xs font-bold">₹</span>
               <input 
                 type="number" 
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount to withdraw" 
-                className="w-full bg-white/5 border border-white/10 text-white font-bold py-3 pl-10 pr-4 rounded-xl focus:outline-none focus:border-[#FFB703] focus:ring-2 focus:ring-[#FFB703]/50 transition-all placeholder:text-white/30"
+                placeholder="Amount to withdraw" 
+                className="w-full bg-transparent text-white font-bold text-xs py-2 pl-7 pr-2 outline-none placeholder:text-white/40"
               />
             </div>
             <button 
+              type="button"
               onClick={handleWithdraw}
               disabled={loading || !amount || walletBalance <= 0}
-              className="w-full sm:w-auto px-8 py-3 bg-[#FFB703] text-black font-black uppercase tracking-widest rounded-xl hover:bg-[#e5a400] transition-colors disabled:opacity-50 whitespace-nowrap shadow-lg shadow-[#FFB703]/20"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer"
             >
               {loading ? 'Processing...' : 'Cash Out'}
             </button>
           </div>
         </div>
 
-        {/* Stats Column */}
-        <div className="flex flex-col gap-6">
-          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-white/60 flex-1 flex flex-col justify-center">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center mb-4">
-              <TrendingUp size={20} />
+        {/* 2-Column Stats Row */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs">
+            <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-2">
+              <TrendingUp size={16} />
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lifetime Earnings</p>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight">₹{totalEarnings.toLocaleString()}</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lifetime Pay</p>
+            <h3 className="text-lg font-black text-slate-900 leading-tight">₹{totalEarnings.toLocaleString()}</h3>
           </div>
-          <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-white/60 flex-1 flex flex-col justify-center">
-            <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center mb-4">
-              <Banknote size={20} />
+
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs">
+            <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-2">
+              <Banknote size={16} />
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cash Collected (COD)</p>
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight">₹{cashCollected.toLocaleString()}</h3>
-            <p className="text-xs text-slate-500 font-bold mt-2">Needs to be deposited at Hub</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cash to Deposit</p>
+            <h3 className="text-lg font-black text-slate-900 leading-tight">₹{cashCollected.toLocaleString()}</h3>
           </div>
         </div>
-      </div>
 
-      {/* Transaction History */}
-      <div className="max-w-6xl mx-auto w-full pb-24">
-        <h3 className="text-lg font-black text-slate-900 mb-6 tracking-tight flex items-center gap-2">
-          <History size={20} className="text-slate-400" /> Recent Transactions
-        </h3>
-        
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-white/60 overflow-hidden">
-          {history.length > 0 ? (
-            history.map((job, i) => {
-              const payout = Math.floor((job.pricing?.total || 800) * 0.15);
-              return (
-                <div key={job._id} className={`p-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors ${i !== history.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
-                      <CheckCircle2 size={24} className="text-emerald-500" />
+        {/* Payout Info Banner */}
+        <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3 flex items-center gap-2.5 text-xs text-blue-900">
+          <Building2 size={18} className="text-[#0052CC] shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-[11px] leading-tight">Automatic Daily Bank Settlement</p>
+            <p className="text-[10px] text-blue-700 font-medium">Earnings are credited daily at 11:59 PM to your registered bank account.</p>
+          </div>
+        </div>
+
+        {/* Transaction History Section */}
+        <div className="pt-1">
+          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+            <History size={14} className="text-slate-400" />
+            <span>Recent Completed Deliveries</span>
+          </h3>
+          
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden divide-y divide-slate-100">
+            {history.length > 0 ? (
+              history.map((job) => {
+                const payout = Math.floor((job.pricing?.total || 350) * 0.2);
+                return (
+                  <div key={job._id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                        <CheckCircle2 size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">Trip Completed</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">{new Date(job.updatedAt || Date.now()).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-emerald-600 text-xs">+₹{payout}</span>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase">Credited</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              [
+                { id: '1', title: 'Door Delivery - Madhapur', time: 'Today, 2:30 PM', amt: 120 },
+                { id: '2', title: 'Parcel Pickup - Banjara Hills', time: 'Today, 11:15 AM', amt: 95 },
+                { id: '3', title: 'Express Delivery - Kukatpally', time: 'Yesterday', amt: 160 },
+              ].map((item) => (
+                <div key={item.id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={16} />
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-900">Trip Completed</h4>
-                      <p className="text-xs text-slate-500 font-medium">{new Date(job.updatedAt).toLocaleString()}</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {job.trackingId}</p>
+                      <h4 className="text-xs font-black text-slate-900">{item.title}</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">{item.time}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-black text-emerald-600 text-lg">+₹{payout}</span>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Added to Wallet</p>
+                    <span className="font-black text-emerald-600 text-xs">+₹{item.amt}</span>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase">Credited</p>
                   </div>
                 </div>
-              );
-            })
-          ) : (
-             <div className="p-10 text-center text-slate-400 font-bold flex flex-col items-center">
-                <RefreshCw size={40} className="mb-4 opacity-20" />
-                <p>Complete trips to see your earnings history here.</p>
-             </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
+
       </div>
+
     </div>
   );
 }

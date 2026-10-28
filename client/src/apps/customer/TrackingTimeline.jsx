@@ -127,6 +127,14 @@ export default function TrackingTimeline() {
         {/* Top bar */}
         <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs">
           <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
+              className="p-1 -ml-1 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              title="Go back"
+            >
+              <ArrowLeft size={20} />
+            </button>
             <img src="/images/logo.png" alt="ZyperGo" className="h-7 w-auto object-contain" />
           </div>
           <button onClick={() => navigate('/dashboard')} className="text-xs font-bold text-[#0052CC]">

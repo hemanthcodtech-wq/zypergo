@@ -49,14 +49,13 @@ export default function RiderSplash() {
             />
           </div>
 
-          {/* Sub-label & Tagline */}
-          <div className="mt-8 flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-black uppercase tracking-wider shadow-xs">
+          {/* Sub-label & Tagline under Logo */}
+          <div className="mt-6 flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black uppercase tracking-wider shadow-xs mb-3">
               Rider Partner App
             </span>
-            <p className="text-xs font-semibold text-slate-600 tracking-wide mt-1">
-              Drive, Deliver & Earn Daily
-            </p>
+            <p className="text-sm font-black text-slate-800 tracking-tight">Trusted logistics made simple.</p>
+            <p className="text-xs font-bold text-slate-500 mt-1">ZyperGo • Fast • Secure • Reliable</p>
           </div>
         </div>
 

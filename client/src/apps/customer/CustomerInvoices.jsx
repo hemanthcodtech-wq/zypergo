@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Clock, CheckCircle2, Search, ArrowUpRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, Download, Clock, CheckCircle2, Search, ArrowUpRight, ChevronLeft, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../../api';
 
 export default function CustomerInvoices() {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,7 +38,27 @@ export default function CustomerInvoices() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-24">
+      {/* Top Mobile Sticky Header */}
+      <div className="bg-white px-4 py-3 sticky top-0 z-20 shadow-xs border-b border-slate-100 flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/profile')}
+            className="p-1 -ml-1 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            title="Go back"
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <div>
+            <h1 className="text-base font-black text-slate-900 leading-tight">Invoices & Billing</h1>
+            <p className="text-[10px] font-bold text-slate-400">DOWNLOAD RECEIPTS & STATEMENTS</p>
+          </div>
+        </div>
+        <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
+      </div>
+
+      {/* Header */}
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

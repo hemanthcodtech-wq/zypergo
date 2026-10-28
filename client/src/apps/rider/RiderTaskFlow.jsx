@@ -483,7 +483,7 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
       {/* Exception (NDR) Modal */}
       {showExceptionModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl p-6 sm:p-8 w-full max-w-md animate-in zoom-in-95 duration-200">
+          <div className="bg-white/95 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl p-5 w-full animate-in zoom-in-95 duration-200">
             <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight flex items-center gap-2">
               <XCircle className="text-red-500" /> Report Issue
             </h3>

@@ -60,9 +60,10 @@ const userSchema = new mongoose.Schema({
   riderDetails: {
     vehicleType: {
       type: String,
-      enum: ['Scooter', 'Mini 3W', '3 Wheeler', 'Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft', '17ft']
+      default: 'Bike'
     },
     vehicleRegistration: String,
+    vehicleImageUrl: String,
     vehicleMake: String,
     vehicleModel: String,
     rcNumber: String,
@@ -78,6 +79,7 @@ const userSchema = new mongoose.Schema({
     currentLocation: {
       lat: Number,
       lng: Number,
+      address: String,
       updatedAt: Date
     },
     address: {

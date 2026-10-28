@@ -16,6 +16,7 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 import api from '../../api';
+import { reverseGeocode } from '../../utils/locationService';
 
 export default function BookingFlow() {
   const navigate = useNavigate();
@@ -61,22 +62,37 @@ export default function BookingFlow() {
   });
 
   useEffect(() => {
+    // 1. First check if customer has a pinned location
+    const savedPin = localStorage.getItem('zypergo_customer_location');
+    if (savedPin) {
+      try {
+        const parsed = JSON.parse(savedPin);
+        if (parsed.formattedAddress) {
+          setFormData(prev => ({ ...prev, pickupAddress: parsed.formattedAddress }));
+          if (parsed.lat && parsed.lng) {
+            setUserLocation([parsed.lat, parsed.lng]);
+          }
+          return;
+        }
+      } catch (e) {}
+    }
+
+    // 2. Otherwise auto-detect via GPS & reverseGeocode
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
+          const loc = await reverseGeocode(latitude, longitude);
           setFormData(prev => ({
             ...prev,
-            pickupAddress: data.display_name || `${latitude}, ${longitude}`
+            pickupAddress: loc?.formattedAddress || `${latitude}, ${longitude}`
           }));
         } catch (error) {
           setFormData(prev => ({ ...prev, pickupAddress: 'Location Unavailable' }));
         }
       }, () => {
-        setFormData(prev => ({ ...prev, pickupAddress: 'Location Access Denied' }));
+        setFormData(prev => ({ ...prev, pickupAddress: 'Manual Entry Required' }));
       }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
     } else {
       setFormData(prev => ({ ...prev, pickupAddress: 'Manual Entry Required' }));
@@ -225,9 +241,8 @@ export default function BookingFlow() {
   const handleMapConfirm = async () => {
     if (!tempLocation) return;
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${tempLocation.lat}&lon=${tempLocation.lng}`);
-      const data = await res.json();
-      const address = data.display_name || `${tempLocation.lat.toFixed(4)}, ${tempLocation.lng.toFixed(4)}`;
+      const loc = await reverseGeocode(tempLocation.lat, tempLocation.lng);
+      const address = loc?.formattedAddress || `${tempLocation.lat.toFixed(4)}, ${tempLocation.lng.toFixed(4)}`;
       
       setFormData(prev => ({ ...prev, [mapModal.targetField]: address }));
       setMapModal({ show: false, targetField: '' });
@@ -246,13 +261,33 @@ export default function BookingFlow() {
     return null;
   }
 
+  const handleClose = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(location.pathname.startsWith('/customer') ? '/customer/dashboard' : '/dashboard');
+    }
+  };
+
   const Header = ({ title }) => (
     <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-slate-100 flex flex-col">
       <div className="flex items-center justify-center py-4 border-b border-slate-50 w-full">
         <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
       </div>
       <div className="px-4 py-4 flex items-center gap-4">
-        <button onClick={() => step > 1 && step < 4 ? setStep(step - 1) : navigate('/')} className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors">
+        <button 
+          type="button"
+          onClick={() => {
+            if (step > 1 && step < 4) {
+              setStep(step - 1);
+            } else if (step === 1) {
+              setStep(0);
+            } else {
+              handleClose();
+            }
+          }} 
+          className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+        >
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-xl font-black text-slate-900">{title}</h1>
@@ -261,42 +296,54 @@ export default function BookingFlow() {
   );
 
   return (
-    <div className="bg-slate-50 min-h-full flex flex-col font-sans md:p-8 md:items-center">
-      <div className="w-full h-full md:h-auto md:min-h-[80vh] md:max-w-4xl bg-white flex flex-col md:rounded-3xl md:shadow-2xl md:border border-slate-100 overflow-hidden relative mx-auto">
+    <div className="bg-slate-50 min-h-full flex flex-col font-sans relative">
+      <div className="w-full flex-1 bg-white flex flex-col relative mx-auto">
       
       {step === 0 && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex flex-col justify-end pb-[70px] sm:pb-24 md:px-4 animate-in fade-in">
-          <div className="bg-white rounded-t-[2.5rem] md:rounded-[2rem] w-full md:max-w-md mx-auto p-6 sm:p-8 shadow-2xl relative md:mb-4">
-            <button onClick={() => navigate('/')} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+        <div 
+          onClick={handleClose}
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex flex-col justify-end animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-t-[2.5rem] w-full p-6 pb-8 shadow-2xl relative animate-in slide-in-from-bottom duration-300"
+          >
+            <button 
+              type="button"
+              onClick={handleClose} 
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors cursor-pointer"
+            >
               <X size={18} strokeWidth={2.5} />
             </button>
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Choose your service</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Choose your service</h2>
             
-            <div className="space-y-4">
+            <div className="space-y-3.5 mb-2">
               <button 
+                type="button"
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Within City'})); setStep(1); }}
-                className="w-full bg-white border border-slate-100 hover:border-blue-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-200/80 hover:border-blue-200 hover:shadow-md rounded-2xl p-3.5 flex items-center justify-between transition-all group active:scale-[0.98] cursor-pointer"
               >
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-14 bg-[#F0F5FF] rounded-2xl flex items-center justify-center shrink-0">
-                     <Truck size={24} className="text-blue-500" strokeWidth={2} />
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-13 bg-[#F0F5FF] rounded-2xl flex items-center justify-center shrink-0">
+                     <Truck size={24} className="text-[#0052CC]" strokeWidth={2} />
                   </div>
-                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Within City</span>
+                  <span className="font-black text-base text-slate-800 tracking-tight">Within City</span>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-3" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-blue-500 -rotate-90 transition-colors mr-2" />
               </button>
 
               <button 
+                type="button"
                 onClick={() => { setFormData(prev => ({...prev, serviceType: 'Outstation'})); setStep(1); }}
-                className="w-full bg-white border border-slate-100 hover:border-green-100 hover:shadow-md rounded-[1.5rem] p-3 flex items-center justify-between transition-all group active:scale-[0.98]"
+                className="w-full bg-white border border-slate-200/80 hover:border-green-200 hover:shadow-md rounded-2xl p-3.5 flex items-center justify-between transition-all group active:scale-[0.98] cursor-pointer"
               >
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-14 bg-[#F0FDF4] rounded-2xl flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-13 bg-[#F0FDF4] rounded-2xl flex items-center justify-center shrink-0">
                      <Map size={24} className="text-green-600" strokeWidth={2} />
                   </div>
-                  <span className="font-black text-[17px] text-slate-800 tracking-tight">Outstation</span>
+                  <span className="font-black text-base text-slate-800 tracking-tight">Outstation</span>
                 </div>
-                <ChevronDown size={18} className="text-slate-400 group-hover:text-green-600 -rotate-90 transition-colors mr-3" />
+                <ChevronDown size={18} className="text-slate-400 group-hover:text-green-600 -rotate-90 transition-colors mr-2" />
               </button>
             </div>
           </div>
@@ -307,8 +354,8 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
           <Header title={`Book Parcel ${formData.serviceType ? `(${formData.serviceType})` : ''}`} />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 md:grid md:grid-cols-2 md:gap-8">
-            <div className="md:col-span-1">
+          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-4">
+            <div>
               {/* From/To Box */}
               <div className="border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
                 <div className="relative pl-8 pb-6 border-b border-slate-100">
@@ -432,11 +479,11 @@ export default function BookingFlow() {
             </div>
           </div>
           
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
              <button 
                 onClick={() => setStep(2)}
                 disabled={!formData.dropAddress || !formData.receiverName || !formData.receiverPhone || !formData.weight || !formData.parcelType}
-                className="w-full md:w-1/3 lg:w-1/4 bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 transition-all hover:bg-[#00585f]"
+                className="w-full bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 transition-all hover:bg-[#00585f] active:scale-[0.98]"
               >
                Continue
              </button>
@@ -448,7 +495,7 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
           <Header title="Select Vehicle / Service" />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 space-y-3 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 lg:gap-6">
+          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-3">
              <VehicleOption 
                 name="Scooter" weight="20 Kg" time="10 mins" 
                 icon={<img src="/images/bike.png" alt="Scooter" className="w-20 h-20 object-contain drop-shadow-sm" />}
@@ -499,10 +546,10 @@ export default function BookingFlow() {
              />
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
              <button 
                 onClick={() => setStep(3)}
-                className="w-full md:w-1/3 lg:w-1/4 bg-[#FFB703] text-slate-900 font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(255,183,3,0.5)] active:scale-95 hover:bg-amber-400 transition-all"
+                className="w-full bg-[#FFB703] text-slate-900 font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(255,183,3,0.5)] active:scale-[0.98] hover:bg-amber-400 transition-all"
               >
                Continue
              </button>
@@ -514,7 +561,7 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
           <Header title="Schedule Pickup" />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 md:p-8 md:grid md:grid-cols-2 md:gap-12">
+          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-5">
             <div>
                {error && (
                 <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold mb-4 border border-red-100">
@@ -523,7 +570,7 @@ export default function BookingFlow() {
                )}
 
                <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Address</h3>
-               <div className="border border-slate-200 rounded-xl p-4 mb-6 flex justify-between items-start bg-slate-50">
+               <div className="border border-slate-200 rounded-xl p-4 mb-5 flex justify-between items-start bg-slate-50">
                  <div>
                    <p className="font-bold text-sm text-slate-800">{formData.pickupAddress.split(',')[0]}</p>
                    <p className="text-xs text-slate-500 font-medium">{formData.pickupAddress.split(',').slice(1).join(',')}</p>
@@ -532,7 +579,7 @@ export default function BookingFlow() {
                </div>
 
                <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Date</h3>
-               <div className="flex gap-3 overflow-x-auto pb-2 mb-6 md:mb-0 scrollbar-hide whitespace-nowrap">
+               <div className="flex gap-2.5 overflow-x-auto pb-2 mb-5 scrollbar-hide whitespace-nowrap">
                   {[
                     { label: 'Today', value: 'Today' },
                     { label: 'Tomorrow', value: 'Tomorrow' },
@@ -542,7 +589,7 @@ export default function BookingFlow() {
                     <button 
                       key={date.value}
                       onClick={() => setFormData({...formData, pickupDate: date.value})}
-                      className={`shrink-0 py-3 px-6 rounded-xl border text-xs font-bold transition-colors ${formData.pickupDate === date.value ? 'bg-[#006D77] border-[#006D77] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#006D77]/50'}`}
+                      className={`shrink-0 py-2.5 px-5 rounded-xl border text-xs font-bold transition-colors ${formData.pickupDate === date.value ? 'bg-[#006D77] border-[#006D77] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#006D77]/50'}`}
                     >
                       {date.label}
                     </button>
@@ -552,7 +599,7 @@ export default function BookingFlow() {
 
             <div>
                <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Time Slot</h3>
-               <div className="grid grid-cols-2 gap-3 mb-6">
+               <div className="grid grid-cols-2 gap-2.5 mb-5">
                   {['9 AM - 12 PM', '12 PM - 3 PM', '3 PM - 6 PM', '6 PM - 9 PM'].map(slot => (
                     <button 
                       key={slot}
@@ -570,12 +617,12 @@ export default function BookingFlow() {
                  value={formData.instructions}
                  onChange={handleChange}
                  placeholder="Gate number, landmark, etc."
-                 className="w-full border border-slate-200 rounded-xl p-4 bg-slate-50 text-sm font-medium outline-none focus:border-[#006D77] focus:ring-1 focus:ring-[#006D77] min-h-[100px]"
+                 className="w-full border border-slate-200 rounded-xl p-3.5 bg-slate-50 text-sm font-medium outline-none focus:border-[#006D77] focus:ring-1 focus:ring-[#006D77] min-h-[90px]"
                />
             </div>
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto md:px-8 md:py-6 md:flex md:justify-end">
+          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
              <button 
                 onClick={() => {
                   if (formData.cashOnDelivery) {
@@ -585,7 +632,7 @@ export default function BookingFlow() {
                   }
                 }}
                 disabled={loading}
-                className="w-full md:w-1/3 lg:w-1/4 bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-[#00585f] transition-all"
+                className="w-full bg-[#006D77] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-[#00585f] active:scale-[0.98] transition-all"
               >
                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (formData.cashOnDelivery ? 'Confirm Booking' : 'Proceed to Payment')}
              </button>
@@ -669,7 +716,7 @@ export default function BookingFlow() {
       {/* Saved Addresses Modal */}
       {savedAddressModal.show && (
         <div className="fixed inset-0 z-40 flex flex-col bg-slate-900/40 backdrop-blur-sm animate-in fade-in justify-end">
-          <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom max-h-[80vh] overflow-y-auto w-full max-w-md mx-auto">
+          <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-4 animate-in slide-in-from-bottom max-h-[80vh] overflow-y-auto w-full">
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-black text-xl text-slate-900">Saved Addresses</h2>
               <button onClick={() => setSavedAddressModal({ show: false, targetField: '' })} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X size={20}/></button>
@@ -708,7 +755,7 @@ export default function BookingFlow() {
       {/* Payment Modal */}
       {showPayment && (
         <div className="fixed inset-0 z-40 flex flex-col bg-slate-900/40 backdrop-blur-sm animate-in fade-in justify-end">
-          <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-6 animate-in slide-in-from-bottom max-h-[90vh] overflow-y-auto w-full max-w-md mx-auto">
+          <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-6 animate-in slide-in-from-bottom max-h-[90vh] overflow-y-auto w-full">
             <div className="flex justify-between items-center">
               <h2 className="font-black text-xl text-slate-900">Payment Gateway</h2>
               <button onClick={() => !isProcessingPayment && setShowPayment(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X size={20}/></button>

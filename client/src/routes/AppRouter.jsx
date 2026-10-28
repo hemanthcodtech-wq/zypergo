@@ -8,6 +8,7 @@ import HamaliApp from '../apps/HamaliApp';
 import PartnerApp from '../apps/PartnerApp';
 import HubApp from '../apps/HubApp';
 import ResetPasswordScreen from '../components/Auth/ResetPasswordScreen';
+import GoogleAuthBridge from '../pages/GoogleAuthBridge';
 import { useLocation } from 'react-router-dom';
 import api from '../api';
 
@@ -32,7 +33,13 @@ function AppRouter() {
         try {
           const res = await api.get('/auth/me');
           if (res.data.success) {
-            localStorage.setItem('zypergo_user', JSON.stringify(res.data.data));
+            const userId = res.data.data._id || res.data.data.id || res.data.data.phone;
+            const savedPhoto = localStorage.getItem('zypergo_profile_photo_' + userId);
+            const userWithPhoto = {
+              ...res.data.data,
+              photoUrl: savedPhoto || res.data.data.photoUrl || ''
+            };
+            localStorage.setItem('zypergo_user', JSON.stringify(userWithPhoto));
           }
         } catch (err) {
           localStorage.removeItem('zypergo_token');
@@ -116,6 +123,10 @@ function AppRouter() {
 
   if (location.pathname === '/reset-password') {
     return <ResetPasswordScreen />;
+  }
+
+  if (location.pathname === '/google-auth-bridge') {
+    return <GoogleAuthBridge />;
   }
 
   if (subdomain === 'admin') {

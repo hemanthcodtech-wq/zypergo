@@ -296,7 +296,19 @@ exports.register = async (req, res) => {
 
 exports.riderApply = async (req, res) => {
   try {
-    const { name, email, phone, riderDetails, profilePhoto, drivingLicenseUrl, aadhaarCardUrl } = req.body;
+    const { 
+      name, 
+      email, 
+      phone, 
+      riderDetails, 
+      profilePhoto, 
+      drivingLicenseUrl, 
+      aadhaarCardUrl,
+      vehicleType,
+      vehicleNumber,
+      vehicleRegistration,
+      vehicleImageUrl
+    } = req.body;
     
     if (!name || (!email && !phone)) {
       return res.status(400).json({ success: false, error: 'Name and Phone/Email are required' });
@@ -304,9 +316,14 @@ exports.riderApply = async (req, res) => {
 
     let user = await User.findOne({ $or: [{ email }, { phone }], role: 'Rider' });
     
+    const vehReg = vehicleNumber || vehicleRegistration || riderDetails?.vehicleRegistration || '';
+    const vehType = vehicleType || riderDetails?.vehicleType || 'Bike';
+    const vehImg = vehicleImageUrl || riderDetails?.vehicleImageUrl || riderDetails?.documents?.vehiclePicUrl || '';
+
     const docs = {
       drivingLicenseUrl: drivingLicenseUrl || riderDetails?.documents?.drivingLicenseUrl || '',
-      aadhaarUrl: aadhaarCardUrl || riderDetails?.documents?.aadhaarUrl || ''
+      aadhaarUrl: aadhaarCardUrl || riderDetails?.documents?.aadhaarUrl || '',
+      vehiclePicUrl: vehImg || riderDetails?.documents?.vehiclePicUrl || ''
     };
 
     if (user) {
@@ -317,6 +334,9 @@ exports.riderApply = async (req, res) => {
       user.riderDetails = {
         ...(user.riderDetails || {}),
         ...(riderDetails || {}),
+        vehicleType: vehType,
+        vehicleRegistration: vehReg,
+        vehicleImageUrl: vehImg,
         documents: { ...(user.riderDetails?.documents || {}), ...docs },
         approvalStatus: 'Approved',
         isOnline: true
@@ -331,6 +351,9 @@ exports.riderApply = async (req, res) => {
         isActive: true,
         riderDetails: {
           ...(riderDetails || {}),
+          vehicleType: vehType,
+          vehicleRegistration: vehReg,
+          vehicleImageUrl: vehImg,
           documents: docs,
           approvalStatus: 'Approved', // Auto-approved immediately!
           isOnline: true,
@@ -353,11 +376,13 @@ exports.riderApply = async (req, res) => {
       token,
       data: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         phone: user.phone,
         email: user.email,
         role: user.role,
-        photoUrl: user.photoUrl
+        photoUrl: user.photoUrl,
+        riderDetails: user.riderDetails
       },
       message: 'Rider account created and approved!' 
     });
@@ -475,21 +500,21 @@ exports.getMe = async (req, res) => {
 
 exports.googleLogin = async (req, res) => {
   try {
-    const { token, accessToken, role } = req.body;
+    const { token, accessToken, role, isSignup } = req.body;
     let email, name, picture;
     
     if (!token && !accessToken) {
       return res.status(400).json({ success: false, error: 'Google token is required' });
     }
 
+    const clientId = process.env.GOOGLE_CLIENT_ID || '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
+
     if (token) {
       // Verify the Google token (id_token flow)
-      if (!process.env.GOOGLE_CLIENT_ID) {
-         return res.status(500).json({ success: false, error: 'Server misconfiguration: Google Auth is disabled.' });
-      }
-      const ticket = await googleClient.verifyIdToken({
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({
         idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
+        audience: clientId,
       });
       const payload = ticket.getPayload();
       email = payload.email;
@@ -510,33 +535,60 @@ exports.googleLogin = async (req, res) => {
     }
 
     if (!email) {
-       return res.status(400).json({ success: false, error: 'Google token did not contain an email.' });
+      return res.status(400).json({ success: false, error: 'Google account did not return an email.' });
     }
 
-    // Check if user exists
+    // Check if user exists in the database
     let user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, 'i') } });
     
     if (!user) {
-      // Create a new user if they don't exist
+      // When attempting to log in, if not registered, prompt to sign up!
+      if (!isSignup) {
+        return res.status(404).json({ 
+          success: false, 
+          notRegistered: true,
+          email,
+          name,
+          error: `No registered account found with Google email "${email}". Please sign up first.` 
+        });
+      }
+
+      // If explicitly signing up:
       user = new User({
         email,
         name: name || 'Google User',
-        role: role || 'Customer', // Default to Customer if role is not specified
-        // No password needed for Google auth users, assuming User model allows it (or we can set a dummy)
+        role: role || 'Customer',
+        photoUrl: picture,
+        isActive: true,
+        ...(role === 'Rider' ? {
+          riderDetails: {
+            approvalStatus: 'Approved',
+            isOnline: true,
+            isOnShift: false
+          }
+        } : {})
       });
       await user.save();
     } else {
-      // If a role was passed in but the user already exists as another role, check authorization
+      // User exists! Validate role authorization
       if (role && user.role !== role) {
-         // Allow SuperAdmin to login anywhere, otherwise restrict
-         if (user.role !== 'SuperAdmin') {
-            return res.status(403).json({ success: false, error: `Account exists as ${user.role}. Cannot login to ${role} portal.` });
-         }
+        if (user.role !== 'SuperAdmin') {
+          return res.status(403).json({ 
+            success: false, 
+            error: `This email is already registered as ${user.role}. You cannot log into the ${role} portal.` 
+          });
+        }
       }
       
-      // Check if active
+      // Check if account is active
       if (user.isActive === false) {
         return res.status(403).json({ success: false, error: 'Account is suspended or inactive.' });
+      }
+
+      // Sync photo if not set
+      if (!user.photoUrl && picture) {
+        user.photoUrl = picture;
+        await user.save();
       }
     }
 
@@ -552,10 +604,13 @@ exports.googleLogin = async (req, res) => {
       token: jwtToken,
       data: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
-        picture // Pass the profile picture back if needed for UI
+        photoUrl: user.photoUrl || picture,
+        riderDetails: user.riderDetails
       }
     });
 

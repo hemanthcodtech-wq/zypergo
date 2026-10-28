@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, Battery, Signal } from 'lucide-react';
 
-export default function MobileDeviceFrame({ children, appName = "ZyperGo App" }) {
+export default function MobileDeviceFrame({ children, appName = "ZyperGo App", deviceTheme = "blue" }) {
   const [currentTime, setCurrentTime] = useState('9:41');
 
   useEffect(() => {
@@ -16,12 +16,16 @@ export default function MobileDeviceFrame({ children, appName = "ZyperGo App" })
     return () => clearInterval(interval);
   }, []);
 
+  const isGold = deviceTheme === 'gold' || deviceTheme === 'amber';
+  const pulseColor = isGold ? 'bg-amber-500' : 'bg-emerald-500';
+  const cameraDot = isGold ? 'bg-amber-500/60' : 'bg-[#0052CC]/60';
+
   return (
-    <div className="min-h-screen bg-slate-200/90 flex flex-col items-center justify-center p-0 md:py-6 md:px-4 font-sans selection:bg-[#0052CC] selection:text-white">
+    <div className={`min-h-screen bg-slate-200/90 flex flex-col items-center justify-center p-0 md:py-6 md:px-4 font-sans ${isGold ? 'selection:bg-amber-500' : 'selection:bg-[#0052CC]'} selection:text-white`}>
       
       {/* Optional Top Mini Title on Desktop */}
       <div className="hidden md:flex items-center gap-2 mb-3 text-slate-500 font-bold text-xs uppercase tracking-widest">
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className={`w-2 h-2 rounded-full ${pulseColor} animate-pulse`} />
         <span>{appName}</span>
       </div>
 
@@ -34,13 +38,19 @@ export default function MobileDeviceFrame({ children, appName = "ZyperGo App" })
         <div className="hidden md:block absolute -left-[11px] top-58 w-[3px] h-12 bg-slate-700 rounded-l-md" />
         <div className="hidden md:block absolute -right-[11px] top-36 w-[3px] h-16 bg-slate-700 rounded-r-md" />
 
-        {/* Inner Phone Screen Display */}
-        <div className="relative w-full h-full bg-white md:rounded-[40px] overflow-hidden flex flex-col shadow-inner">
+        {/* Inner Phone Screen Display - Strict Containing Block for all fixed & absolute overlays */}
+        <div 
+          className="relative w-full h-full bg-white md:rounded-[40px] overflow-hidden flex flex-col shadow-inner"
+          style={{ 
+            transform: 'translate3d(0, 0, 0)', 
+            contain: 'paint' 
+          }}
+        >
           
           {/* Dynamic Island / Notch */}
-          <div className="hidden md:flex absolute top-2.5 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full z-50 items-center justify-end pr-2 gap-1.5">
+          <div className="hidden md:flex absolute top-2.5 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-full z-50 items-center justify-end pr-2 gap-1.5 pointer-events-none">
             <div className="w-2.5 h-2.5 rounded-full bg-slate-800/80 border border-slate-700" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[#0052CC]/60" />
+            <div className={`w-1.5 h-1.5 rounded-full ${cameraDot}`} />
           </div>
 
           {/* iOS Style Mobile Status Bar */}
@@ -53,9 +63,9 @@ export default function MobileDeviceFrame({ children, appName = "ZyperGo App" })
             </div>
           </div>
 
-          {/* App Scrollable Content - Single Smooth Scroll Container */}
+          {/* App Display Container - Smooth scroll container for full-length mobile screens */}
           <div 
-            className="flex-1 w-full overflow-y-auto relative flex flex-col no-scrollbar overscroll-contain"
+            className="flex-1 w-full overflow-y-auto relative flex flex-col min-h-0 no-scrollbar overscroll-contain"
             style={{ 
               WebkitOverflowScrolling: 'touch', 
               scrollBehavior: 'smooth' 
