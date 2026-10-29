@@ -71,3 +71,4 @@ export default function NavigationHistoryHandler() {
 
   return null;
 }
+
