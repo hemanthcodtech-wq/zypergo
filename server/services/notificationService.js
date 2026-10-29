@@ -48,9 +48,40 @@ class NotificationService {
     try {
       console.log(`[SMS][MSG91] Sending SMS/OTP to ${cleanPhone} (OTP: ${otpCode})`);
       
-      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${cleanPhone}&otp=${otpCode}&otp_expiry=10`;
+      console.log(`[SMS][MSG91] Sending SMS/OTP to ${cleanPhone} (OTP: ${otpCode}) via Flow API...`);
       
-      const response = await fetch(url, {
+      // 1. Primary: MSG91 Flow API for DLT-verified SMS templates
+      const flowResponse = await fetch('https://control.msg91.com/api/v5/flow/', {
+        method: 'POST',
+        headers: {
+          authkey: authKey,
+          'Content-Type': 'application/json',
+          accept: 'application/json'
+        },
+        body: JSON.stringify({
+          template_id: templateId,
+          short_url: '0',
+          recipients: [
+            {
+              mobiles: cleanPhone,
+              OTP: otpCode,
+              otp: otpCode
+            }
+          ]
+        })
+      });
+
+      const flowData = await flowResponse.json();
+      console.log(`[SMS][MSG91 Flow] Result:`, flowData);
+
+      if (flowData.type === 'success' || (flowData.message && typeof flowData.message === 'string' && flowData.message.length > 10)) {
+        return { success: true, data: flowData };
+      }
+
+      // 2. Secondary fallback: MSG91 OTP API
+      console.warn(`[SMS][MSG91 Flow] Non-success, attempting OTP API fallback...`);
+      const otpUrl = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${cleanPhone}&otp=${otpCode}&otp_expiry=10`;
+      const otpResponse = await fetch(otpUrl, {
         method: 'POST',
         headers: {
           authkey: authKey,
@@ -61,9 +92,9 @@ class NotificationService {
         })
       });
 
-      const data = await response.json();
-      console.log(`[SMS][MSG91] Result:`, data);
-      return { success: data.type === 'success', data };
+      const otpData = await otpResponse.json();
+      console.log(`[SMS][MSG91 OTP Fallback] Result:`, otpData);
+      return { success: otpData.type === 'success', data: otpData };
     } catch (err) {
       console.error(`[SMS][MSG91] Network/API Error:`, err.message);
       return { success: false, error: err.message };
