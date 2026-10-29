@@ -7,9 +7,8 @@ import { FLEET_HERO_DATA_URI } from '../../assets/fleetHeroDataUri';
 
 export default function CustomerSplash() {
   const navigate = useNavigate();
-  const isMobileApp = typeof navigator !== 'undefined' && (navigator.userAgent.includes('ZyperGo') || navigator.userAgent.includes('Mobile'));
-  // In native mobile app, show welcome screen immediately without double splash delay
-  const [stage, setStage] = useState(isMobileApp ? 'welcome' : 'splash');
+  // Splash screen with new logo and "welcome to customer app"
+  const [stage, setStage] = useState('splash');
 
   const isPrefix = window.location.pathname.startsWith('/customer');
   const loginPath = isPrefix ? '/customer/login' : '/login';
@@ -26,7 +25,7 @@ export default function CustomerSplash() {
     if (stage === 'splash') {
       const timer = setTimeout(() => {
         setStage('welcome');
-      }, 900);
+      }, 1400);
       return () => clearTimeout(timer);
     }
   }, [navigate, dashboardPath, stage]);
@@ -85,17 +84,9 @@ export default function CustomerSplash() {
   return (
     <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-blue-50/50 via-white to-slate-50 text-slate-900 font-sans selection:bg-[#0052CC] selection:text-white">
       
-      {/* Top Branding with Instant Logo */}
+      {/* Top Branding (Logo removed per user instruction - splash only) */}
       <div className="flex flex-col items-center pt-4 text-center">
-        <img 
-          src={LOGO_DATA_URI || "/images/logo.png"} 
-          alt="ZyperGo" 
-          className="h-12 w-auto object-contain mb-2.5 drop-shadow-xs" 
-          loading="eager"
-          decoding="sync"
-        />
-
-        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-[10px] font-black uppercase tracking-wider mb-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-xs font-black uppercase tracking-wider mb-3">
           <span>Customer App</span>
         </span>
 

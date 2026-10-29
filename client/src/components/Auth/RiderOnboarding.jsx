@@ -95,7 +95,7 @@ export default function RiderOnboarding({ user, onComplete }) {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-12 px-4">
       <div className="mb-8 text-center">
-        <img src="/images/logo.png" alt="ZyperGo" className="h-10 mx-auto mb-4" />
+
         <h1 className="text-2xl font-extrabold text-slate-900">Partner With Us</h1>
         <p className="text-slate-500 mt-1">Complete your profile to start earning</p>
       </div>

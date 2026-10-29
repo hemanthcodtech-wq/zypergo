@@ -13,7 +13,6 @@ export default function RiderWelcome() {
         {/* Header Text */}
         <div className="text-center mb-8 w-full">
           <p className="text-[10px] font-black text-black mb-4 tracking-widest uppercase bg-white/30 inline-block px-3 py-1 rounded-full border border-black/10">Rider App</p>
-          <img src="/images/logo.png" alt="ZyperGo Logo" className="h-12 w-auto object-contain mx-auto mb-6" />
           <h1 className="text-4xl font-black text-black leading-[1.1] tracking-tight uppercase">
             Drive, Deliver, <br /> & Earn
           </h1>

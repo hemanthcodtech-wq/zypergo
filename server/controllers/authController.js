@@ -561,24 +561,41 @@ exports.googleLogin = async (req, res) => {
       process.env.GOOGLE_ANDROID_RIDER_CLIENT_ID || '435325462650-4ltvrrdbl4uf7t9k9hh1u04vu7quhkuk.apps.googleusercontent.com'
     ];
 
-    if (token) {
-      // Verify the Google token (id_token flow)
-      const client = new OAuth2Client(webClientId);
-      const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: allowedAudiences,
-      });
-      const payload = ticket.getPayload();
-      email = payload.email;
-      name = payload.name;
-      picture = payload.picture;
-    } else if (accessToken) {
-      // Fetch user info using access_token (implicit flow)
+    const rawToken = token || accessToken;
+    const isIdToken = rawToken && rawToken.split('.').length === 3;
+
+    if (isIdToken) {
+      try {
+        const client = new OAuth2Client(webClientId);
+        const ticket = await client.verifyIdToken({
+          idToken: rawToken,
+          audience: allowedAudiences,
+        });
+        const payload = ticket.getPayload();
+        email = payload.email;
+        name = payload.name;
+        picture = payload.picture;
+      } catch (jwtErr) {
+        console.warn('ID token verification failed, trying userinfo endpoint:', jwtErr.message);
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${rawToken}` }
+        });
+        if (response.ok) {
+          const payload = await response.json();
+          email = payload.email;
+          name = payload.name;
+          picture = payload.picture;
+        } else {
+          throw jwtErr;
+        }
+      }
+    } else {
+      // It is an OAuth2 access_token (e.g. ya29....)
       const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${accessToken}` }
+        headers: { Authorization: `Bearer ${rawToken}` }
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch user info from Google');
+        throw new Error('Failed to fetch user info from Google with access token');
       }
       const payload = await response.json();
       email = payload.email;

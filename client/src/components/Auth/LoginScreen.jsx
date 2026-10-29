@@ -384,9 +384,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
         
         {/* Top Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
-          </div>
+          <div className="flex items-center gap-2" />
           <div className="flex items-center gap-2">
             {!hideSwitchRole && window.location.port !== '8081' && window.location.port !== '8082' && (
               <button 

@@ -26,29 +26,12 @@ export default function App() {
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_URL);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
-  // Instant native splash state
-  const [showSplash, setShowSplash] = useState(true);
-  const splashOpacity = useRef(new Animated.Value(1)).current;
 
   // Dev URL modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
 
-  // 1. Instant splash fade out
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      Animated.timing(splashOpacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => setShowSplash(false));
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 2. Load saved custom URL if any
+  // 1. Load saved custom URL if any
   useEffect(() => {
     (async () => {
       try {
@@ -178,6 +161,9 @@ export default function App() {
           androidHardwareAccelerationDisabled={false}
           androidLayerType="hardware"
           cacheEnabled={true}
+          cacheMode="LOAD_DEFAULT"
+          incognito={false}
+          thirdPartyCookiesEnabled={true}
           setSupportMultipleWindows={false}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
@@ -208,20 +194,6 @@ export default function App() {
             }
           }}
         />
-
-        {/* Instant Native Splash Screen (Loads at 0ms, zero network lag) */}
-        {showSplash && (
-          <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]} pointerEvents="none">
-            <View style={styles.splashContent}>
-              <Image 
-                source={require('./assets/splash-logo.png')} 
-                style={styles.splashLogo} 
-                resizeMode="contain" 
-              />
-              <Text style={styles.splashBrand}>welcome to rider app</Text>
-            </View>
-          </Animated.View>
-        )}
 
         {/* Friendly Error Screen */}
         {hasError && (
@@ -319,29 +291,6 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-  },
-  splashContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashLogo: {
-    width: 220,
-    height: 140,
-    marginBottom: 16,
-  },
-  splashBrand: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.3,
-    textTransform: 'capitalize',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,

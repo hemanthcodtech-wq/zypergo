@@ -234,9 +234,7 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
         
         {/* Top Header */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/images/logo.png" alt="ZyperGo" className="h-8 w-auto object-contain" />
-          </div>
+          <div className="flex items-center gap-2" />
           <button 
             type="button"
             onClick={() => navigate('/support')}

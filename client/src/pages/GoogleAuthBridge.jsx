@@ -15,7 +15,9 @@ export default function GoogleAuthBridge() {
         const urlParams = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 
-        const token = urlParams.get('token') || hashParams.get('token') || hashParams.get('access_token') || hashParams.get('id_token');
+        const accessToken = hashParams.get('access_token') || urlParams.get('access_token');
+        const idToken = hashParams.get('id_token') || urlParams.get('id_token');
+        const token = idToken || accessToken || urlParams.get('token') || hashParams.get('token');
         const error = urlParams.get('error') || hashParams.get('error');
         const stateStr = urlParams.get('state') || hashParams.get('state');
 
@@ -36,13 +38,14 @@ export default function GoogleAuthBridge() {
           throw new Error(error || 'Google authentication was cancelled.');
         }
 
-        if (!token) {
+        if (!token && !accessToken) {
           throw new Error('No authentication token received from Google.');
         }
 
-        // Verify with backend
+        // Verify with backend (send token and accessToken)
         const res = await api.post('/auth/google', { 
-          token, 
+          token: idToken || token, 
+          accessToken: accessToken || token,
           role, 
           isSignup 
         });
