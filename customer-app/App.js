@@ -12,7 +12,8 @@ import {
   Alert,
   Linking,
   Image,
-  Animated
+  Animated,
+  ToastAndroid
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -115,19 +116,49 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
-  // 4. Android hardware back button
+  // 4. Android hardware back button & edge swipe gesture with SPA route support
+  const lastBackPressTime = useRef(0);
+
+  const handleMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data?.type === 'EXIT_APP') {
+        const now = Date.now();
+        if (now - lastBackPressTime.current < 2000) {
+          BackHandler.exitApp();
+        } else {
+          lastBackPressTime.current = now;
+          if (ToastAndroid && ToastAndroid.show) {
+            ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+          }
+        }
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
     const onBackPress = () => {
-      if (canGoBack && webViewRef.current) {
-        webViewRef.current.goBack();
-        return true;
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          (function() {
+            if (window.__handleAppBack) {
+              window.__handleAppBack();
+            } else if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EXIT_APP' }));
+            }
+          })();
+          true;
+        `);
+        return true; // We handled the back navigation inside SPA
       }
       return false;
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
-  }, [canGoBack]);
+  }, []);
 
   const handleSaveCustomUrl = async () => {
     try {
@@ -193,6 +224,7 @@ export default function App() {
           showsHorizontalScrollIndicator={false}
           overScrollMode="never"
           originWhitelist={['*']}
+          onMessage={handleMessage}
           onNavigationStateChange={(navState) => {
             setCanGoBack(navState.canGoBack);
           }}

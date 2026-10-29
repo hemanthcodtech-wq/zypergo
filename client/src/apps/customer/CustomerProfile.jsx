@@ -50,7 +50,9 @@ export default function CustomerProfile({ defaultView = null }) {
   const handleBack = () => {
     if (activeView) {
       if (defaultView) {
-        if (window.history.length > 1) {
+        if (window.__handleAppBack) {
+          window.__handleAppBack();
+        } else if (window.history.length > 1) {
           navigate(-1);
         } else {
           navigate(`${base}/profile`);
@@ -59,7 +61,9 @@ export default function CustomerProfile({ defaultView = null }) {
         setActiveView(null);
       }
     } else {
-      if (window.history.length > 1) {
+      if (window.__handleAppBack) {
+        window.__handleAppBack();
+      } else if (window.history.length > 1) {
         navigate(-1);
       } else {
         navigate(`${base}/dashboard`);

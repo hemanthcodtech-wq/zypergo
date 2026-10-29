@@ -9,13 +9,13 @@ import PartnerApp from '../apps/PartnerApp';
 import HubApp from '../apps/HubApp';
 import ResetPasswordScreen from '../components/Auth/ResetPasswordScreen';
 import GoogleAuthBridge from '../pages/GoogleAuthBridge';
+import NavigationHistoryHandler from '../components/common/NavigationHistoryHandler';
 import { useLocation } from 'react-router-dom';
 import api from '../api';
 
 function AppRouter() {
   const [authChecked, setAuthChecked] = useState(false);
   const location = useLocation();
-
 
   useEffect(() => {
     // Zero-latency instant unblock: if no token or cached user exists, render immediately!
@@ -128,39 +128,48 @@ function AppRouter() {
 
   if (!authChecked) return null;
 
-  if (location.pathname === '/reset-password') {
-    return <ResetPasswordScreen />;
-  }
+  const renderCurrentApp = () => {
+    if (location.pathname === '/reset-password') {
+      return <ResetPasswordScreen />;
+    }
 
-  if (location.pathname === '/google-auth-bridge') {
-    return <GoogleAuthBridge />;
-  }
+    if (location.pathname === '/google-auth-bridge') {
+      return <GoogleAuthBridge />;
+    }
 
-  if (subdomain === 'admin') {
-    return <AdminApp />;
-  }
+    if (subdomain === 'admin') {
+      return <AdminApp />;
+    }
 
-  if (subdomain === 'customer') {
-    return <CustomerApp />;
-  }
+    if (subdomain === 'customer') {
+      return <CustomerApp />;
+    }
 
-  if (subdomain === 'rider') {
-    return <RiderApp />;
-  }
+    if (subdomain === 'rider') {
+      return <RiderApp />;
+    }
 
-  if (subdomain === 'hamali') {
-    return <HamaliApp />;
-  }
+    if (subdomain === 'hamali') {
+      return <HamaliApp />;
+    }
 
-  if (subdomain === 'partner') {
-    return <PartnerApp />;
-  }
+    if (subdomain === 'partner') {
+      return <PartnerApp />;
+    }
 
-  if (subdomain === 'hub') {
-    return <HubApp />;
-  }
+    if (subdomain === 'hub') {
+      return <HubApp />;
+    }
 
-  return <PortalApp />;
+    return <PortalApp />;
+  };
+
+  return (
+    <>
+      <NavigationHistoryHandler />
+      {renderCurrentApp()}
+    </>
+  );
 }
 
 export default AppRouter;

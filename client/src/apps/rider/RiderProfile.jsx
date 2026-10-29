@@ -552,7 +552,11 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
         <div className="flex items-center gap-2.5">
           <button 
             type="button"
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate(`${base}/dashboard`)} 
+            onClick={() => {
+              if (window.__handleAppBack) window.__handleAppBack();
+              else if (window.history.length > 1) navigate(-1);
+              else navigate(`${base}/dashboard`);
+            }} 
             className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
           >
             <ChevronLeft size={22} />

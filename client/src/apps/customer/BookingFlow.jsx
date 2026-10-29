@@ -361,7 +361,9 @@ export default function BookingFlow() {
   };
 
   const handleClose = () => {
-    if (window.history.length > 1) {
+    if (window.__handleAppBack) {
+      window.__handleAppBack();
+    } else if (window.history.length > 1) {
       navigate(-1);
     } else {
       navigate('/dashboard');

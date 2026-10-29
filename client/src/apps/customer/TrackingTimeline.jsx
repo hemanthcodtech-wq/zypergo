@@ -129,7 +129,11 @@ export default function TrackingTimeline() {
           <div className="flex items-center gap-2">
             <button 
               type="button"
-              onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
+              onClick={() => {
+                if (window.__handleAppBack) window.__handleAppBack();
+                else if (window.history.length > 1) navigate(-1);
+                else navigate('/dashboard');
+              }}
               className="p-1 -ml-1 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
               title="Go back"
             >

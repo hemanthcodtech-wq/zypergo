@@ -220,7 +220,11 @@ export default function RiderHistory({ user }) {
         <div className="flex items-center gap-2.5">
           <button 
             type="button"
-            onClick={() => window.history.length > 1 ? navigate(-1) : navigate(`${base}/dashboard`)} 
+            onClick={() => {
+              if (window.__handleAppBack) window.__handleAppBack();
+              else if (window.history.length > 1) navigate(-1);
+              else navigate(`${base}/dashboard`);
+            }} 
             className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
           >
             <ChevronLeft size={22} />
@@ -357,7 +361,11 @@ export default function RiderHistory({ user }) {
               </p>
               <button 
                 type="button"
-                onClick={() => window.history.length > 1 ? navigate(-1) : navigate(`${base}/dashboard`)}
+                onClick={() => {
+              if (window.__handleAppBack) window.__handleAppBack();
+              else if (window.history.length > 1) navigate(-1);
+              else navigate(`${base}/dashboard`);
+            }}
                 className="mt-2 py-2 px-4 bg-[#FFB703] hover:bg-[#e5a400] text-slate-950 font-black text-xs rounded-xl shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <span>Go to Active Dashboard</span>
@@ -443,7 +451,11 @@ export default function RiderHistory({ user }) {
                     {isOngoing ? (
                       <button 
                         type="button"
-                        onClick={() => window.history.length > 1 ? navigate(-1) : navigate(`${base}/dashboard`)}
+                        onClick={() => {
+              if (window.__handleAppBack) window.__handleAppBack();
+              else if (window.history.length > 1) navigate(-1);
+              else navigate(`${base}/dashboard`);
+            }}
                         className="w-full py-2 bg-[#FFB703] hover:bg-[#e5a400] text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                       >
                         <Navigation size={13} />
