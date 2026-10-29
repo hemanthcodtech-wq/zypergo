@@ -178,12 +178,7 @@ export default function MyShipments() {
           >
             <ChevronLeft size={22} />
           </button>
-          <img 
-            src="/images/logo.png" 
-            alt="ZyperGo" 
-            className="h-7 w-auto object-contain cursor-pointer" 
-            onClick={() => navigate('/dashboard')}
-          />
+          <h1 className="text-base font-black text-slate-900">My Orders</h1>
         </div>
         <div className="flex items-center gap-2">
           <button 

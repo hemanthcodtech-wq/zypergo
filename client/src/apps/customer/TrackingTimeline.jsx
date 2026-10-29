@@ -135,7 +135,7 @@ export default function TrackingTimeline() {
             >
               <ArrowLeft size={20} />
             </button>
-            <img src="/images/logo.png" alt="ZyperGo" className="h-7 w-auto object-contain" />
+            <h2 className="text-base font-black text-slate-900">Track Deliveries</h2>
           </div>
           <button onClick={() => navigate('/dashboard')} className="text-xs font-bold text-[#0052CC]">
             Dashboard
@@ -214,7 +214,6 @@ export default function TrackingTimeline() {
           </button>
           
           <div className="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-md flex items-center gap-1.5 pointer-events-auto border border-slate-100">
-            <img src="/images/logo.png" alt="ZyperGo" className="h-4 w-auto object-contain" />
             <span className="font-black text-[#0052CC] text-xs tracking-tight">Live Tracking</span>
           </div>
 

@@ -661,8 +661,6 @@ export default function CustomerProfile({ defaultView = null }) {
           >
             <ChevronLeft size={22} />
           </button>
-          <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
-          <span className="text-slate-300 font-light">|</span>
           <h1 className="text-base font-black text-slate-900">My Profile</h1>
         </div>
         <button

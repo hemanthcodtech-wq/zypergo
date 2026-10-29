@@ -55,7 +55,6 @@ export default function CustomerInvoices() {
             <p className="text-[10px] font-bold text-slate-400">DOWNLOAD RECEIPTS & STATEMENTS</p>
           </div>
         </div>
-        <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
       </div>
 
       {/* Header */}

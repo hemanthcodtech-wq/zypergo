@@ -369,11 +369,8 @@ export default function BookingFlow() {
   };
 
   const Header = ({ title }) => (
-    <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-slate-100 flex flex-col">
-      <div className="flex items-center justify-center py-3 border-b border-slate-50 w-full">
-        <img src="/images/logo.png" alt="ZyperGo" className="h-9 w-auto object-contain" />
-      </div>
-      <div className="px-4 py-3 flex items-center gap-4">
+    <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-slate-100 flex items-center justify-between px-4 py-3.5">
+      <div className="flex items-center gap-3">
         <button 
           type="button"
           onClick={() => {
@@ -387,9 +384,9 @@ export default function BookingFlow() {
           }} 
           className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={22} />
         </button>
-        <h1 className="text-xl font-black text-slate-900">{title}</h1>
+        <h1 className="text-lg font-black text-slate-900">{title}</h1>
       </div>
     </div>
   );
