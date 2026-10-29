@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheck, Phone, KeyRound, ArrowRight, Eye, EyeOff, 
-  CheckCircle2, User, UserPlus, Mail, Headphones, Shield, 
+  CheckCircle2, RefreshCw, Loader2, User, UserPlus, Mail, Headphones, Shield, 
   Zap, Star, Lock, Award, Compass, Truck, Package, Handshake 
 } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -171,7 +171,19 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   const [error, setError] = useState('');
   const [notRegisteredError, setNotRegisteredError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [otpHint, setOtpHint] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
+  const [cooldown, setCooldown] = useState(30);
+
+  useEffect(() => {
+    let timer;
+    if (step === 'otp' && cooldown > 0) {
+      timer = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, cooldown]);
 
   const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
   const currentConfig = ROLE_CONFIGS[normalizedKey] || ROLE_CONFIGS.customer;
@@ -190,7 +202,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   };
 
   const handleSendOtp = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (identifier.length < 5) {
       setError('Please enter a valid email or phone number');
       return;
@@ -198,20 +210,44 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     
     setLoading(true);
     setError('');
+    setResendSuccess('');
     try {
       const payload = { role };
       if (isEmail) payload.email = identifier;
       else payload.phone = identifier;
       
-      const res = await api.post('/auth/send-otp', payload);
-      if (res.data?.otp) {
-        setOtpHint(res.data.otp);
-      }
+      await api.post('/auth/send-otp', payload);
+      setOtp('');
+      setCooldown(30);
       setStep('otp');
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (resending || cooldown > 0) return;
+
+    setResending(true);
+    setError('');
+    setResendSuccess('');
+    try {
+      const payload = { role };
+      if (isEmail) payload.email = identifier;
+      else payload.phone = identifier;
+
+      await api.post('/auth/send-otp', payload);
+      setOtp('');
+      setCooldown(30);
+      setResendSuccess('✓ Fresh OTP sent to your registered phone via MSG91 SMS!');
+      setTimeout(() => setResendSuccess(''), 6000);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -526,14 +562,15 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
               </div>
 
               <div>
-                {otpHint && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-3 text-xs flex items-center justify-between mb-3">
-                  <span>Verification Code: <strong className="font-mono text-sm tracking-wider font-bold text-emerald-900">{otpHint}</strong></span>
-                  <span className="text-[10px] text-emerald-600 font-semibold">(Default: 1234)</span>
-                </div>
-              )}
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
-                  Verification Code
+                {resendSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-2.5 text-xs font-bold text-center mb-3 animate-in fade-in flex items-center justify-center gap-1.5">
+                    <CheckCircle2 size={15} className="text-emerald-600 flex-shrink-0" />
+                    <span>{resendSuccess}</span>
+                  </div>
+                )}
+
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
+                  Enter 4-Digit SMS / Email OTP
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -547,21 +584,41 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                     required
                   />
                 </div>
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
                   <button 
                     type="button" 
-                    onClick={() => setStep('input')} 
-                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+                    onClick={() => {
+                      setStep('input');
+                      setError('');
+                      setResendSuccess('');
+                    }} 
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 py-1.5 px-2 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
                   >
-                    Change details
+                    ← Change details
                   </button>
                   <button 
                     type="button" 
-                    onClick={handleSendOtp} 
-                    className="text-[11px] font-bold hover:underline"
-                    style={{ color: currentConfig.themeColor }}
+                    onClick={handleResendOtp}
+                    disabled={resending || cooldown > 0}
+                    className={`text-xs font-bold py-1.5 px-3 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                      cooldown > 0 || resending
+                        ? 'text-slate-400 bg-slate-100 cursor-not-allowed opacity-70'
+                        : 'text-amber-700 bg-amber-50 border border-amber-200/80 hover:bg-amber-100 active:scale-95'
+                    }`}
                   >
-                    Resend Code
+                    {resending ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : cooldown > 0 ? (
+                      <span>Resend in {cooldown}s</span>
+                    ) : (
+                      <>
+                        <RefreshCw size={13} />
+                        <span>Resend OTP</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

@@ -106,8 +106,7 @@ exports.sendOtp = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: 'OTP sent successfully. Check your phone or email.',
-      otp: generatedOtp 
+      message: 'OTP sent successfully to your registered mobile number/email via DLT SMS.'
     });
   } catch (error) {
     console.error('Error sending OTP:', error);
@@ -172,9 +171,9 @@ exports.verifyOtp = async (req, res) => {
       await user.save();
     }
 
-    // Special bypass for seed admin or mock
-    if (otp !== '1234' && (user.otp !== otp || user.otpExpiry < new Date())) {
-      return res.status(401).json({ success: false, error: 'Invalid or expired OTP' });
+    // Strict verification: only authentic OTP delivered by MSG91 / DLT is accepted
+    if (!user.otp || user.otp !== otp || (user.otpExpiry && user.otpExpiry < new Date())) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired OTP. Please enter the valid OTP sent to your mobile.' });
     }
 
     // Clear OTP after successful verify
