@@ -113,7 +113,6 @@ export default function RiderEarnings({ user, onLogout }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <img src="/images/logo.png" alt="ZyperGo" className="h-6 w-auto object-contain" />
           <button
             type="button"
             onClick={() => navigate(`${base}/profile`)}

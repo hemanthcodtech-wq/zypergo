@@ -175,7 +175,7 @@ export default function RiderHeader({ user, onLogout, onShowEarnings, onStatusCh
         <img 
           src="/images/logo.png" 
           alt="ZyperGo" 
-          className="h-7 w-auto object-contain cursor-pointer active:scale-95 transition-transform" 
+          className="h-10 w-auto max-w-[130px] object-contain cursor-pointer active:scale-95 transition-transform" 
           onClick={() => navigate(isPrefix ? '/rider/dashboard' : '/dashboard')} 
         />
 

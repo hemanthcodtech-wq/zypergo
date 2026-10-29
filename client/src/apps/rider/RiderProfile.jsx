@@ -60,6 +60,14 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Dynamic Rider Metrics (Trips, Score, Rating from live database)
+  const [riderStats, setRiderStats] = useState({
+    totalTrips: 0,
+    score: 100,
+    rating: '5.0',
+    loading: true
+  });
+
   // App Settings state inside Profile
   const [jobAlerts, setJobAlerts] = useState(() => localStorage.getItem('zypergo_rider_alerts') !== 'false');
   const [gpsBackground, setGpsBackground] = useState(() => localStorage.getItem('zypergo_rider_gps') !== 'false');
@@ -112,14 +120,54 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     if (userStr) {
       try {
         const parsed = JSON.parse(userStr);
-        const userId = parsed.id || parsed._id || parsed.phone;
-        const persistentPhoto = localStorage.getItem('zypergo_profile_photo_' + userId);
+        const userId = parsed.id || parsed._id;
+        const persistentPhoto = localStorage.getItem('zypergo_profile_photo_' + (userId || parsed.phone));
         if (persistentPhoto) {
           parsed.photoUrl = persistentPhoto;
         }
         setUser(parsed);
         initEditForm(parsed);
-      } catch (e) {}
+
+        // Fetch real rider stats from backend
+        if (userId) {
+          api.get(`/rider/history?userId=${userId}`)
+            .then(res => {
+              if (res.data?.success) {
+                const completed = res.data.completed || [];
+                const totalTrips = completed.length;
+                const delivered = completed.filter(b => b.status === 'Delivered').length;
+                
+                // Real score based on delivered vs failed/cancelled
+                let calculatedScore = 100;
+                if (totalTrips > 0) {
+                  calculatedScore = Math.max(70, Math.round((delivered / totalTrips) * 100));
+                }
+
+                // Real rating based on performance
+                const parsedRating = parsed?.riderDetails?.rating || 5.0;
+                const calculatedRating = totalTrips > 0 
+                  ? Number(parsedRating).toFixed(1)
+                  : '5.0';
+
+                setRiderStats({
+                  totalTrips,
+                  score: calculatedScore,
+                  rating: calculatedRating,
+                  loading: false
+                });
+              }
+            })
+            .catch(() => {
+              setRiderStats(prev => ({ ...prev, loading: false }));
+            });
+        } else {
+          setRiderStats(prev => ({ ...prev, loading: false }));
+        }
+      } catch (e) {
+        setRiderStats(prev => ({ ...prev, loading: false }));
+      }
+    } else {
+      setRiderStats(prev => ({ ...prev, loading: false }));
     }
   }, []);
 
@@ -601,31 +649,49 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-black text-slate-900 truncate capitalize">{user?.name || 'Rider Partner'}</h2>
             <div className="flex items-center gap-2 mt-0.5 mb-1 flex-wrap">
-              <span className="text-xs font-bold text-slate-600">{user?.phone || '+91 8074194666'}</span>
+              <span className="text-xs font-bold text-slate-600">{user?.phone || ''}</span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <ShieldCheck size={10} />
                 <span>{approvalStatus}</span>
               </span>
             </div>
-            <p className="text-slate-400 text-[11px] font-medium truncate">{user?.email || 'rider@zypergo.com'}</p>
+            <p className="text-slate-400 text-[11px] font-medium truncate">{user?.email || ''}</p>
           </div>
         </div>
 
-        {/* 3-Column KPI Metrics Row */}
+        {/* 3-Column KPI Metrics Row (Live Database Driven) */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs text-center">
             <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Trips</p>
-            <h3 className="text-lg font-black text-slate-900 mt-0.5">124</h3>
+            <h3 className="text-lg font-black text-slate-900 mt-0.5">
+              {riderStats.loading ? (
+                <span className="text-slate-300 text-sm">...</span>
+              ) : (
+                riderStats.totalTrips
+              )}
+            </h3>
           </div>
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs text-center">
             <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Score</p>
-            <h3 className="text-lg font-black text-emerald-600 mt-0.5">100%</h3>
+            <h3 className="text-lg font-black text-emerald-600 mt-0.5">
+              {riderStats.loading ? (
+                <span className="text-slate-300 text-sm">...</span>
+              ) : (
+                `${riderStats.score}%`
+              )}
+            </h3>
           </div>
           <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs text-center">
             <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Rating</p>
             <h3 className="text-lg font-black text-amber-500 mt-0.5 flex items-center justify-center gap-0.5">
-              <span>4.9</span>
-              <Star size={12} className="fill-amber-500 text-amber-500" />
+              {riderStats.loading ? (
+                <span className="text-slate-300 text-sm">...</span>
+              ) : (
+                <>
+                  <span>{riderStats.rating}</span>
+                  <Star size={12} className="fill-amber-500 text-amber-500" />
+                </>
+              )}
             </h3>
           </div>
         </div>
