@@ -2,11 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, Bell, Package, Calendar, Map, FileText, ChevronRight, 
-  CheckCircle2, Clock, Truck, ChevronDown, Menu, ArrowRight, X, Search, Sparkles, Navigation 
+  CheckCircle2, Clock, Truck, ChevronDown, ArrowRight, X, Search, Sparkles, Navigation 
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import api from '../../api';
 import { reverseGeocode } from '../../utils/locationService';
-import PinLocationModal from '../../components/common/PinLocationModal';
+
+// Custom Rapido-style captain bike icon
+const createRiderIcon = (heading = 45) => {
+  return L.divIcon({
+    className: 'custom-rider-icon',
+    html: `
+      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;" class="relative flex items-center justify-center">
+        <div style="background: linear-gradient(135deg, #FDB813, #F59E0B); box-shadow: 0 4px 10px rgba(0,0,0,0.25);" class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-slate-900">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+          </svg>
+        </div>
+        <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></span>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
+// Pulsing user beacon icon
+const createUserIcon = () => {
+  return L.divIcon({
+    className: 'custom-user-icon',
+    html: `
+      <div class="relative flex items-center justify-center">
+        <div class="w-4 h-4 rounded-full bg-[#0052CC] border-2 border-white shadow-lg z-10"></div>
+        <div class="absolute w-8 h-8 rounded-full bg-[#0052CC]/30 animate-ping"></div>
+        <div class="absolute w-12 h-12 rounded-full bg-[#0052CC]/15"></div>
+      </div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+};
+
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && center[0] && center[1]) {
+      map.setView(center, map.getZoom(), { animate: true });
+    }
+  }, [center, map]);
+  return null;
+}
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
@@ -14,29 +61,9 @@ export default function CustomerDashboard() {
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Pinned Location State - automatically asks to pin location on every app open
-  const [showPinModal, setShowPinModal] = useState(true);
-  const [pinnedLocation, setPinnedLocation] = useState(() => {
-    const saved = localStorage.getItem('zypergo_customer_location');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return null;
-  });
-
-  const [selectedCity, setSelectedCity] = useState(
-    pinnedLocation?.city ? `${pinnedLocation.city}, ${pinnedLocation.state || 'Telangana'}` : 'Kosgi, Telangana'
-  );
-  const [activeSlide, setActiveSlide] = useState(0);
-
-  const availableCities = [
-    'Adoni, Andhra Pradesh',
-    'Hyderabad, Telangana',
-    'Kurnool, Andhra Pradesh',
-    'Bengaluru, Karnataka',
-    'Sindhanur, Karnataka',
-    'Kosgi, Telangana'
-  ];
+  // User GPS coordinates (Defaults to Hyderabad, updates via GPS)
+  const [userCoords, setUserCoords] = useState([17.3850, 78.4867]);
+  const [userLocationName, setUserLocationName] = useState('Hyderabad, Telangana');
 
   useEffect(() => {
     const userData = localStorage.getItem('zypergo_user');
@@ -44,14 +71,15 @@ export default function CustomerDashboard() {
       setUser(JSON.parse(userData));
     }
     
-    // Fetch Location with Google Maps Geocoding & high accuracy
+    // Fetch Location with high accuracy & update map coordinates
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const { latitude, longitude } = position.coords;
+          setUserCoords([latitude, longitude]);
           const loc = await reverseGeocode(latitude, longitude);
           if (loc && loc.city) {
-            setSelectedCity(`${loc.city}, ${loc.state}`);
+            setUserLocationName(loc.colony ? `${loc.colony}, ${loc.city}` : `${loc.city}, ${loc.state || 'Telangana'}`);
           }
         } catch (error) {
           console.error("Error geocoding location:", error);
@@ -68,7 +96,6 @@ export default function CustomerDashboard() {
         if (res.data.success && res.data.data?.length > 0) {
           setRecentOrders(res.data.data.slice(0, 5));
         } else {
-          // Provide demo active orders matching the reference style if empty
           setRecentOrders([
             {
               _id: 'demo-1',
@@ -130,6 +157,23 @@ export default function CustomerDashboard() {
     };
     fetchOrders();
   }, []);
+
+  // Compute 5 realistic nearby online captains surrounding user's live coordinates
+  const nearbyCaptains = [
+    { id: 'c1', lat: userCoords[0] + 0.0031, lng: userCoords[1] + 0.0024, heading: 45, eta: '2 mins' },
+    { id: 'c2', lat: userCoords[0] - 0.0028, lng: userCoords[1] + 0.0036, heading: 120, eta: '3 mins' },
+    { id: 'c3', lat: userCoords[0] + 0.0042, lng: userCoords[1] - 0.0029, heading: 215, eta: '4 mins' },
+    { id: 'c4', lat: userCoords[0] - 0.0035, lng: userCoords[1] - 0.0031, heading: 310, eta: '2 mins' },
+    { id: 'c5', lat: userCoords[0] + 0.0016, lng: userCoords[1] - 0.0042, heading: 85, eta: '3 mins' },
+  ];
+
+  const handleRecenter = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setUserCoords([pos.coords.latitude, pos.coords.longitude]);
+      });
+    }
+  };
 
   const getStatusBadge = (status = '') => {
     const s = status.toUpperCase();
@@ -196,45 +240,33 @@ export default function CustomerDashboard() {
     );
   };
 
-  const cityNameOnly = selectedCity.split(',')[0].trim();
-
   return (
     <div className="min-h-full bg-[#F8FAFC] pb-24 font-sans text-slate-900">
       
-      {/* Top App Bar (Image 3 Header) */}
+      {/* Top App Bar with Bigger Logo and Removed Hamburger Menu */}
       <div className="bg-white px-4 py-3 sticky top-0 z-20 shadow-xs flex items-center justify-between border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/profile')} 
-            className="p-1.5 rounded-lg text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
-          >
-            <Menu size={22} strokeWidth={2.2} />
-          </button>
-          
+        <div className="flex items-center">
           <img 
             src="/images/logo.png" 
             alt="ZyperGo" 
-            className="h-7 w-auto object-contain cursor-pointer" 
+            className="h-10 md:h-11 w-auto max-w-[150px] object-contain cursor-pointer drop-shadow-xs transition-transform active:scale-95" 
             onClick={() => navigate('/dashboard')}
           />
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Location Selector Pill */}
-          <button 
-            type="button"
-            onClick={() => setShowPinModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50/70 text-slate-800 hover:bg-blue-100/70 active:scale-95 transition-all cursor-pointer shadow-2xs max-w-[170px]"
-            title="Click to pin or change exact delivery location"
+          {/* Current City Pill */}
+          <div 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-blue-200 bg-blue-50/70 text-slate-800 shadow-2xs max-w-[170px]"
+            title={userLocationName}
           >
             <MapPin size={14} className="text-[#0052CC] shrink-0" />
             <div className="text-left truncate">
               <span className="text-xs font-black text-slate-900 block truncate">
-                {pinnedLocation?.colony || pinnedLocation?.city || cityNameOnly}
+                {userLocationName.split(',')[0]}
               </span>
             </div>
-            <ChevronDown size={14} className="text-slate-400 shrink-0" />
-          </button>
+          </div>
 
           {/* Notification Bell */}
           <button 
@@ -249,90 +281,85 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      {/* Pinned Delivery Location Banner */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50/40 border-b border-blue-100/80 px-4 py-2 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2 text-slate-700 truncate pr-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-          <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider shrink-0">Delivery at:</span>
-          <span className="font-black text-slate-800 truncate text-[11px]">
-            {pinnedLocation?.plotNumber ? `${pinnedLocation.plotNumber}, ` : ''}
-            {pinnedLocation?.colony ? `${pinnedLocation.colony}, ` : ''}
-            {pinnedLocation?.city || selectedCity}
-            {pinnedLocation?.landmark ? ` (Near ${pinnedLocation.landmark})` : ''}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowPinModal(true)}
-          className="text-[11px] font-black text-[#0052CC] hover:underline shrink-0 cursor-pointer"
-        >
-          Change Pin
-        </button>
-      </div>
-
       <div className="max-w-md md:max-w-4xl mx-auto px-4 pt-4 space-y-4">
         
-        {/* Delivering In / Location Banner Card */}
-        <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052CC] shrink-0">
-              <MapPin size={20} strokeWidth={2.2} />
+        {/* Rapido-Style Live Interactive Map View */}
+        <div className="relative rounded-3xl overflow-hidden shadow-md border border-slate-200/90 bg-slate-100 h-[290px] w-full">
+          <MapContainer 
+            center={userCoords} 
+            zoom={14} 
+            zoomControl={false}
+            scrollWheelZoom={false}
+            attributionControl={false}
+            style={{ height: '100%', width: '100%', zIndex: 0 }}
+          >
+            <TileLayer 
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+            />
+            <RecenterMap center={userCoords} />
+
+            {/* Pulsing User Current Location Marker */}
+            <Marker position={userCoords} icon={createUserIcon()} />
+
+            {/* Live Nearby Online Captains */}
+            {nearbyCaptains.map((captain) => (
+              <Marker 
+                key={captain.id} 
+                position={[captain.lat, captain.lng]} 
+                icon={createRiderIcon(captain.heading)}
+              />
+            ))}
+          </MapContainer>
+
+          {/* Top Live Captains Overlay Badge */}
+          <div className="absolute top-3 left-3 z-10">
+            <div className="flex items-center gap-2 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 rounded-full shadow-lg border border-white/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-xs font-black tracking-tight">
+                ⚡ 5 Captains nearby
+              </span>
+              <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                2-3 mins
+              </span>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delivering in</p>
-              <h4 className="text-xs font-black text-slate-800 leading-tight">{selectedCity}</h4>
-              <div className="flex items-center gap-1 mt-0.5">
-                <CheckCircle2 size={12} className="text-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-600">Location access granted</span>
+          </div>
+
+          {/* Top Right Recenter Button */}
+          <div className="absolute top-3 right-3 z-10">
+            <button 
+              type="button"
+              onClick={handleRecenter}
+              className="w-9 h-9 bg-white/95 hover:bg-white text-slate-800 rounded-full shadow-lg border border-slate-200 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+              title="Recenter to my location"
+            >
+              <Navigation size={17} className="text-[#0052CC]" />
+            </button>
+          </div>
+
+          {/* Floating Bottom Rapido-Style Booking Action Card */}
+          <div className="absolute bottom-3 left-3 right-3 z-10">
+            <div 
+              onClick={() => navigate('/booking')}
+              className="bg-white/95 backdrop-blur-md rounded-2xl p-3 shadow-xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-white transition-all active:scale-[0.99] group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs font-black shrink-0">
+                  <Package size={18} strokeWidth={2.4} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fastest Parcel Delivery</p>
+                  <h4 className="text-xs font-black text-slate-900 group-hover:text-[#0052CC] transition-colors">
+                    Where are you sending to?
+                  </h4>
+                </div>
+              </div>
+
+              <div className="bg-[#FF6B00] hover:bg-[#E56000] text-white px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm shrink-0">
+                <span>Book Now</span>
+                <ArrowRight size={13} strokeWidth={2.5} />
               </div>
             </div>
           </div>
-          
-          <button 
-            onClick={() => setShowCityModal(true)}
-            className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
-          >
-            Change
-          </button>
-        </div>
-
-        {/* Hero Banner Carousel (Seamless Royal Blue 3D Card) */}
-        <div className="relative rounded-3xl overflow-hidden shadow-md bg-[#003B99] text-white p-5 md:p-6 min-h-[175px] flex flex-col justify-between">
-          
-          {/* Full seamless 3D fleet banner background */}
-          <img 
-            src="/images/dashboard_banner.jpg" 
-            alt="ZyperGo Fleet" 
-            className="absolute inset-0 w-full h-full object-cover object-right pointer-events-none"
-          />
-
-          {/* Left Dark Blue Gradient Vignette for clear text contrast */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#003B99] via-[#003B99]/85 to-transparent w-3/4 md:w-3/5 pointer-events-none"></div>
-
-          <div className="relative z-10 max-w-[210px] md:max-w-sm">
-            <h2 className="text-xl md:text-2xl font-black leading-tight text-white">
-              Send Anything,<br />
-              <span className="text-[#FF7A00]">Anywhere.</span>
-            </h2>
-            <p className="text-blue-100 text-[10.5px] font-bold mt-1.5 flex items-center gap-1.5">
-              Fast <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A00]"></span> Safe <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A00]"></span> Affordable
-            </p>
-
-            <button 
-              onClick={() => navigate('/booking')}
-              className="mt-3.5 inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-[#0052CC] font-black px-4 py-2 rounded-full text-xs shadow-md active:scale-95 transition-all"
-            >
-              <span>Book a Delivery</span>
-              <ArrowRight size={14} strokeWidth={2.5} className="text-[#FF7A00]" />
-            </button>
-          </div>
-        </div>
-
-        {/* Carousel Pagination Dots */}
-        <div className="flex justify-center items-center gap-1.5 py-1">
-          <span className="w-2 h-2 rounded-full bg-[#0052CC]"></span>
-          <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-          <span className="w-2 h-2 rounded-full bg-slate-300"></span>
         </div>
 
         {/* Quick Actions Section */}
@@ -353,7 +380,7 @@ export default function CustomerDashboard() {
             {/* Send Parcel */}
             <button 
               onClick={() => navigate('/booking')}
-              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-blue-200 active:scale-95 transition-all"
+              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-blue-200 active:scale-95 transition-all cursor-pointer"
             >
               <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052CC] mb-2 group-hover:scale-105 transition-transform">
                 <Package size={22} strokeWidth={2.2} />
@@ -364,7 +391,7 @@ export default function CustomerDashboard() {
             {/* Schedule Pickup */}
             <button 
               onClick={() => navigate('/booking')}
-              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-orange-200 active:scale-95 transition-all"
+              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-orange-200 active:scale-95 transition-all cursor-pointer"
             >
               <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#FF6B00] mb-2 group-hover:scale-105 transition-transform">
                 <Calendar size={22} strokeWidth={2.2} />
@@ -375,7 +402,7 @@ export default function CustomerDashboard() {
             {/* Track Order */}
             <button 
               onClick={() => navigate('/track')}
-              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-emerald-200 active:scale-95 transition-all"
+              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-emerald-200 active:scale-95 transition-all cursor-pointer"
             >
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-2 group-hover:scale-105 transition-transform">
                 <MapPin size={22} strokeWidth={2.2} />
@@ -386,7 +413,7 @@ export default function CustomerDashboard() {
             {/* Rate Card */}
             <button 
               onClick={() => navigate('/support')}
-              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-purple-200 active:scale-95 transition-all"
+              className="bg-white rounded-2xl p-3 border border-slate-100 shadow-xs flex flex-col items-center text-center group hover:border-purple-200 active:scale-95 transition-all cursor-pointer"
             >
               <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 mb-2 group-hover:scale-105 transition-transform">
                 <FileText size={22} strokeWidth={2.2} />
@@ -450,20 +477,6 @@ export default function CustomerDashboard() {
         </div>
 
       </div>
-
-      {/* Interactive Pin Location Modal - Prompts on load and on click */}
-      <PinLocationModal 
-        isOpen={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        initialLocation={pinnedLocation}
-        onConfirm={(newLocation) => {
-          setPinnedLocation(newLocation);
-          if (newLocation.city) {
-            setSelectedCity(`${newLocation.city}, ${newLocation.state || 'Telangana'}`);
-          }
-          setShowPinModal(false);
-        }}
-      />
 
     </div>
   );
