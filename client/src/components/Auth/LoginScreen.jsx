@@ -171,6 +171,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
   const [error, setError] = useState('');
   const [notRegisteredError, setNotRegisteredError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpHint, setOtpHint] = useState('');
 
   const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
   const currentConfig = ROLE_CONFIGS[normalizedKey] || ROLE_CONFIGS.customer;
@@ -202,7 +203,10 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
       if (isEmail) payload.email = identifier;
       else payload.phone = identifier;
       
-      await api.post('/auth/send-otp', payload);
+      const res = await api.post('/auth/send-otp', payload);
+      if (res.data?.otp) {
+        setOtpHint(res.data.otp);
+      }
       setStep('otp');
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to send OTP');
@@ -292,6 +296,16 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     } finally {
       setLoading(false);
     }
+  };
+
+    const handleGoogleSignIn = () => {
+    const clientId = '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
+    const redirectUri = 'https://zypergo.com/google-auth-bridge';
+    const stateObj = { role, isSignup: false };
+    const state = encodeURIComponent(JSON.stringify(stateObj));
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=openid%20email%20profile&nonce=${Date.now()}&prompt=select_account&state=${state}`;
+
+    window.location.href = googleAuthUrl;
   };
 
   const loginWithGoogle = useGoogleLogin({
@@ -468,7 +482,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                 <div className="mt-4">
                   <button 
                     type="button" 
-                    onClick={() => loginWithGoogle()} 
+                    onClick={handleGoogleSignIn} 
                     className="flex items-center justify-center gap-2.5 w-full py-3 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all bg-white shadow-xs font-bold text-xs text-slate-800 active:scale-[0.98]"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -512,7 +526,13 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
+                {otpHint && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-3 text-xs flex items-center justify-between mb-3">
+                  <span>Verification Code: <strong className="font-mono text-sm tracking-wider font-bold text-emerald-900">{otpHint}</strong></span>
+                  <span className="text-[10px] text-emerald-600 font-semibold">(Default: 1234)</span>
+                </div>
+              )}
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 text-center">
                   Verification Code
                 </label>
                 <div className="relative">

@@ -2,6 +2,7 @@
   "expo": {
     "name": "ZyperGo Rider",
     "slug": "zypergo-rider",
+    "scheme": "zypergorider",
     "version": "1.0.0",
     "sdkVersion": "52.0.0",
     "newArchEnabled": false,
@@ -26,6 +27,17 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "zypergorider"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "INTERNET",
         "ACCESS_COARSE_LOCATION",

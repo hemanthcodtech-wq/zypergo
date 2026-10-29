@@ -2,6 +2,7 @@
   "expo": {
     "name": "ZyperGo Customer",
     "slug": "customer-app",
+    "scheme": "zypergocustomer",
     "version": "1.0.0",
     "sdkVersion": "52.0.0",
     "newArchEnabled": false,
@@ -25,6 +26,17 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "zypergocustomer"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "INTERNET",
         "ACCESS_COARSE_LOCATION",

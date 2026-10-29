@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Zap, Star, ArrowRight } from 'lucide-react';
 import { LOGO_DATA_URI } from '../../assets/logoDataUri';
+import { FLEET_HERO_DATA_URI } from '../../assets/fleetHeroDataUri';
 
 export default function CustomerSplash() {
   const navigate = useNavigate();
-  const [stage, setStage] = useState('splash'); // 'splash' -> 'welcome'
+  const isMobileApp = typeof navigator !== 'undefined' && (navigator.userAgent.includes('ZyperGo') || navigator.userAgent.includes('Mobile'));
+  // In native mobile app, show welcome screen immediately without double splash delay
+  const [stage, setStage] = useState(isMobileApp ? 'welcome' : 'splash');
 
   const isPrefix = window.location.pathname.startsWith('/customer');
   const loginPath = isPrefix ? '/customer/login' : '/login';
@@ -19,13 +22,13 @@ export default function CustomerSplash() {
       return;
     }
 
-    // Fast 1.2s splash screen so it feels snappy and instant
-    const timer = setTimeout(() => {
-      setStage('welcome');
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [navigate, dashboardPath]);
+    if (stage === 'splash') {
+      const timer = setTimeout(() => {
+        setStage('welcome');
+      }, 900);
+      return () => clearTimeout(timer);
+    }
+  }, [navigate, dashboardPath, stage]);
 
   const handleSkipToWelcome = () => {
     setStage('welcome');
@@ -38,19 +41,15 @@ export default function CustomerSplash() {
         onClick={handleSkipToWelcome}
         className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-slate-50 to-blue-50/50 text-slate-900 font-sans relative overflow-hidden select-none cursor-pointer"
       >
-        
-        {/* Soft background ambient glow */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Top brand tag */}
         <div className="pt-8">
           <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
             ZyperGo Logistics
           </span>
         </div>
 
-        {/* Center: Zero-latency Instant Logo */}
         <div className="flex flex-col items-center text-center my-auto w-full px-4">
           <div className="relative flex flex-col items-center justify-center w-full">
             <div className="absolute -inset-10 bg-gradient-to-r from-blue-500/15 via-orange-500/20 to-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
@@ -73,7 +72,6 @@ export default function CustomerSplash() {
           </div>
         </div>
 
-        {/* Bottom Loading Progress Bar with Skip */}
         <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
           <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden p-0.5">
             <div className="h-full bg-gradient-to-r from-[#0052CC] via-orange-500 to-[#FF6B00] rounded-full animate-splash-progress" />
@@ -82,12 +80,11 @@ export default function CustomerSplash() {
             Tap to continue
           </span>
         </div>
-
       </div>
     );
   }
 
-  // 2. Welcome & Login Screen (Revealed smoothly)
+  // 2. Welcome & Login Screen (Instant Zero-Latency Render)
   return (
     <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-blue-50/50 via-white to-slate-50 text-slate-900 font-sans selection:bg-[#0052CC] selection:text-white">
       
@@ -114,14 +111,15 @@ export default function CustomerSplash() {
         </p>
       </div>
 
-      {/* Hero Visual Card */}
+      {/* Hero Visual Card with Instant Base64 image */}
       <div className="my-auto py-2 flex flex-col items-center justify-center">
         <div className="relative w-full rounded-2xl overflow-hidden bg-white p-1.5 border border-slate-100 shadow-sm">
           <img 
-            src="/images/fleet_hero.jpg" 
+            src={FLEET_HERO_DATA_URI || "/images/fleet_hero.jpg"} 
             alt="ZyperGo Fleet" 
             className="w-full h-36 object-cover rounded-xl"
             loading="eager"
+            decoding="sync"
           />
         </div>
 

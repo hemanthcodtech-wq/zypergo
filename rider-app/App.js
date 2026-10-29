@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,7 +9,10 @@ import {
   SafeAreaView,
   TextInput,
   Modal,
-  Alert
+  Alert,
+  Linking,
+  Image,
+  Animated
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,11 +27,28 @@ export default function App() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
+  // Instant native splash state
+  const [showSplash, setShowSplash] = useState(true);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+
   // Dev URL modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
 
-  // Load saved custom URL if any
+  // 1. Instant splash fade out
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => setShowSplash(false));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 2. Load saved custom URL if any
   useEffect(() => {
     (async () => {
       try {
@@ -45,7 +65,50 @@ export default function App() {
     })();
   }, []);
 
-  // Hardware back button support
+  // 3. Deep link handler for Google Sign-In redirect from browser
+  useEffect(() => {
+    const handleDeepLink = (event) => {
+      const url = event?.url || event;
+      if (!url) return;
+
+      if (url.startsWith('zypergorider://')) {
+        try {
+          const fakeHttpUrl = url.replace('zypergorider://', 'https://zypergo.com/');
+          const parsed = new URL(fakeHttpUrl);
+          const token = parsed.searchParams.get('token');
+          const userStr = parsed.searchParams.get('user');
+
+          if (token && webViewRef.current) {
+            const jsInject = `
+              (function() {
+                try {
+                  localStorage.setItem('zypergo_token', ${JSON.stringify(token)});
+                  ${userStr ? `localStorage.setItem('zypergo_user', ${JSON.stringify(decodeURIComponent(userStr))});` : ''}
+                  sessionStorage.setItem('zypergo_portal', 'rider');
+                  window.location.href = '/rider/dashboard';
+                } catch(e) {
+                  window.location.reload();
+                }
+              })();
+              true;
+            `;
+            webViewRef.current.injectJavaScript(jsInject);
+          }
+        } catch (err) {
+          console.warn('Deep link parse notice:', err.message);
+        }
+      }
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, []);
+
+  // 4. Android hardware back button
   useEffect(() => {
     const onBackPress = () => {
       if (canGoBack && webViewRef.current) {
@@ -62,9 +125,7 @@ export default function App() {
   const handleSaveCustomUrl = async () => {
     try {
       let trimmed = customUrlInput.trim();
-      if (!trimmed) {
-        trimmed = DEFAULT_URL;
-      }
+      if (!trimmed) trimmed = DEFAULT_URL;
       if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
         trimmed = 'http://' + trimmed;
       }
@@ -125,6 +186,17 @@ export default function App() {
           onNavigationStateChange={(navState) => {
             setCanGoBack(navState.canGoBack);
           }}
+          onShouldStartLoadWithRequest={(request) => {
+            // When user clicks Google Sign In, open in default system browser so all Google accounts appear!
+            if (
+              request.url.includes('accounts.google.com') ||
+              request.url.includes('oauth2/v2/auth')
+            ) {
+              Linking.openURL(request.url);
+              return false; // Prevent loading inside WebView to avoid disallowed_useragent
+            }
+            return true;
+          }}
           onError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
             if (nativeEvent.description && nativeEvent.description.includes('net::ERR_NAME_NOT_RESOLVED')) {
@@ -137,7 +209,22 @@ export default function App() {
           }}
         />
 
-        {/* Friendly Error / Offline Screen (Shown only if actual network connection fails) */}
+        {/* Instant Native Splash Screen (Loads at 0ms, zero network lag) */}
+        {showSplash && (
+          <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]} pointerEvents="none">
+            <View style={styles.splashContent}>
+              <Image 
+                source={require('./assets/icon.png')} 
+                style={styles.splashLogo} 
+                resizeMode="contain" 
+              />
+              <Text style={styles.splashBrand}>ZyperGo Rider</Text>
+              <Text style={styles.splashTagline}>Drive, Deliver & Earn Daily</Text>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Friendly Error Screen */}
         {hasError && (
           <View style={styles.errorOverlay}>
             <View style={styles.errorCard}>
@@ -173,7 +260,7 @@ export default function App() {
         )}
       </View>
 
-      {/* Developer / IP Configuration Modal */}
+      {/* Dev IP Config Modal */}
       <Modal visible={showConfigModal} transparent={true} animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -233,6 +320,34 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  splashContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  splashLogo: {
+    width: 140,
+    height: 140,
+    marginBottom: 16,
+  },
+  splashBrand: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#D97706',
+    letterSpacing: 0.5,
+  },
+  splashTagline: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 4,
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,

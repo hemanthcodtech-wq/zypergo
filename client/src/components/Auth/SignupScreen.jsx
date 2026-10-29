@@ -52,6 +52,16 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
   const licenseInputRef = useRef(null);
   const aadhaarInputRef = useRef(null);
 
+    const handleGoogleSignUp = () => {
+    const clientId = '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
+    const redirectUri = 'https://zypergo.com/google-auth-bridge';
+    const stateObj = { role, isSignup: true };
+    const state = encodeURIComponent(JSON.stringify(stateObj));
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=openid%20email%20profile&nonce=${Date.now()}&prompt=select_account&state=${state}`;
+
+    window.location.href = googleAuthUrl;
+  };
+
   const signupWithGoogle = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
@@ -572,7 +582,7 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
             <div className="mt-4 pt-3 border-t border-slate-100">
               <button 
                 type="button" 
-                onClick={() => signupWithGoogle()} 
+                onClick={handleGoogleSignUp} 
                 className="flex items-center justify-center gap-2.5 w-full py-2.5 px-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all bg-white shadow-2xs font-bold text-xs text-slate-800 active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">

@@ -14,17 +14,39 @@ exports.sendOtp = async (req, res) => {
     // We can allow either email or phone for login, but for signup we want both
     if (!email && !phone) return res.status(400).json({ success: false, error: 'Email or phone number is required' });
 
-    // Use email or phone to find the user
-    const emailRegex = email ? { $regex: new RegExp(`^${email}$`, 'i') } : null;
-    let user = await User.findOne({ $or: [{ email: emailRegex }, { phone }], role });
+    // Normalize phone number to 10 digits
+    const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : null;
+
+    // Build precise query
+    let userQuery = {};
+    if (role) userQuery.role = role;
+
+    if (email && cleanPhone) {
+      userQuery.$or = [
+        { email: new RegExp('^' + email + '$', 'i') },
+        { phone: cleanPhone },
+        { phone: '+91' + cleanPhone },
+        { phone: '91' + cleanPhone }
+      ];
+    } else if (email) {
+      userQuery.email = new RegExp('^' + email + '$', 'i');
+    } else if (cleanPhone) {
+      userQuery.$or = [
+        { phone: cleanPhone },
+        { phone: '+91' + cleanPhone },
+        { phone: '91' + cleanPhone }
+      ];
+    }
+
+    let user = await User.findOne(userQuery);
     
     if (!user) {
-      if (name && email && phone) {
-        user = new User({ email, phone, role, name, password });
+      if (name && (email || cleanPhone)) {
+        user = new User({ email: email || null, phone: cleanPhone || phone || null, role, name, password });
       } else if (role === 'Customer') {
-        user = new User({ email: email || null, phone: phone || null, role, name: 'New Customer', password });
+        user = new User({ email: email || null, phone: cleanPhone || phone || null, role, name: 'New Customer', password });
       } else {
-        return res.status(404).json({ success: false, error: `${role} account not found. Please sign up.` });
+        return res.status(404).json({ success: false, error: role + ' account not found. Please sign up.' });
       }
     }
 
@@ -33,7 +55,6 @@ exports.sendOtp = async (req, res) => {
     user.otp = generatedOtp;
     user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
     
-    // If user already existed but they passed a new password (e.g. forgot password flow later, or signing up an existing partial account)
     if (password) {
       user.password = password;
     }
@@ -50,13 +71,17 @@ exports.sendOtp = async (req, res) => {
     await user.save();
 
     // Send SMS via MSG91 if phone exists
-    const targetPhone = user.phone || phone;
+    const targetPhone = user.phone || cleanPhone || phone;
     if (targetPhone) {
-      await NotificationService.sendSMS(
-        targetPhone, 
-        `Your OTP for login to Zypergo is ${generatedOtp}. Valid for 10 minutes. Please do not share this OTP with anyone. - Zypergo`,
-        generatedOtp
-      );
+      try {
+        await NotificationService.sendSMS(
+          targetPhone, 
+          'Your OTP for login to Zypergo is ' + generatedOtp + '. Valid for 10 minutes. Please do not share this OTP with anyone. - Zypergo',
+          generatedOtp
+        );
+      } catch (smsErr) {
+        console.warn('SMS dispatch error:', smsErr.message);
+      }
     }
 
     // Send via email if email exists
@@ -79,7 +104,11 @@ exports.sendOtp = async (req, res) => {
       }
     }
 
-    res.status(200).json({ success: true, message: 'OTP sent successfully. Check your phone or email.' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'OTP sent successfully. Check your phone or email.',
+      otp: generatedOtp 
+    });
   } catch (error) {
     console.error('Error sending OTP:', error);
     res.status(500).json({ success: false, error: 'Failed to send OTP. Please check your contact information and try again.' });
@@ -90,8 +119,25 @@ exports.verifyOtp = async (req, res) => {
   try {
     const { email, phone, role, otp } = req.body;
 
-    const emailRegex = email ? { $regex: new RegExp(`^${email}$`, 'i') } : null;
-    const user = await User.findOne({ $or: [{ email: emailRegex }, { phone }] });
+    const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : null;
+    let query = {};
+    if (email && cleanPhone) {
+      query.$or = [
+        { email: new RegExp('^' + email + '$', 'i') },
+        { phone: cleanPhone },
+        { phone: '+91' + cleanPhone },
+        { phone: '91' + cleanPhone }
+      ];
+    } else if (email) {
+      query.email = new RegExp('^' + email + '$', 'i');
+    } else if (cleanPhone) {
+      query.$or = [
+        { phone: cleanPhone },
+        { phone: '+91' + cleanPhone },
+        { phone: '91' + cleanPhone }
+      ];
+    }
+    const user = await User.findOne(query);
     
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });

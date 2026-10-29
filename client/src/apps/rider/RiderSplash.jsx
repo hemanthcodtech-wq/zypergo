@@ -5,7 +5,9 @@ import { LOGO_DATA_URI } from '../../assets/logoDataUri';
 
 export default function RiderSplash() {
   const navigate = useNavigate();
-  const [stage, setStage] = useState('splash'); // 'splash' -> 'welcome'
+  const isMobileApp = typeof navigator !== 'undefined' && (navigator.userAgent.includes('ZyperGo') || navigator.userAgent.includes('Mobile'));
+  // In native mobile app, show welcome screen immediately without double splash delay
+  const [stage, setStage] = useState(isMobileApp ? 'welcome' : 'splash');
 
   const isPrefix = window.location.pathname.startsWith('/rider');
   const loginPath = isPrefix ? '/rider/login' : '/login';
@@ -19,13 +21,13 @@ export default function RiderSplash() {
       return;
     }
 
-    // Fast 1.2s splash screen so it feels snappy and instant
-    const timer = setTimeout(() => {
-      setStage('welcome');
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [navigate, dashboardPath]);
+    if (stage === 'splash') {
+      const timer = setTimeout(() => {
+        setStage('welcome');
+      }, 900);
+      return () => clearTimeout(timer);
+    }
+  }, [navigate, dashboardPath, stage]);
 
   const handleSkipToWelcome = () => {
     setStage('welcome');
@@ -38,19 +40,15 @@ export default function RiderSplash() {
         onClick={handleSkipToWelcome}
         className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-amber-50/30 to-amber-100/40 text-slate-900 font-sans relative overflow-hidden select-none cursor-pointer"
       >
-        
-        {/* Ambient radiant glow circles */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Top spacer */}
         <div className="pt-8">
           <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-800/60">
             ZyperGo Partner Network
           </span>
         </div>
 
-        {/* Center: Zero-latency Instant Logo */}
         <div className="flex flex-col items-center text-center my-auto w-full px-4">
           <div className="relative flex flex-col items-center justify-center w-full">
             <div className="absolute -inset-10 bg-gradient-to-r from-amber-400/20 via-orange-500/25 to-yellow-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
@@ -73,7 +71,6 @@ export default function RiderSplash() {
           </div>
         </div>
 
-        {/* Bottom Loading Progress Bar with Skip */}
         <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
           <div className="w-full h-1.5 bg-amber-200/70 rounded-full overflow-hidden p-0.5">
             <div className="h-full bg-gradient-to-r from-amber-500 via-[#FF6B00] to-yellow-500 rounded-full animate-splash-progress" />
@@ -82,12 +79,11 @@ export default function RiderSplash() {
             Tap to continue
           </span>
         </div>
-
       </div>
     );
   }
 
-  // 2. Welcome & Login Screen (Revealed smoothly)
+  // 2. Welcome & Login Screen (Instant Zero-Latency Render)
   return (
     <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-amber-50/50 via-white to-amber-50/30 text-slate-900 font-sans selection:bg-[#FFB703] selection:text-black">
       
