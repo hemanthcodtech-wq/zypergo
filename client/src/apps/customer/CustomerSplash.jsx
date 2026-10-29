@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Zap, Star, ArrowRight } from 'lucide-react';
 import { LOGO_DATA_URI } from '../../assets/logoDataUri';
+import { SPLASH_LOGO_DATA_URI } from '../../assets/splashLogoDataUri';
 import { FLEET_HERO_DATA_URI } from '../../assets/fleetHeroDataUri';
 
 export default function CustomerSplash() {
@@ -55,7 +56,7 @@ export default function CustomerSplash() {
             <div className="absolute -inset-10 bg-gradient-to-r from-blue-500/15 via-orange-500/20 to-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
             
             <img 
-              src={LOGO_DATA_URI || "/images/logo.png"} 
+              src={SPLASH_LOGO_DATA_URI || "/images/splash-logo.png"} 
               alt="ZyperGo Logo" 
               className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
               loading="eager"
@@ -64,11 +65,7 @@ export default function CustomerSplash() {
           </div>
 
           <div className="mt-6 flex flex-col items-center text-center">
-            <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#0052CC] text-[10px] font-black uppercase tracking-wider shadow-xs mb-3">
-              Customer App
-            </span>
-            <p className="text-sm font-black text-slate-800 tracking-tight">Trusted logistics made simple.</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">ZyperGo • Fast • Secure • Reliable</p>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight capitalize">welcome to customer app</h1>
           </div>
         </div>
 

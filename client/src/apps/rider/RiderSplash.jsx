@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation, Banknote, ShieldCheck, ArrowRight, Zap } from 'lucide-react';
 import { LOGO_DATA_URI } from '../../assets/logoDataUri';
+import { SPLASH_LOGO_DATA_URI } from '../../assets/splashLogoDataUri';
 
 export default function RiderSplash() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export default function RiderSplash() {
             <div className="absolute -inset-10 bg-gradient-to-r from-amber-400/20 via-orange-500/25 to-yellow-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
             
             <img 
-              src={LOGO_DATA_URI || "/images/logo.png"} 
+              src={SPLASH_LOGO_DATA_URI || "/images/splash-logo.png"} 
               alt="ZyperGo Logo" 
               className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
               loading="eager"
@@ -63,11 +64,7 @@ export default function RiderSplash() {
           </div>
 
           <div className="mt-6 flex flex-col items-center text-center">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black uppercase tracking-wider shadow-xs mb-3">
-              Rider Partner App
-            </span>
-            <p className="text-sm font-black text-slate-800 tracking-tight">Trusted logistics made simple.</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">ZyperGo • Fast • Secure • Reliable</p>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight capitalize">welcome to rider app</h1>
           </div>
         </div>
 

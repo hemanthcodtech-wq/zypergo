@@ -214,12 +214,11 @@ export default function App() {
           <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]} pointerEvents="none">
             <View style={styles.splashContent}>
               <Image 
-                source={require('./assets/icon.png')} 
+                source={require('./assets/splash-logo.png')} 
                 style={styles.splashLogo} 
                 resizeMode="contain" 
               />
-              <Text style={styles.splashBrand}>ZyperGo Rider</Text>
-              <Text style={styles.splashTagline}>Drive, Deliver & Earn Daily</Text>
+              <Text style={styles.splashBrand}>welcome to rider app</Text>
             </View>
           </Animated.View>
         )}
@@ -333,21 +332,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   splashLogo: {
-    width: 140,
+    width: 220,
     height: 140,
     marginBottom: 16,
   },
   splashBrand: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#D97706',
-    letterSpacing: 0.5,
-  },
-  splashTagline: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-    marginTop: 4,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: 0.3,
+    textTransform: 'capitalize',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,
