@@ -17,36 +17,37 @@ exports.sendOtp = async (req, res) => {
     // Normalize phone number to 10 digits
     const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : null;
 
-    // Build precise query
-    let userQuery = {};
-    if (role) userQuery.role = role;
-
-    if (email && cleanPhone) {
-      userQuery.$or = [
-        { email: new RegExp('^' + email + '$', 'i') },
+    // Search for user by email or phone across all roles first to prevent E11000 duplicate key crashes
+    let searchConditions = [];
+    if (email) {
+      searchConditions.push({ email: new RegExp('^' + email + '$', 'i') });
+    }
+    if (cleanPhone) {
+      searchConditions.push(
         { phone: cleanPhone },
         { phone: '+91' + cleanPhone },
         { phone: '91' + cleanPhone }
-      ];
-    } else if (email) {
-      userQuery.email = new RegExp('^' + email + '$', 'i');
-    } else if (cleanPhone) {
-      userQuery.$or = [
-        { phone: cleanPhone },
-        { phone: '+91' + cleanPhone },
-        { phone: '91' + cleanPhone }
-      ];
+      );
     }
 
-    let user = await User.findOne(userQuery);
+    let user = await User.findOne({ $or: searchConditions });
     
-    if (!user) {
+    if (user) {
+      // Validate role if portal requires a specific role
+      if (role && user.role !== role && user.role !== 'SuperAdmin') {
+        return res.status(403).json({
+          success: false,
+          error: 'This account is already registered as ' + user.role + '. Please use the ' + user.role + ' app to login.'
+        });
+      }
+    } else {
+      // New user registration / customer quick login
       if (name && (email || cleanPhone)) {
-        user = new User({ email: email || null, phone: cleanPhone || phone || null, role, name, password });
+        user = new User({ email: email || null, phone: cleanPhone || phone || null, role: role || 'Customer', name, password });
       } else if (role === 'Customer') {
-        user = new User({ email: email || null, phone: cleanPhone || phone || null, role, name: 'New Customer', password });
+        user = new User({ email: email || null, phone: cleanPhone || phone || null, role: 'Customer', name: 'Customer User', password });
       } else {
-        return res.status(404).json({ success: false, error: role + ' account not found. Please sign up.' });
+        return res.status(404).json({ success: false, error: (role || 'User') + ' account not found. Please sign up first.' });
       }
     }
 
@@ -74,11 +75,12 @@ exports.sendOtp = async (req, res) => {
     const targetPhone = user.phone || cleanPhone || phone;
     if (targetPhone) {
       try {
-        await NotificationService.sendSMS(
+        const smsRes = await NotificationService.sendSMS(
           targetPhone, 
           'Your OTP for login to Zypergo is ' + generatedOtp + '. Valid for 10 minutes. Please do not share this OTP with anyone. - Zypergo',
           generatedOtp
         );
+        console.log('[sendOtp] MSG91 SMS dispatch result:', smsRes);
       } catch (smsErr) {
         console.warn('SMS dispatch error:', smsErr.message);
       }
