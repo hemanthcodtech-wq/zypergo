@@ -27,11 +27,35 @@ export default function App() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Instant native splash state (0ms display, zero white screen delay)
+  const [showSplash, setShowSplash] = useState(true);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
   // Dev URL modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
 
-  // 1. Load saved custom URL if any
+  // 1. Splash screen animation (runs every time the app opens)
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2200,
+      useNativeDriver: false,
+    }).start();
+
+    const timer = setTimeout(() => {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }).start(() => setShowSplash(false));
+    }, 2200);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 2. Load saved custom URL if any
   useEffect(() => {
     (async () => {
       try {
@@ -195,6 +219,40 @@ export default function App() {
           }}
         />
 
+        {/* Instant Native Splash Screen (Loads at 0ms, eliminates initial white screen) */}
+        {showSplash && (
+          <Animated.View style={[styles.splashOverlay, { opacity: splashOpacity }]} pointerEvents="none">
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={styles.splashContent}>
+              <View style={styles.splashLogoContainer}>
+                <Image 
+                  source={require('./assets/splash-logo.png')} 
+                  style={styles.splashLogo} 
+                  resizeMode="contain" 
+                />
+              </View>
+              <Text style={styles.splashBrand}>welcome to customer app</Text>
+            </View>
+
+            <View style={styles.splashFooter}>
+              <View style={styles.progressBarTrack}>
+                <Animated.View 
+                  style={[
+                    styles.progressBarFill, 
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%']
+                      })
+                    }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.splashLoadingText}>ZyperGo Logistics</Text>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Friendly Error Screen */}
         {hasError && (
           <View style={styles.errorOverlay}>
@@ -291,6 +349,65 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    zIndex: 999,
+  },
+  splashContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 'auto',
+    marginBottom: 'auto',
+  },
+  splashLogoContainer: {
+    width: 260,
+    height: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  splashLogo: {
+    width: '100%',
+    height: '100%',
+  },
+  splashBrand: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 0.2,
+    textTransform: 'capitalize',
+    textAlign: 'center',
+  },
+  splashFooter: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  progressBarTrack: {
+    width: 180,
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#0052CC',
+    borderRadius: 2,
+  },
+  splashLoadingText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   errorOverlay: {
     ...StyleSheet.absoluteFillObject,
