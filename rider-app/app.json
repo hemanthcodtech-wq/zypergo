@@ -6,7 +6,10 @@
     "version": "1.0.0",
     "sdkVersion": "52.0.0",
     "newArchEnabled": false,
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -35,7 +38,10 @@
               "scheme": "zypergorider"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -53,8 +59,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ff922cfa-96b6-49e5-bc2f-b942c2d41e2a"
+        "projectId": "f432e416-924b-415b-bc2c-35fdb74d9892"
       }
-    }
+    },
+    "owner": "student14s-team"
   }
 }
