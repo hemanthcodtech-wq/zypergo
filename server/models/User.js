@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema({
     required: true
   },
   photoUrl: String,
+  vehicleImageUrl: String,
   preferredLanguage: {
     type: String,
     default: 'EN'

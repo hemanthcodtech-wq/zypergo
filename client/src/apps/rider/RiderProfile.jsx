@@ -100,6 +100,7 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
   
   const photoInputRef = useRef(null);
   const modalVehicleInputRef = useRef(null);
+  const directVehicleInputRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -122,11 +123,31 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
         const parsed = JSON.parse(userStr);
         const userId = parsed.id || parsed._id;
         const persistentPhoto = localStorage.getItem('zypergo_profile_photo_' + (userId || parsed.phone));
+        const persistentVehPhoto = localStorage.getItem('zypergo_vehicle_photo_' + (userId || parsed.phone));
         if (persistentPhoto) {
           parsed.photoUrl = persistentPhoto;
         }
+        if (persistentVehPhoto && !parsed.riderDetails?.vehicleImageUrl) {
+          if (!parsed.riderDetails) parsed.riderDetails = {};
+          parsed.riderDetails.vehicleImageUrl = persistentVehPhoto;
+          parsed.vehicleImageUrl = persistentVehPhoto;
+        }
         setUser(parsed);
         initEditForm(parsed);
+
+        // Fetch fresh profile from database to ensure permanent persistence across logins
+        api.get('/users/profile').then(res => {
+          if (res.data?.success && res.data?.data) {
+            const dbUser = res.data.data;
+            const vehPic = dbUser.vehicleImageUrl || dbUser.riderDetails?.vehicleImageUrl || dbUser.riderDetails?.documents?.vehiclePicUrl;
+            if (vehPic && userId) {
+              localStorage.setItem('zypergo_vehicle_photo_' + userId, vehPic);
+            }
+            setUser(prev => ({ ...prev, ...dbUser }));
+            initEditForm(dbUser);
+            localStorage.setItem('zypergo_user', JSON.stringify({ ...parsed, ...dbUser }));
+          }
+        }).catch(() => {});
 
         // Fetch real rider stats from backend
         if (userId) {
@@ -190,7 +211,11 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
   const profileImg = user?.photoUrl || user?.riderDetails?.documents?.profileImageUrl;
   const currentVehicleType = user?.riderDetails?.vehicleType || 'Bike';
   const currentVehicleNumber = user?.riderDetails?.vehicleRegistration || user?.riderDetails?.vehicleNumber || 'TS 09 EA 1234';
-  const currentVehicleImage = user?.riderDetails?.vehicleImageUrl || user?.riderDetails?.documents?.vehiclePicUrl;
+  const currentVehicleImage = 
+    user?.riderDetails?.vehicleImageUrl || 
+    user?.riderDetails?.documents?.vehiclePicUrl || 
+    user?.vehicleImageUrl || 
+    (user?.id || user?._id || user?.phone ? localStorage.getItem('zypergo_vehicle_photo_' + (user.id || user._id || user.phone)) : null);
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -260,25 +285,127 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     }
   };
 
+  const handleDirectVehiclePicUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingVehiclePic(true);
+    setMessage('');
+
+    const base64Promise = new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+
+    try {
+      const base64Data = await base64Promise;
+      let finalVehUrl = '';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/upload', formData);
+        if (res.data?.success && res.data?.url) {
+          finalVehUrl = getImageUrl(res.data.url);
+        }
+      } catch (err) {
+        console.warn('Cloudinary upload fallback to base64:', err.message);
+      }
+
+      if (!finalVehUrl) {
+        finalVehUrl = base64Data;
+      }
+
+      const userId = user.id || user._id || user.phone;
+      if (userId) {
+        localStorage.setItem('zypergo_vehicle_photo_' + userId, finalVehUrl);
+      }
+
+      const updatedUser = {
+        ...user,
+        vehicleImageUrl: finalVehUrl,
+        riderDetails: {
+          ...(user.riderDetails || {}),
+          vehicleImageUrl: finalVehUrl,
+          documents: {
+            ...(user.riderDetails?.documents || {}),
+            vehiclePicUrl: finalVehUrl
+          }
+        }
+      };
+
+      setUser(updatedUser);
+      localStorage.setItem('zypergo_user', JSON.stringify(updatedUser));
+      setEditForm(prev => ({ ...prev, vehicleImageUrl: finalVehUrl }));
+
+      // Save directly to MongoDB database
+      await api.put('/users/profile', {
+        id: user.id || user._id,
+        phone: user.phone,
+        email: user.email,
+        vehicleImageUrl: finalVehUrl,
+        riderDetails: {
+          vehicleImageUrl: finalVehUrl,
+          documents: {
+            vehiclePicUrl: finalVehUrl
+          }
+        }
+      });
+
+      setMessage('Vehicle photo saved to database permanently!');
+      setTimeout(() => setMessage(''), 3500);
+    } catch (error) {
+      console.error('Error saving vehicle photo:', error);
+      setMessage('Failed to save vehicle photo. Please try again.');
+      setTimeout(() => setMessage(''), 3500);
+    } finally {
+      setUploadingVehiclePic(false);
+      if (directVehicleInputRef.current) {
+        directVehicleInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleVehiclePicUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const localPreview = URL.createObjectURL(file);
-    setEditForm(prev => ({ ...prev, vehicleImageUrl: localPreview }));
     setUploadingVehiclePic(true);
 
-    const formData = new FormData();
-    formData.append('file', file);
+    const base64Promise = new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
 
     try {
-      const res = await api.post('/upload', formData);
-      if (res.data?.success && res.data?.url) {
-        const resolved = getImageUrl(res.data.url);
-        setEditForm(prev => ({ ...prev, vehicleImageUrl: resolved }));
+      const base64Data = await base64Promise;
+      let resolved = '';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await api.post('/upload', formData);
+        if (res.data?.success && res.data?.url) {
+          resolved = getImageUrl(res.data.url);
+        }
+      } catch (err) {
+        console.warn("Upload fallback to base64:", err.message);
       }
+
+      if (!resolved) {
+        resolved = base64Data;
+      }
+
+      const userId = user.id || user._id || user.phone;
+      if (userId) {
+        localStorage.setItem('zypergo_vehicle_photo_' + userId, resolved);
+      }
+
+      setEditForm(prev => ({ ...prev, vehicleImageUrl: resolved }));
     } catch (err) {
-      console.warn("Upload fallback to local preview:", err.message);
+      console.error(err);
     } finally {
       setUploadingVehiclePic(false);
     }
@@ -759,20 +886,29 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
             </div>
           </div>
 
-          {/* Quick link if no photo uploaded */}
-          {!currentVehicleImage && (
-            <button
-              type="button"
-              onClick={() => {
-                initEditForm(user);
-                setIsEditing(true);
-              }}
-              className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold border border-dashed border-amber-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Plus size={13} />
-              <span>Upload Vehicle Photo</span>
-            </button>
-          )}
+          {/* Hidden File Input for Direct Vehicle Photo Upload */}
+          <input 
+            type="file" 
+            ref={directVehicleInputRef} 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleDirectVehiclePicUpload} 
+          />
+
+          {/* Upload or Change Vehicle Photo Button */}
+          <button
+            type="button"
+            disabled={uploadingVehiclePic}
+            onClick={() => directVehicleInputRef.current?.click()}
+            className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl text-xs font-bold border border-dashed border-amber-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+          >
+            {uploadingVehiclePic ? (
+              <Loader2 size={14} className="animate-spin text-amber-700" />
+            ) : (
+              <Camera size={14} className="text-amber-700" />
+            )}
+            <span>{uploadingVehiclePic ? 'Saving to database...' : (currentVehicleImage ? 'Change Vehicle Photo' : 'Upload Vehicle Photo')}</span>
+          </button>
         </div>
 
         {/* Grouped Details Cards */}

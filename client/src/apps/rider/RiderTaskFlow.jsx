@@ -482,38 +482,63 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
 
       {/* Exception (NDR) Modal */}
       {showExceptionModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl p-5 w-full animate-in zoom-in-95 duration-200">
-            <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight flex items-center gap-2">
-              <XCircle className="text-red-500" /> Report Issue
-            </h3>
-            <p className="text-sm text-slate-500 mb-6 font-medium">Please select the reason why this task cannot be completed. This will be logged for operations.</p>
-            
-            <div className="space-y-3 mb-6">
-              {['Customer Unavailable', 'Parcel Not Ready / Unpacked', 'Prohibited Item Detected', 'Wrong Address Provided', 'Payment Not Ready', 'Customer Cancelled'].map(reason => (
-                <button 
-                  key={reason}
-                  onClick={() => setExceptionReason(reason)}
-                  className={`w-full text-left p-4 rounded-2xl border ${exceptionReason === reason ? 'border-red-500 bg-red-50 text-red-700 shadow-inner' : 'border-white/60 bg-white/60 shadow-sm text-slate-700 hover:bg-white'} font-bold text-sm transition-all`}
-                >
-                  {reason}
-                </button>
-              ))}
-            </div>
-
-            <div className="border border-white/60 shadow-sm rounded-2xl p-4 mb-8 bg-white/60 backdrop-blur-sm cursor-pointer flex items-center gap-3 hover:bg-white transition-colors">
-                <Camera size={20} className="text-slate-400" />
-                <span className="font-bold text-slate-600 text-sm">Upload Proof (Mandatory)</span>
-            </div>
-
-            <div className="flex gap-4">
-              <button onClick={() => setShowExceptionModal(false)} className="flex-1 py-4 bg-white/60 border border-white/60 shadow-sm text-slate-700 font-black rounded-2xl hover:bg-white transition-colors">Cancel</button>
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl p-5 w-full max-w-sm my-auto max-h-[82vh] flex flex-col border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-2">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <XCircle className="text-red-500" size={20} /> Report Issue
+              </h3>
               <button 
+                type="button"
+                onClick={() => setShowExceptionModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors text-xs font-black cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Scrollable Modal Content */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 py-1">
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Please select the reason why this task cannot be completed. This will be logged for operations.
+              </p>
+              
+              <div className="space-y-2">
+                {['Customer Unavailable', 'Parcel Not Ready / Unpacked', 'Prohibited Item Detected', 'Wrong Address Provided', 'Payment Not Ready', 'Customer Cancelled'].map(reason => (
+                  <button 
+                    key={reason}
+                    type="button"
+                    onClick={() => setExceptionReason(reason)}
+                    className={`w-full text-left p-3 rounded-xl border ${exceptionReason === reason ? 'border-red-500 bg-red-50 text-red-700 shadow-xs ring-2 ring-red-100' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'} font-bold text-xs transition-all`}
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+
+              <div className="border border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 cursor-pointer flex items-center gap-2.5 hover:bg-slate-100 transition-colors">
+                <Camera size={18} className="text-slate-400" />
+                <span className="font-bold text-slate-600 text-xs">Upload Proof (Mandatory)</span>
+              </div>
+            </div>
+
+            {/* Sticky Action Buttons */}
+            <div className="flex gap-2.5 pt-3 border-t border-slate-100 shrink-0 mt-2">
+              <button 
+                type="button"
+                onClick={() => setShowExceptionModal(false)} 
+                className="flex-1 py-3 bg-slate-100 text-slate-700 font-black rounded-xl hover:bg-slate-200 transition-colors text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
                 onClick={() => updateStatus(exceptionType, true)} 
                 disabled={!exceptionReason || loading}
-                className="flex-[2] py-4 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-2xl shadow-[0_8px_20px_-6px_rgba(239,68,68,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(239,68,68,0.6)] disabled:opacity-50 transition-all hover:-translate-y-1"
+                className="flex-[2] py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-black rounded-xl shadow-md disabled:opacity-50 transition-all text-xs cursor-pointer"
               >
-                Submit & {exceptionType === 'Cancelled' ? 'Cancel Job' : 'Mark Failed'}
+                {loading ? 'Submitting...' : `Submit & ${exceptionType === 'Cancelled' ? 'Cancel Job' : 'Mark Failed'}`}
               </button>
             </div>
           </div>

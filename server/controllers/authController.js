@@ -195,9 +195,14 @@ exports.verifyOtp = async (req, res) => {
       token,
       data: {
         id: user._id,
+        _id: user._id,
         name: user.name,
+        email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        photoUrl: user.photoUrl,
+        vehicleImageUrl: user.vehicleImageUrl || user.riderDetails?.vehicleImageUrl,
+        riderDetails: user.riderDetails
       }
     });
   } catch (error) {
@@ -273,9 +278,14 @@ exports.loginWithPassword = async (req, res) => {
       token,
       data: {
         id: user._id,
+        _id: user._id,
         name: user.name,
+        email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        photoUrl: user.photoUrl,
+        vehicleImageUrl: user.vehicleImageUrl || user.riderDetails?.vehicleImageUrl,
+        riderDetails: user.riderDetails
       }
     });
   } catch (error) {

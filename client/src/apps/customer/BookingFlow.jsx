@@ -5,7 +5,7 @@ import {
   Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
   Map, Bookmark, Home, Building2, Search, Navigation 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -30,6 +30,68 @@ function MapCenterTracker({ onMoveEnd }) {
       onMoveEnd(center.lat, center.lng);
     }
   });
+  return null;
+}
+
+// Rapido-Style Captain marker icons
+const createCaptainIcon = (heading = 45) => {
+  return L.divIcon({
+    className: 'custom-captain-icon',
+    html: `
+      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;" class="relative flex items-center justify-center">
+        <div style="background: linear-gradient(135deg, #FDB813, #F59E0B); box-shadow: 0 4px 10px rgba(0,0,0,0.25);" class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-slate-900">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+          </svg>
+        </div>
+        <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></span>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
+const createPickupMarkerIcon = () => {
+  return L.divIcon({
+    className: 'pickup-marker-icon',
+    html: `
+      <div class="relative flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full bg-[#0052CC] border-2 border-white shadow-lg flex items-center justify-center text-white font-black text-xs">
+          📍
+        </div>
+        <div class="w-2 h-2 bg-[#0052CC] rotate-45 -mt-1"></div>
+      </div>
+    `,
+    iconSize: [32, 36],
+    iconAnchor: [16, 36]
+  });
+};
+
+const createDropMarkerIcon = () => {
+  return L.divIcon({
+    className: 'drop-marker-icon',
+    html: `
+      <div class="relative flex flex-col items-center">
+        <div class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-white shadow-lg flex items-center justify-center text-white font-black text-xs">
+          🏁
+        </div>
+        <div class="w-2 h-2 bg-emerald-600 rotate-45 -mt-1"></div>
+      </div>
+    `,
+    iconSize: [32, 36],
+    iconAnchor: [16, 36]
+  });
+};
+
+function MapFitBounds({ pickup, drop }) {
+  const map = useMap();
+  useEffect(() => {
+    if (pickup && drop && pickup[0] && drop[0]) {
+      const bounds = L.latLngBounds([pickup, drop]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
+  }, [pickup, drop, map]);
   return null;
 }
 
@@ -63,6 +125,8 @@ export default function BookingFlow() {
   const [flyTarget, setFlyTarget] = useState(null);
   const [tempLocation, setTempLocation] = useState(null);
   const [userLocation, setUserLocation] = useState([17.3850, 78.4867]);
+  const [pickupCoords, setPickupCoords] = useState([17.3850, 78.4867]);
+  const [dropCoords, setDropCoords] = useState([17.4120, 78.5040]);
 
   const [showPayment, setShowPayment] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -306,6 +370,11 @@ export default function BookingFlow() {
       setFlyTarget([item.lat, item.lng]);
       setTempLocation({ lat: item.lat, lng: item.lng });
       setResolvedAddress(item.text);
+      if (mapModal.targetField === 'pickupAddress') {
+        setPickupCoords([item.lat, item.lng]);
+      } else if (mapModal.targetField === 'dropAddress') {
+        setDropCoords([item.lat, item.lng]);
+      }
       return;
     }
     try {
@@ -356,6 +425,13 @@ export default function BookingFlow() {
       setFormData(prev => ({ ...prev, [mapModal.targetField]: resolvedAddress }));
     } else if (tempLocation) {
       setFormData(prev => ({ ...prev, [mapModal.targetField]: `${tempLocation.lat.toFixed(5)}, ${tempLocation.lng.toFixed(5)}` }));
+    }
+    if (tempLocation) {
+      if (mapModal.targetField === 'pickupAddress') {
+        setPickupCoords([tempLocation.lat, tempLocation.lng]);
+      } else if (mapModal.targetField === 'dropAddress') {
+        setDropCoords([tempLocation.lat, tempLocation.lng]);
+      }
     }
     setMapModal({ show: false, targetField: '' });
   };
@@ -654,63 +730,143 @@ export default function BookingFlow() {
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
           <Header title="Select Vehicle / Service" />
           
-          <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-3">
+          {/* Rapido-Style Top Live Map with Route & Nearby Vehicles */}
+          <div className="relative w-full h-[230px] shrink-0 border-b border-slate-200 bg-slate-100 overflow-hidden shadow-xs">
+            <MapContainer
+              center={pickupCoords}
+              zoom={14}
+              zoomControl={false}
+              attributionControl={false}
+              style={{ height: '100%', width: '100%', zIndex: 0 }}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <MapFitBounds pickup={pickupCoords} drop={dropCoords} />
+
+              {/* Route Polyline connecting pickup to drop */}
+              <Polyline 
+                positions={[pickupCoords, dropCoords]} 
+                color="#0052CC" 
+                weight={4} 
+                opacity={0.85} 
+                dashArray="6, 8"
+              />
+
+              {/* Pickup Marker */}
+              <Marker position={pickupCoords} icon={createPickupMarkerIcon()} />
+
+              {/* Drop Marker */}
+              <Marker position={dropCoords} icon={createDropMarkerIcon()} />
+
+              {/* Nearby Online Captains clustered around pickup location */}
+              {[
+                { id: 'bc1', lat: pickupCoords[0] + 0.0025, lng: pickupCoords[1] + 0.0022, heading: 45 },
+                { id: 'bc2', lat: pickupCoords[0] - 0.0021, lng: pickupCoords[1] + 0.0028, heading: 110 },
+                { id: 'bc3', lat: pickupCoords[0] + 0.0032, lng: pickupCoords[1] - 0.0024, heading: 220 },
+                { id: 'bc4', lat: pickupCoords[0] - 0.0028, lng: pickupCoords[1] - 0.0022, heading: 315 },
+                { id: 'bc5', lat: pickupCoords[0] + 0.0014, lng: pickupCoords[1] - 0.0032, heading: 80 },
+              ].map(c => (
+                <Marker 
+                  key={c.id} 
+                  position={[c.lat, c.lng]} 
+                  icon={createCaptainIcon(c.heading)} 
+                />
+              ))}
+            </MapContainer>
+
+            {/* Top Nearby Captains Badge */}
+            <div className="absolute top-2.5 left-2.5 z-10">
+              <div className="flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-full shadow-md border border-white/20 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-black text-[11px]">⚡ 5 Captains nearby pickup</span>
+                <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                  2-3 mins
+                </span>
+              </div>
+            </div>
+
+            {/* Route Summary Pill */}
+            <div className="absolute bottom-2 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
+              <div className="bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md border border-slate-200/80 text-[10px] font-black text-slate-800 flex items-center gap-2 pointer-events-auto">
+                <span className="text-blue-700">📍 {formData.pickupAddress?.split(',')[0] || 'Pickup'}</span>
+                <span className="text-slate-400">→</span>
+                <span className="text-emerald-700">🏁 {formData.dropAddress?.split(',')[0] || 'Drop'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Vehicle Selection Bottom Sheet */}
+          <div className="p-3.5 flex-1 overflow-y-auto pb-24 space-y-2.5">
+             <div className="flex items-center justify-between mb-1">
+               <p className="text-xs font-black text-slate-900 uppercase tracking-wider">Available Vehicles</p>
+               <span className="text-[10px] font-bold text-slate-500">Fastest Match</span>
+             </div>
+
              <VehicleOption 
-                name="Scooter" weight="20 Kg" time="10 mins" 
-                icon={<img src="/images/bike.png" alt="Scooter" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                name="Scooter" weight="20 Kg" time="2 mins" 
+                icon={<img src="/images/bike.png" alt="Scooter" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === 'Scooter'} 
                 onClick={() => setFormData({...formData, vehicle: 'Scooter'})} 
              />
              <VehicleOption 
-                name="Mini 3W" weight="90 Kg" time="1 mins" 
-                icon={<img src="/images/miniAuto.png" alt="Mini 3W" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                name="Mini 3W" weight="90 Kg" time="1 min" 
+                icon={<img src="/images/miniAuto.png" alt="Mini 3W" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === 'Mini 3W'} 
                 onClick={() => setFormData({...formData, vehicle: 'Mini 3W'})} 
              />
              <VehicleOption 
                 name="3 Wheeler" weight="500 kg" time="3 mins" 
-                icon={<img src="/images/3%20wheeler.png" alt="3 Wheeler" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                icon={<img src="/images/3%20wheeler.png" alt="3 Wheeler" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === '3 Wheeler'} 
                 onClick={() => setFormData({...formData, vehicle: '3 Wheeler'})} 
              />
              <VehicleOption 
-                name="Tata Ace" weight="750 kg" time="10 mins" 
-                icon={<img src="/images/tataace.png" alt="Tata Ace" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                name="Tata Ace" weight="750 kg" time="8 mins" 
+                icon={<img src="/images/tataace.png" alt="Tata Ace" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === 'Tata Ace'} 
                 onClick={() => setFormData({...formData, vehicle: 'Tata Ace'})} 
              />
              <VehicleOption 
                 name="Pickup 8ft" weight="1200 kg" time="10 mins" 
-                icon={<img src="/images/pickup8ft.png" alt="Pickup 8ft" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                icon={<img src="/images/pickup8ft.png" alt="Pickup 8ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === 'Pickup 8ft'} 
                 onClick={() => setFormData({...formData, vehicle: 'Pickup 8ft'})} 
              />
              <VehicleOption 
                 name="Pickup 9ft" weight="1700 Kg" time="9 mins" 
-                icon={<img src="/images/9ft.png" alt="Pickup 9ft" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                icon={<img src="/images/9ft.png" alt="Pickup 9ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === 'Pickup 9ft'} 
                 onClick={() => setFormData({...formData, vehicle: 'Pickup 9ft'})} 
              />
              <VehicleOption 
                 name="14ft" weight="3500 Kg" time="20 mins" 
-                icon={<img src="/images/14ft.png" alt="14ft" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                icon={<img src="/images/14ft.png" alt="14ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === '14ft'} 
                 onClick={() => setFormData({...formData, vehicle: '14ft'})} 
              />
              <VehicleOption 
                 name="17ft" weight="6000 Kg" time="25 mins" 
-                icon={<img src="/images/17ft.png" alt="17ft" className="w-20 h-20 object-contain drop-shadow-sm" />}
+                icon={<img src="/images/17ft.png" alt="17ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
                 selected={formData.vehicle === '17ft'} 
                 onClick={() => setFormData({...formData, vehicle: '17ft'})} 
              />
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white mt-auto">
+          {/* Sticky Bottom Actions */}
+          <div className="p-3.5 border-t border-slate-100 bg-white mt-auto flex gap-2">
              <button 
+                type="button"
                 onClick={() => setStep(3)}
-                className="w-full bg-[#FFB703] text-slate-900 font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(255,183,3,0.5)] active:scale-[0.98] hover:bg-amber-400 transition-all cursor-pointer"
-              >
-               Continue
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black py-3.5 rounded-xl text-xs transition-all cursor-pointer"
+             >
+               Schedule
+             </button>
+             <button 
+                type="button"
+                onClick={() => setStep(3)}
+                className="flex-[2] bg-[#0052CC] hover:bg-blue-700 text-white font-black py-3.5 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] active:scale-[0.98] transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+             >
+               <span>Book {formData.vehicle} • ₹{estimatedFare}</span>
+               <ArrowRight size={14} strokeWidth={2.5} />
              </button>
           </div>
         </div>

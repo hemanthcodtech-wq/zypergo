@@ -45,7 +45,6 @@ function CustomerLayout() {
   return (
     <div 
       className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden"
-      style={{ transform: 'translate3d(0, 0, 0)' }}
     >
       
       {/* App Main Content View */}

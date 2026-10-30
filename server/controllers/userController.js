@@ -1,12 +1,41 @@
 const User = require('../models/User');
 const NotificationService = require('../services/notificationService');
+const jwt = require('jsonwebtoken');
 
 exports.getProfile = async (req, res) => {
   try {
-    // In a real application, req.user._id would be populated by authMiddleware.
-    // Since auth is mocked for now, we'll try to find any customer or the first user,
-    // or rely on a query param/header if provided. For now, we fetch the first customer.
-    let user = await User.findOne({ role: 'Customer' });
+    let tokenUserId = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        tokenUserId = decoded.id;
+      } catch (e) {}
+    }
+
+    let user;
+    if (tokenUserId) {
+      user = await User.findById(tokenUserId).select('-password');
+    }
+    if (!user && req.user && req.user.id) {
+      user = await User.findById(req.user.id).select('-password');
+    }
+    if (!user && req.query.userId) {
+      user = await User.findById(req.query.userId).select('-password');
+    }
+    if (!user && req.query.phone) {
+      const cleanPhone = String(req.query.phone).replace(/\D/g, '').slice(-10);
+      user = await User.findOne({ 
+        $or: [
+          { phone: cleanPhone },
+          { phone: '+91' + cleanPhone },
+          { phone: '91' + cleanPhone }
+        ] 
+      }).select('-password');
+    }
+    if (!user) {
+      user = await User.findOne({ role: 'Customer' });
+    }
     if (!user) {
       user = await User.findOne();
     }
@@ -24,15 +53,40 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, phone, email, photoUrl, address, riderDetails } = req.body;
+    const { 
+      name, phone, email, photoUrl, address, riderDetails, 
+      vehicleType, vehicleNumber, vehicleRegistration, vehicleImageUrl, vehiclePhoto 
+    } = req.body;
     
-    // Find user by JWT id or phone or email
+    let tokenUserId = null;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        tokenUserId = decoded.id;
+      } catch (e) {}
+    }
+
+    // Find user by JWT token id, body id, phone, or email
     let user;
-    if (req.user && req.user.id) {
+    if (tokenUserId) {
+      user = await User.findById(tokenUserId);
+    }
+    if (!user && (req.body.id || req.body._id)) {
+      user = await User.findById(req.body.id || req.body._id);
+    }
+    if (!user && req.user && req.user.id) {
       user = await User.findById(req.user.id);
     }
     if (!user && phone) {
-      user = await User.findOne({ phone });
+      const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+      user = await User.findOne({ 
+        $or: [
+          { phone: cleanPhone },
+          { phone: '+91' + cleanPhone },
+          { phone: '91' + cleanPhone }
+        ] 
+      });
     }
     if (!user && email) {
       user = await User.findOne({ email });
@@ -59,23 +113,28 @@ exports.updateProfile = async (req, res) => {
         }
       }
     }
-    if (user.role === 'Rider') {
-      const { vehicleType, vehicleNumber, vehicleRegistration, vehicleImageUrl } = req.body;
-      const vehReg = vehicleNumber || vehicleRegistration || riderDetails?.vehicleRegistration;
-      const vehType = vehicleType || riderDetails?.vehicleType;
-      const vehImg = vehicleImageUrl || riderDetails?.vehicleImageUrl || riderDetails?.documents?.vehiclePicUrl;
 
+    // Vehicle details update - persistent for Rider or any user
+    const vehReg = vehicleNumber || vehicleRegistration || riderDetails?.vehicleRegistration;
+    const vehType = vehicleType || riderDetails?.vehicleType;
+    const vehImg = vehicleImageUrl || vehiclePhoto || riderDetails?.vehicleImageUrl || riderDetails?.documents?.vehiclePicUrl;
+
+    if (vehImg) {
+      user.vehicleImageUrl = vehImg;
+    }
+
+    if (user.role === 'Rider' || vehType || vehReg || vehImg || riderDetails) {
       user.riderDetails = {
         ...(user.riderDetails || {}),
         ...(riderDetails || {}),
         ...(vehType ? { vehicleType: vehType } : {}),
-        ...(vehReg !== undefined ? { vehicleRegistration: vehReg } : {}),
+        ...(vehReg !== undefined ? { vehicleRegistration: vehReg, vehicleNumber: vehReg } : {}),
         ...(vehImg !== undefined ? { vehicleImageUrl: vehImg } : {}),
         documents: {
           ...(user.riderDetails?.documents || {}),
           ...(riderDetails?.documents || {}),
           ...(vehImg ? { vehiclePicUrl: vehImg } : {}),
-          profileImageUrl: photoUrl || riderDetails?.documents?.profileImageUrl || user.riderDetails?.documents?.profileImageUrl
+          profileImageUrl: photoUrl || riderDetails?.documents?.profileImageUrl || user.riderDetails?.documents?.profileImageUrl || user.photoUrl
         }
       };
     }
@@ -87,11 +146,13 @@ exports.updateProfile = async (req, res) => {
       message: 'Profile updated successfully', 
       data: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         phone: user.phone,
         email: user.email,
         role: user.role,
         photoUrl: user.photoUrl,
+        vehicleImageUrl: user.vehicleImageUrl || user.riderDetails?.vehicleImageUrl,
         riderDetails: user.riderDetails
       } 
     });

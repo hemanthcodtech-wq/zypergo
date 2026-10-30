@@ -9,6 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import api from '../../api';
 import { reverseGeocode } from '../../utils/locationService';
+import PinLocationModal from '../../components/common/PinLocationModal';
 
 // Custom Rapido-style captain bike icon
 const createRiderIcon = (heading = 45) => {
@@ -64,6 +65,15 @@ export default function CustomerDashboard() {
   // User GPS coordinates (Defaults to Hyderabad, updates via GPS)
   const [userCoords, setUserCoords] = useState([17.3850, 78.4867]);
   const [userLocationName, setUserLocationName] = useState('Hyderabad, Telangana');
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinnedLocation, setPinnedLocation] = useState(() => {
+    try {
+      const saved = localStorage.getItem('zypergo_customer_location');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
   useEffect(() => {
     const userData = localStorage.getItem('zypergo_user');
@@ -71,8 +81,22 @@ export default function CustomerDashboard() {
       setUser(JSON.parse(userData));
     }
     
+    // Load saved pin if available
+    const savedPin = localStorage.getItem('zypergo_customer_location');
+    if (savedPin) {
+      try {
+        const parsed = JSON.parse(savedPin);
+        if (parsed.lat && parsed.lng) {
+          setUserCoords([parsed.lat, parsed.lng]);
+        }
+        if (parsed.formattedAddress) {
+          setUserLocationName(parsed.formattedAddress);
+        }
+      } catch (e) {}
+    }
+
     // Fetch Location with high accuracy & update map coordinates
-    if (navigator.geolocation) {
+    if (navigator.geolocation && !savedPin) {
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const { latitude, longitude } = position.coords;
@@ -298,30 +322,23 @@ export default function CustomerDashboard() {
             />
             <RecenterMap center={userCoords} />
 
-            {/* Pulsing User Current Location Marker */}
+            {/* User Current Location Marker */}
             <Marker position={userCoords} icon={createUserIcon()} />
-
-            {/* Live Nearby Online Captains */}
-            {nearbyCaptains.map((captain) => (
-              <Marker 
-                key={captain.id} 
-                position={[captain.lat, captain.lng]} 
-                icon={createRiderIcon(captain.heading)}
-              />
-            ))}
           </MapContainer>
 
-          {/* Top Live Captains Overlay Badge */}
+          {/* Rapido-Style Pin Current Location Top Badge */}
           <div className="absolute top-3 left-3 z-10">
-            <div className="flex items-center gap-2 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 rounded-full shadow-lg border border-white/20">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs font-black tracking-tight">
-                ⚡ 5 Captains nearby
+            <button
+              type="button"
+              onClick={() => setShowPinModal(true)}
+              className="flex items-center gap-2 bg-white/95 backdrop-blur-md text-slate-800 px-3 py-1.5 rounded-full shadow-lg border border-slate-200 cursor-pointer hover:bg-white active:scale-95 transition-all group"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#0052CC] animate-ping"></span>
+              <MapPin size={14} className="text-[#0052CC] shrink-0" />
+              <span className="text-xs font-black text-slate-900 group-hover:text-[#0052CC]">
+                Pin Current Location
               </span>
-              <span className="text-[10px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
-                2-3 mins
-              </span>
-            </div>
+            </button>
           </div>
 
           {/* Top Right Recenter Button */}
@@ -336,25 +353,47 @@ export default function CustomerDashboard() {
             </button>
           </div>
 
-          {/* Floating Bottom Rapido-Style Booking Action Card */}
-          <div className="absolute bottom-3 left-3 right-3 z-10">
+          {/* Floating Bottom Rapido-Style Cards */}
+          <div className="absolute bottom-3 left-3 right-3 z-10 space-y-2">
+            {/* Pinned Location Status Bar */}
+            <div 
+              onClick={() => setShowPinModal(true)}
+              className="bg-white/95 backdrop-blur-md rounded-2xl p-2.5 shadow-xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-white transition-all active:scale-[0.99] group"
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0052CC] flex items-center justify-center shrink-0 border border-blue-100">
+                  <MapPin size={14} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pickup Point</p>
+                  <p className="text-xs font-black text-slate-900 truncate group-hover:text-[#0052CC] transition-colors">
+                    {pinnedLocation?.formattedAddress || userLocationName}
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-xl bg-blue-50 group-hover:bg-blue-100 text-[#0052CC] text-xs font-black shrink-0 transition-colors">
+                {pinnedLocation ? 'Change Pin' : 'Pin Location'}
+              </span>
+            </div>
+
+            {/* Book Delivery Button */}
             <div 
               onClick={() => navigate('/booking')}
-              className="bg-white/95 backdrop-blur-md rounded-2xl p-3 shadow-xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-white transition-all active:scale-[0.99] group"
+              className="bg-white/95 backdrop-blur-md rounded-2xl p-2.5 shadow-xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-white transition-all active:scale-[0.99] group"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs font-black shrink-0">
-                  <Package size={18} strokeWidth={2.4} />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs font-black shrink-0">
+                  <Package size={16} strokeWidth={2.4} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fastest Parcel Delivery</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Fastest Parcel Delivery</p>
                   <h4 className="text-xs font-black text-slate-900 group-hover:text-[#0052CC] transition-colors">
                     Where are you sending to?
                   </h4>
                 </div>
               </div>
 
-              <div className="bg-[#FF6B00] hover:bg-[#E56000] text-white px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm shrink-0">
+              <div className="bg-[#FF6B00] hover:bg-[#E56000] text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm shrink-0">
                 <span>Book Now</span>
                 <ArrowRight size={13} strokeWidth={2.5} />
               </div>
@@ -478,6 +517,23 @@ export default function CustomerDashboard() {
 
       </div>
 
+      {/* Pin Current Location Modal */}
+      <PinLocationModal 
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        initialLocation={pinnedLocation}
+        onConfirm={(confirmed) => {
+          setPinnedLocation(confirmed);
+          localStorage.setItem('zypergo_customer_location', JSON.stringify(confirmed));
+          if (confirmed.lat && confirmed.lng) {
+            setUserCoords([confirmed.lat, confirmed.lng]);
+          }
+          if (confirmed.formattedAddress) {
+            setUserLocationName(confirmed.formattedAddress);
+          }
+          setShowPinModal(false);
+        }}
+      />
     </div>
   );
 }

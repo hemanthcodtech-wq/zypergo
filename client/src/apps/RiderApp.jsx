@@ -62,10 +62,9 @@ function RiderLayout({ children, onLogout, user }) {
   return (
     <div 
       className="w-full h-full flex flex-col bg-[#F8FAFC] font-sans relative overflow-hidden"
-      style={{ transform: 'translate3d(0, 0, 0)' }}
     >
       {/* Main Content Area */}
-      <main className="flex-1 w-full overflow-y-auto pb-20 relative z-10">
+      <main className="flex-1 w-full overflow-y-auto pb-20 relative">
         {children}
       </main>
 
