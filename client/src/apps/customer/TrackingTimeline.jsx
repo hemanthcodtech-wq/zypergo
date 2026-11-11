@@ -252,6 +252,24 @@ export default function TrackingTimeline() {
             </div>
           </div>
 
+          {['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status || 'Booking Confirmed') && (() => {
+            let cachedOtp = null;
+            try { cachedOtp = JSON.parse(localStorage.getItem('zypergo_user') || 'null')?.pickupOtp; } catch {}
+            const pickupPin = booking.pickupOtp || booking.sender?.pickupOtp || cachedOtp || booking.proofOfDelivery?.otp;
+            if (!pickupPin) return null;
+            return (
+              <div className="mt-3 bg-blue-50/70 rounded-2xl px-3.5 py-2.5 border border-blue-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[9.5px] font-black text-[#0052CC] uppercase tracking-wider">Permanent Pickup OTP</p>
+                  <p className="text-[10.5px] font-semibold text-slate-500">Same 4-digit PIN for your pickups</p>
+                </div>
+                <div className="bg-white border border-blue-200 rounded-xl px-3 py-1 shadow-2xs">
+                  <span className="font-mono text-base font-black text-[#0052CC] tracking-[0.2em]">{pickupPin}</span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Stepper Progress Bar */}
           <div className="mt-4 pt-3 border-t border-slate-100">
             <div className="flex justify-between relative mb-2">

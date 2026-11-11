@@ -60,7 +60,9 @@ const bookingSchema = new mongoose.Schema({
   payment: {
     mode: { type: String, enum: ['UPI', 'Card', 'NetBanking', 'Wallet', 'Cash'], required: true },
     status: { type: String, enum: ['Pending', 'Completed', 'Failed', 'Refunded'], default: 'Pending' },
-    payer: { type: String, enum: ['Sender', 'Receiver'], required: true }
+    payer: { type: String, enum: ['Sender', 'Receiver'], required: true },
+    transactionId: { type: String },
+    razorpayOrderId: { type: String }
   },
   pricing: {
     base: { type: Number, default: 0 },
@@ -113,6 +115,7 @@ const bookingSchema = new mongoose.Schema({
   },
   trackingId: { type: String, unique: true },
   eta: { type: String },
+  pickupOtp: { type: String },
   proofOfDelivery: {
     otp: { type: String },
     signatureUrl: { type: String },

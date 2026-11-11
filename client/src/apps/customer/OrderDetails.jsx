@@ -62,7 +62,8 @@ export default function OrderDetails() {
 
   const isPending = !booking.status || booking.status === 'Pending' || booking.status === 'Booking Confirmed';
   const hasRider = !['Delivered', 'Cancelled', 'Failed'].includes(booking.status) && !isPending;
-  const otp = booking.proofOfDelivery?.otp || booking.trackingId?.replace(/\D/g, '').slice(-4) || '4291';
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('zypergo_user') || 'null'); } catch { return null; } })();
+  const otp = booking.pickupOtp || booking.sender?.pickupOtp || storedUser?.pickupOtp || booking.proofOfDelivery?.otp || '----';
 
   return (
     <div className="flex flex-col bg-[#F8FAFC] min-h-full animate-in fade-in pb-24 font-sans text-slate-900">
@@ -100,9 +101,13 @@ export default function OrderDetails() {
               <Truck size={22} className="animate-pulse" />
             </div>
             <h3 className="font-black text-slate-900 text-sm mb-0.5">Assigning Delivery Executive</h3>
-            <p className="text-xs font-medium text-slate-500 max-w-xs">
+            <p className="text-xs font-medium text-slate-500 max-w-xs mb-3">
               We are connecting your parcel to the nearest available rider.
             </p>
+            <div className="bg-blue-50/70 border border-blue-100 rounded-xl py-2 px-4 text-center">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Your Permanent Pickup OTP</p>
+              <p className="text-lg font-black text-[#0052CC] tracking-[0.25em]">{otp}</p>
+            </div>
           </div>
         )}
 

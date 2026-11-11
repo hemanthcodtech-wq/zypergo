@@ -13,6 +13,8 @@ router.post('/shift', riderController.updateShift);
 router.post('/location', riderController.updateLocation);
 router.post('/onboard', riderController.onboardRider);
 router.post('/withdraw', riderController.withdrawEarnings);
+router.get('/helpers', riderController.getMyHelpers);
+router.post('/helpers', riderController.addHelper);
 router.get('/me', riderController.getMe);
 router.get('/history', riderController.getHistory);
 

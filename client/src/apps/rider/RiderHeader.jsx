@@ -157,6 +157,9 @@ export default function RiderHeader({ user, onLogout, onShowEarnings, onStatusCh
     }
   };
 
+  const isHelper = user?.riderDetails?.partnerMode === 'Helper';
+  const helperWorkType = user?.riderDetails?.helperWorkType || 'Load & Unload';
+
   const handleLogout = () => {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
@@ -164,20 +167,27 @@ export default function RiderHeader({ user, onLogout, onShowEarnings, onStatusCh
     if (onLogout) {
       onLogout();
     }
-    window.location.href = '/rider/login';
+    window.location.href = `/rider/login?mode=${isHelper ? 'helper' : 'captain'}`;
   };
 
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-2.5 z-40 sticky top-0 shadow-xs flex flex-col gap-2 w-full">
       {/* Top Bar: Logo, Status Pill, Profile Avatar */}
       <div className="flex items-center justify-between w-full">
-        {/* Logo */}
-        <img 
-          src="/images/logo.png" 
-          alt="ZyperGo" 
-          className="h-10 w-auto max-w-[130px] object-contain cursor-pointer active:scale-95 transition-transform" 
-          onClick={() => navigate(isPrefix ? '/rider/dashboard' : '/dashboard')} 
-        />
+        {/* Logo + Mode Badge */}
+        <div className="flex items-center gap-2">
+          <img 
+            src="/images/logo.png" 
+            alt="ZyperGo" 
+            className="h-9 w-auto max-w-[115px] object-contain cursor-pointer active:scale-95 transition-transform" 
+            onClick={() => navigate(isPrefix ? '/rider/dashboard' : '/dashboard')} 
+          />
+          {isHelper && (
+            <span className="px-2 py-0.5 rounded-full bg-teal-50 text-[#006D77] border border-teal-200 text-[9px] font-black uppercase tracking-wider">
+              Helper · {helperWorkType}
+            </span>
+          )}
+        </div>
 
         {/* Live Status Pill */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase bg-slate-100 border border-slate-200">
@@ -192,7 +202,9 @@ export default function RiderHeader({ user, onLogout, onShowEarnings, onStatusCh
           <button 
             type="button"
             onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-            className="w-9 h-9 rounded-full overflow-hidden border-2 border-white ring-2 ring-amber-400/90 shadow-xs flex items-center justify-center hover:scale-105 transition-transform cursor-pointer bg-amber-100"
+            className={`w-9 h-9 rounded-full overflow-hidden border-2 border-white ring-2 shadow-xs flex items-center justify-center hover:scale-105 transition-transform cursor-pointer ${
+              isHelper ? 'ring-teal-500/90 bg-teal-100' : 'ring-amber-400/90 bg-amber-100'
+            }`}
             title="Account Menu"
           >
             {profilePhoto && !photoError ? (

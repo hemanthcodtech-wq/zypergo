@@ -15,17 +15,34 @@ import {
   Car, 
   Bike, 
   Edit3, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+  Users,
+  Package
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import api from '../../api';
 import { getImageUrl } from '../../utils/imageUrl';
+import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
 
-export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
+export default function SignupScreen({ role = 'Customer', initialMode = null, onLoginSuccess }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const urlMode = new URLSearchParams(location.search).get('mode');
+  const resolvedDefaultMode =
+    initialMode === 'Helper' || (urlMode || '').toLowerCase() === 'helper' || location.pathname.includes('/helper/')
+      ? 'Helper'
+      : 'Captain';
 
   // Basic Info State
+  const [partnerMode, setPartnerMode] = useState(resolvedDefaultMode);
+  const [helperWorkType, setHelperWorkType] = useState('Load & Unload');
+  const [captainPhone, setCaptainPhone] = useState('');
+  const [helpers, setHelpers] = useState([]);
+  const [uploadingHelperIdx, setUploadingHelperIdx] = useState(null);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -99,9 +116,31 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
 
   const isPrefixCustomer = window.location.pathname.startsWith('/customer');
   const isPrefixRider = window.location.pathname.startsWith('/rider');
+  const loginModeQuery = partnerMode === 'Helper' ? 'helper' : 'captain';
   const loginUrl = role === 'Rider' 
-    ? (isPrefixRider ? '/rider/login' : '/login') 
+    ? `${isPrefixRider ? '/rider/login' : '/login'}?mode=${loginModeQuery}` 
     : (isPrefixCustomer ? '/customer/login' : '/login');
+
+  const handleHelperPhotoUpload = async (e, idx) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const localPreview = URL.createObjectURL(file);
+    setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, profilePhoto: localPreview } : h)));
+    setUploadingHelperIdx(idx);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await api.post('/upload', fd);
+      if (res.data?.success && res.data?.url) {
+        const resolved = getImageUrl(res.data.url);
+        setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, profilePhoto: resolved } : h)));
+      }
+    } catch (err) {
+      console.warn('Helper photo fallback to local preview:', err.message);
+    } finally {
+      setUploadingHelperIdx(null);
+    }
+  };
 
   const vehicleOptions = [
     { id: 'Bike', label: 'Bike', icon: <Bike size={14} /> },
@@ -153,15 +192,34 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
     }
 
     const finalVehicleType = vehicleType === 'Other' ? (customVehicleType.trim() || 'Custom Vehicle') : vehicleType;
+    const validHelpers = helpers.filter((h) => h.name.trim() || h.phone.trim() || h.email.trim());
 
     if (role === 'Rider') {
-      if (!vehicleNumber.trim()) {
-        setError('Please enter your Vehicle Registration Number (e.g. TS 09 EA 1234)');
-        return;
-      }
-      if (!drivingLicenseUrl || !aadhaarCardUrl) {
-        setError('Please upload both Driving License and Aadhaar Card');
-        return;
+      if (partnerMode === 'Helper') {
+        if (captainPhone && captainPhone.length !== 10) {
+          setError('Captain mobile number must be 10 digits (or leave blank).');
+          return;
+        }
+        if (!aadhaarCardUrl) {
+          setError('Please upload your Aadhaar Card');
+          return;
+        }
+      } else {
+        if (!vehicleNumber.trim()) {
+          setError('Please enter your Vehicle Registration Number (e.g. TS 09 EA 1234)');
+          return;
+        }
+        if (!drivingLicenseUrl || !aadhaarCardUrl) {
+          setError('Please upload both Driving License and Aadhaar Card');
+          return;
+        }
+        for (let i = 0; i < validHelpers.length; i += 1) {
+          const h = validHelpers[i];
+          if (!h.name.trim() || sanitizeDigits(h.phone, 10).length !== 10) {
+            setError(`Please enter a valid Name and 10-digit Mobile Number for Helper #${i + 1}`);
+            return;
+          }
+        }
       }
     }
 
@@ -170,31 +228,53 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
 
     try {
       if (role === 'Rider') {
-        const res = await api.post('/auth/register-rider', {
-          name,
-          email,
-          phone,
-          profilePhoto,
-          vehicleType: finalVehicleType,
-          vehicleNumber: vehicleNumber.toUpperCase().trim(),
-          vehicleRegistration: vehicleNumber.toUpperCase().trim(),
-          vehicleImageUrl,
-          drivingLicenseUrl,
-          aadhaarCardUrl
-        });
+        const res = await api.post('/auth/register-rider', partnerMode === 'Helper'
+          ? {
+              name,
+              email,
+              phone,
+              profilePhoto,
+              partnerMode: 'Helper',
+              helperWorkType,
+              captainPhone: captainPhone ? sanitizeDigits(captainPhone, 10) : undefined,
+              aadhaarCardUrl
+            }
+          : {
+              name,
+              email,
+              phone,
+              profilePhoto,
+              partnerMode: 'Captain',
+              vehicleType: finalVehicleType,
+              vehicleNumber: vehicleNumber.toUpperCase().trim(),
+              vehicleRegistration: vehicleNumber.toUpperCase().trim(),
+              vehicleImageUrl,
+              drivingLicenseUrl,
+              aadhaarCardUrl,
+              helpers: validHelpers.map((h) => ({
+                name: h.name.trim(),
+                phone: sanitizeDigits(h.phone, 10),
+                email: h.email.trim(),
+                helperWorkType: h.helperWorkType || 'Load & Unload',
+                profilePhoto: h.profilePhoto || ''
+              }))
+            });
 
         const data = res.data;
         if (data.token) {
           localStorage.setItem('zypergo_token', data.token);
-          const userData = {
-            ...data.data,
-            riderDetails: {
-              ...(data.data?.riderDetails || {}),
-              vehicleType: finalVehicleType,
-              vehicleRegistration: vehicleNumber.toUpperCase().trim(),
-              vehicleImageUrl
-            }
-          };
+          const userData = partnerMode === 'Helper'
+            ? data.data
+            : {
+                ...data.data,
+                riderDetails: {
+                  ...(data.data?.riderDetails || {}),
+                  partnerMode: 'Captain',
+                  vehicleType: finalVehicleType,
+                  vehicleRegistration: vehicleNumber.toUpperCase().trim(),
+                  vehicleImageUrl
+                }
+              };
           localStorage.setItem('zypergo_user', JSON.stringify(userData));
           if (onLoginSuccess) onLoginSuccess(userData);
           else navigate('/dashboard');
@@ -247,16 +327,28 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
 
         {/* Role Badge & Title */}
         <div className="mb-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-[11px] font-black tracking-wide bg-blue-50 text-[#0052CC] border-blue-200 mb-2">
-            <span>{role === 'Rider' ? 'Rider Partner Onboarding' : 'Customer Account Creation'}</span>
+          <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-[11px] font-black tracking-wide mb-2 ${
+            role === 'Rider' && partnerMode === 'Helper'
+              ? 'bg-teal-50 text-[#006D77] border-teal-200'
+              : 'bg-blue-50 text-[#0052CC] border-blue-200'
+          }`}>
+            <span>
+              {role === 'Rider'
+                ? (partnerMode === 'Helper' ? 'Helper Partner Onboarding' : 'Captain Partner Onboarding')
+                : 'Customer Account Creation'}
+            </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">
-            {role === 'Rider' ? 'Drive & Earn with' : 'Create Account on'}<br />
+            {role === 'Rider'
+              ? (partnerMode === 'Helper' ? 'Join as Helper with' : 'Drive & Earn with')
+              : 'Create Account on'}<br />
             <span className="text-[#FF6B00]">ZyperGo Logistics.</span>
           </h1>
           <p className="text-slate-500 text-[11px] font-semibold mt-1">
             {role === 'Rider' 
-              ? 'Complete onboarding with vehicle details to start accepting local missions.' 
+              ? (partnerMode === 'Helper'
+                  ? 'Register for parcel loading and unloading work and access your dedicated Helper panel.'
+                  : 'Complete onboarding with vehicle details and optionally register helpers under you.')
               : 'Enter your details below to create your account and book shipments.'}
           </p>
         </div>
@@ -271,6 +363,31 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Select Mode Dropdown (Captain vs Helper) */}
+            {role === 'Rider' && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Select Mode
+                </label>
+                <select
+                  value={partnerMode}
+                  onChange={(e) => {
+                    setPartnerMode(e.target.value);
+                    setError('');
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl focus:border-[#006D77] outline-none font-black text-xs text-slate-900 cursor-pointer shadow-2xs"
+                >
+                  <option value="Captain">Captain (Driver &amp; Vehicle Partner)</option>
+                  <option value="Helper">Helper (Load &amp; Unload Partner)</option>
+                </select>
+                <p className="text-[10px] text-slate-500 font-medium mt-1.5">
+                  {partnerMode === 'Captain'
+                    ? 'Register with your vehicle and optionally add Helpers under your account.'
+                    : 'Choose Helper mode if you handle parcel loading and/or unloading.'}
+                </p>
+              </div>
+            )}
 
             {/* Profile Photo Upload */}
             <div className="flex flex-col items-center justify-center py-1">
@@ -310,7 +427,7 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                 </div>
               </div>
               <span className="text-[11px] font-semibold text-slate-500 mt-1.5">
-                Upload Profile Photo
+                {role === 'Rider' && partnerMode === 'Helper' ? 'Upload Helper Profile Photo' : 'Upload Profile Photo'}
               </span>
             </div>
 
@@ -341,8 +458,12 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                 <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
                 <input 
                   type="tel" 
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
                   value={phone} 
-                  onChange={(e) => setPhone(e.target.value)} 
+                  onChange={(e) => setPhone(sanitizeDigits(e.target.value, 10))} 
+                  onKeyDown={(e) => handleNumericKeyDown(e, phone, 10)}
                   placeholder="Enter 10-digit mobile number" 
                   className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] outline-none font-semibold text-xs text-slate-900 transition-all"
                   required 
@@ -368,8 +489,95 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
               </div>
             </div>
 
-            {/* Rider Specific: Vehicle Details & Photo */}
-            {role === 'Rider' && (
+            {/* Helper Specific Fields */}
+            {role === 'Rider' && partnerMode === 'Helper' && (
+              <div className="space-y-3.5 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 uppercase tracking-wider">
+                  <Package size={15} className="text-[#006D77]" />
+                  <span>Helper Work Details</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                    Select Work Type
+                  </label>
+                  <select
+                    value={helperWorkType}
+                    onChange={(e) => setHelperWorkType(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#006D77] outline-none font-bold text-xs text-slate-900 cursor-pointer"
+                  >
+                    <option value="Load & Unload">Load &amp; Unload Both</option>
+                    <option value="Load Only">Load Only</option>
+                    <option value="Unload Only">Unload Only</option>
+                  </select>
+                  <p className="text-[10px] text-slate-400 font-medium mt-1">
+                    Choose whether you do Loading only, Unloading only, or both.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                    Captain Mobile Number (Optional)
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={captainPhone}
+                      onChange={(e) => setCaptainPhone(sanitizeDigits(e.target.value, 10))}
+                      onKeyDown={(e) => handleNumericKeyDown(e, captainPhone, 10)}
+                      placeholder="Link under Captain's 10-digit phone (if any)"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#006D77] outline-none font-semibold text-xs text-slate-900 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Aadhaar Card Upload for Helper */}
+                <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                  <span className="block text-xs font-black text-slate-800">
+                    Required KYC Document
+                  </span>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <FileText size={15} className="text-[#FF6B00]" /> Aadhaar Card
+                      </span>
+                      {aadhaarCardUrl ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          <CheckCircle2 size={12} /> Uploaded
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      ref={aadhaarInputRef}
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, 'aadhaarCard')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => aadhaarInputRef.current?.click()}
+                      className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      {uploadingField === 'aadhaarCard' ? (
+                        <Loader2 size={14} className="animate-spin text-[#FF6B00]" />
+                      ) : (
+                        <Upload size={14} className="text-slate-500" />
+                      )}
+                      <span>{aadhaarCardUrl ? 'Change Aadhaar Document' : 'Upload Aadhaar Card'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Captain Specific: Vehicle Details, Photo & Optional Helpers */}
+            {role === 'Rider' && partnerMode === 'Captain' && (
               <div className="space-y-3.5 pt-2 border-t border-slate-100">
                 <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 uppercase tracking-wider">
                   <Truck size={15} className="text-[#FF6B00]" />
@@ -550,6 +758,121 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                     </button>
                   </div>
                 </div>
+
+                {/* Register Helpers Under Captain (Optional) */}
+                <div className="pt-3 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 uppercase tracking-wider">
+                      <Users size={15} className="text-[#006D77]" />
+                      <span>Helpers Under You (Optional)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setHelpers((prev) => [
+                        ...prev,
+                        { id: Date.now() + Math.random(), name: '', phone: '', email: '', helperWorkType: 'Load & Unload', profilePhoto: '' }
+                      ])}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#006D77] border border-teal-200 text-[11px] font-black cursor-pointer transition-colors"
+                    >
+                      <Plus size={13} />
+                      <span>Add Helper</span>
+                    </button>
+                  </div>
+
+                  {helpers.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 font-medium bg-slate-50 border border-dashed border-slate-200 rounded-xl p-3">
+                      You can register loading/unloading Helpers now or later from your Captain Profile. They can sign in using &ldquo;Login as Helper&rdquo;.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {helpers.map((helper, idx) => (
+                        <div key={helper.id || idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                              Helper #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setHelpers((prev) => prev.filter((_, i) => i !== idx))}
+                              className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 cursor-pointer"
+                              title="Remove Helper"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {/* Helper Photo Upload */}
+                          <div className="flex items-center gap-3">
+                            <label className="w-12 h-12 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 relative">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleHelperPhotoUpload(e, idx)}
+                              />
+                              {helper.profilePhoto ? (
+                                <img src={getImageUrl(helper.profilePhoto)} alt="Helper" className="w-full h-full object-cover" />
+                              ) : uploadingHelperIdx === idx ? (
+                                <Loader2 size={16} className="animate-spin text-[#006D77]" />
+                              ) : (
+                                <Camera size={16} className="text-slate-400" />
+                              )}
+                            </label>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-bold text-slate-700">Helper Profile Photo</p>
+                              <p className="text-[10px] text-slate-400">Tap camera circle to upload helper photo</p>
+                            </div>
+                          </div>
+
+                          <input
+                            type="text"
+                            value={helper.name}
+                            onChange={(e) => setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, name: e.target.value } : h)))}
+                            placeholder="Helper Full Name"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+                          />
+
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={10}
+                            value={helper.phone}
+                            onChange={(e) => {
+                              const cleaned = sanitizeDigits(e.target.value, 10);
+                              setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, phone: cleaned } : h)));
+                            }}
+                            onKeyDown={(e) => handleNumericKeyDown(e, helper.phone, 10)}
+                            placeholder="Helper 10-digit Mobile Number"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+                          />
+
+                          <input
+                            type="email"
+                            value={helper.email}
+                            onChange={(e) => setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, email: e.target.value } : h)))}
+                            placeholder="Helper Email (Optional)"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+                          />
+
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                              Helper Work Type
+                            </label>
+                            <select
+                              value={helper.helperWorkType}
+                              onChange={(e) => setHelpers((prev) => prev.map((h, i) => (i === idx ? { ...h, helperWorkType: e.target.value } : h)))}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#006D77] cursor-pointer"
+                            >
+                              <option value="Load & Unload">Load &amp; Unload Both</option>
+                              <option value="Load Only">Load Only</option>
+                              <option value="Unload Only">Unload Only</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -559,7 +882,7 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
               disabled={loading}
               className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-3 cursor-pointer ${
                 role === 'Rider' 
-                  ? 'bg-black hover:bg-slate-800 text-[#FFB703]' 
+                  ? (partnerMode === 'Helper' ? 'bg-[#006D77] hover:bg-[#00555d] text-white' : 'bg-black hover:bg-slate-800 text-[#FFB703]')
                   : 'bg-[#0052CC] hover:bg-[#0047cc] text-white'
               }`}
             >
@@ -570,7 +893,11 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
                 </>
               ) : (
                 <>
-                  <span>{role === 'Rider' ? 'Submit & Create Rider Account' : 'Create Customer Account'}</span>
+                  <span>
+                    {role === 'Rider'
+                      ? (partnerMode === 'Helper' ? 'Create Helper Account' : 'Submit & Create Captain Account')
+                      : 'Create Customer Account'}
+                  </span>
                   <ArrowRight size={17} />
                 </>
               )}
@@ -603,7 +930,11 @@ export default function SignupScreen({ role = 'Customer', onLoginSuccess }) {
               onClick={() => navigate(loginUrl)}
               className="mt-1 text-xs font-black text-[#0052CC] hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
-              <span>Log In to {role === 'Rider' ? 'Rider Partner Portal' : 'Customer Account'}</span>
+              <span>
+                Log In to {role === 'Rider'
+                  ? (partnerMode === 'Helper' ? 'Helper Partner Portal' : 'Captain Partner Portal')
+                  : 'Customer Account'}
+              </span>
               <ArrowRight size={13} />
             </button>
           </div>

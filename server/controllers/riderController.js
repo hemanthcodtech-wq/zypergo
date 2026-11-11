@@ -1,8 +1,11 @@
 const Booking = require('../models/Booking');
 const User = require('../models/User');
 const ExceptionNDR = require('../models/ExceptionNDR');
+const Settlement = require('../models/Settlement');
 const NotificationService = require('../services/notificationService');
 const locationService = require('../services/locationService');
+const razorpayService = require('../services/razorpayService');
+const { upsertHelperAccount } = require('../utils/partnerHelper');
 
 exports.getAvailableJobs = async (req, res) => {
   try {
@@ -98,7 +101,7 @@ exports.updateJobStatus = async (req, res) => {
 
     // Notify when Rider Arrives at Pickup
     if (status === 'Arrived at Pickup') {
-      const expectedOtp = booking.proofOfDelivery?.otp || '1234';
+      const expectedOtp = booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234';
       const customerPhone = booking.sender?.phone || booking.senderDetails?.phone || '9999999999';
       const customerEmail = booking.sender?.email || booking.senderDetails?.email;
       NotificationService.notifyPickupOTP(customerPhone, customerEmail, expectedOtp, booking.trackingId);
@@ -117,8 +120,8 @@ exports.updateJobStatus = async (req, res) => {
 
     // Strict Validations per step
     if (status === 'Picked Up') {
-      const expectedOtp = booking.proofOfDelivery?.otp || '1234';
-      if (!otp || String(otp) !== String(expectedOtp)) { 
+      const expectedOtp = booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234';
+      if (!otp || String(otp).trim() !== String(expectedOtp).trim()) { 
         return res.status(400).json({ success: false, error: `Invalid OTP. Please check and try again.` });
       }
       if (!photoUrl) {
@@ -224,13 +227,16 @@ exports.verifyOtp = async (req, res) => {
     const { id } = req.params;
     const { otp, type } = req.body;
     
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findById(id).populate('sender', 'pickupOtp');
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Job not found' });
     }
     
-    const expectedOtp = booking.proofOfDelivery?.otp || '1234';
-    if (!otp || String(otp) !== String(expectedOtp)) { 
+    const isPickupStage = type === 'pickup' || ['Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status);
+    const expectedOtp = isPickupStage
+      ? (booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234')
+      : (booking.proofOfDelivery?.otp || '1234');
+    if (!otp || String(otp).trim() !== String(expectedOtp).trim()) { 
       return res.status(400).json({ success: false, error: `Invalid OTP. Please check and try again.` });
     }
     
@@ -368,11 +374,12 @@ exports.onboardRider = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    // Mock user fetching
-    const { userId } = req.query; 
-    const user = await User.findById(userId).select('-password');
+    const { userId } = req.query;
+    const user = await User.findById(userId)
+      .select('-password')
+      .populate('riderDetails.assignedCaptain', 'name phone photoUrl');
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-    
+
     res.status(200).json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch profile' });
@@ -403,22 +410,91 @@ exports.updateShift = async (req, res) => {
 
 exports.withdrawEarnings = async (req, res) => {
   try {
-    const { userId, amount } = req.body;
-    
+    const { userId, amount, vpa, accountNumber, ifscCode, accountHolderName } = req.body;
+    const withdrawAmount = Number(amount);
+
+    if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+      return res.status(400).json({ success: false, error: 'Valid withdrawal amount is required.' });
+    }
+
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-    
-    if ((user.riderDetails?.earnings?.walletBalance || 0) < amount) {
+
+    if ((user.riderDetails?.earnings?.walletBalance || 0) < withdrawAmount) {
       return res.status(400).json({ success: false, error: 'Insufficient balance' });
     }
-    
-    await User.findByIdAndUpdate(userId, {
-      $inc: {
-        'riderDetails.earnings.walletBalance': -amount
-      }
+
+    const bankDetails = user.riderDetails?.bankDetails || {};
+    const targetAccountNumber = accountNumber || bankDetails.accountNumber;
+    const targetIfsc = ifscCode || bankDetails.ifscCode;
+
+    let payoutResult = {
+      status: 'Queued',
+      contactId: null,
+      fundAccountId: null,
+      payoutId: null
+    };
+
+    try {
+      payoutResult = await razorpayService.createRazorpayXPayout({
+        name: accountHolderName || user.name || 'ZyperGo Captain',
+        phone: user.phone,
+        email: user.email,
+        accountNumber: targetAccountNumber,
+        ifscCode: targetIfsc,
+        vpa,
+        amountInRupees: withdrawAmount,
+        referenceId: `wd_${user._id}_${Date.now()}`,
+        narration: 'ZyperGo Captain Payout'
+      });
+    } catch (payoutErr) {
+      console.error('Razorpay X withdrawal error:', payoutErr.message);
+      return res.status(payoutErr.statusCode || 502).json({
+        success: false,
+        error: payoutErr.message || 'Razorpay X payout failed'
+      });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: userId, 'riderDetails.earnings.walletBalance': { $gte: withdrawAmount } },
+      {
+        $inc: {
+          'riderDetails.earnings.walletBalance': -withdrawAmount
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(400).json({ success: false, error: 'Insufficient balance' });
+    }
+
+    await Settlement.create({
+      entityType: 'Rider',
+      entityId: user._id,
+      entityTypeModel: 'User',
+      type: 'Payout',
+      amount: withdrawAmount,
+      status: payoutResult.payoutId ? 'Settled' : 'Pending',
+      notes: [
+        payoutResult.payoutId ? `RazorpayX Payout: ${payoutResult.payoutId}` : 'RazorpayX Payout Queued',
+        payoutResult.contactId ? `Contact: ${payoutResult.contactId}` : null,
+        payoutResult.fundAccountId ? `FundAcct: ${payoutResult.fundAccountId}` : null
+      ].filter(Boolean).join(' | '),
+      processedBy: req.user?.id || user._id
     });
-    
-    res.status(200).json({ success: true, message: `Successfully withdrew ₹${amount} to bank account.` });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        payoutId: payoutResult.payoutId,
+        contactId: payoutResult.contactId,
+        fundAccountId: payoutResult.fundAccountId,
+        status: payoutResult.status,
+        newBalance: updatedUser.riderDetails?.earnings?.walletBalance ?? 0
+      },
+      message: `Successfully initiated ₹${withdrawAmount} withdrawal via Razorpay X${payoutResult.payoutId ? ` (Ref: ${payoutResult.payoutId})` : ''}.`
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to process withdrawal' });
   }
@@ -454,5 +530,59 @@ exports.getHistory = async (req, res) => {
   } catch (error) {
     console.error('Error fetching rider history:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch history' });
+  }
+};
+
+exports.getMyHelpers = async (req, res) => {
+  try {
+    const { captainId } = req.query;
+    if (!captainId) {
+      return res.status(400).json({ success: false, error: 'Captain ID is required.' });
+    }
+    const helpers = await User.find({
+      role: 'Rider',
+      'riderDetails.partnerMode': 'Helper',
+      'riderDetails.assignedCaptain': captainId
+    })
+      .select('-password -otp -otpExpiry')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: helpers });
+  } catch (error) {
+    console.error('Error fetching helpers:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch helpers.' });
+  }
+};
+
+exports.addHelper = async (req, res) => {
+  try {
+    const { captainId, name, phone, email, helperWorkType, profilePhoto } = req.body;
+    if (!captainId || !name || !phone) {
+      return res.status(400).json({ success: false, error: 'Captain ID, Helper Name, and Phone Number are required.' });
+    }
+
+    const captain = await User.findById(captainId);
+    if (!captain) {
+      return res.status(404).json({ success: false, error: 'Captain account not found.' });
+    }
+
+    const helperUser = await upsertHelperAccount({
+      name,
+      phone,
+      email,
+      helperWorkType,
+      profilePhoto,
+      captain
+    });
+
+    res.status(201).json({
+      success: true,
+      data: helperUser,
+      message: `Helper ${helperUser.name} (${helperUser.riderDetails?.helperWorkType || 'Load & Unload'}) registered under you successfully!`
+    });
+  } catch (error) {
+    console.error('Error adding helper:', error);
+    const status = error.message?.includes('Valid 10-digit') || error.message?.includes('already registered') ? 400 : 500;
+    res.status(status).json({ success: false, error: error.message || 'Failed to register helper.' });
   }
 };

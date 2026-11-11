@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ZyperGo Rider",
+    "name": "ZyperGo Captain",
     "slug": "zypergo-rider",
     "scheme": "zypergorider",
     "version": "1.0.0",
@@ -57,11 +57,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "owner": "student222",
     "extra": {
       "eas": {
-        "projectId": "f432e416-924b-415b-bc2c-35fdb74d9892"
+        "projectId": "81fbced7-89a6-4c09-a184-12b9c7ed8e52"
       }
-    },
-    "owner": "student14s-team"
+    }
   }
 }

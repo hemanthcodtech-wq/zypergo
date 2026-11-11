@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: Date,
   otp: String,
   otpExpiry: Date,
+  pickupOtp: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
   name: {
     type: String,
     required: true
@@ -68,6 +73,22 @@ const userSchema = new mongoose.Schema({
     vehicleMake: String,
     vehicleModel: String,
     rcNumber: String,
+    partnerMode: {
+      type: String,
+      enum: ['Captain', 'Helper'],
+      default: 'Captain'
+    },
+    helperWorkType: {
+      type: String,
+      enum: ['Load Only', 'Unload Only', 'Load & Unload'],
+      default: 'Load & Unload'
+    },
+    assignedCaptain: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    captainName: String,
+    captainPhone: String,
     approvalStatus: {
       type: String,
       enum: ['Pending', 'Approved', 'Rejected', 'Suspended'],

@@ -45,6 +45,9 @@ export default function RiderEarnings({ user, onLogout }) {
     setPhotoError(false);
   }, [user]);
   const [amount, setAmount] = useState('');
+  const [vpa, setVpa] = useState('');
+  const [localBalance, setLocalBalance] = useState(null);
+  const [payoutNotice, setPayoutNotice] = useState(null);
   const [history, setHistory] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,31 +55,43 @@ export default function RiderEarnings({ user, onLogout }) {
   const isPrefix = location.pathname.startsWith('/rider');
   const base = isPrefix ? '/rider' : '';
   
-  const walletBalance = user?.riderDetails?.earnings?.walletBalance || 2450;
-  const totalEarnings = user?.riderDetails?.earnings?.totalEarnings || 18920;
-  const cashCollected = user?.riderDetails?.earnings?.cashCollected || 0;
+  const walletBalance = localBalance !== null ? localBalance : (user?.riderDetails?.earnings?.walletBalance ?? 0);
+  const totalEarnings = user?.riderDetails?.earnings?.totalEarnings ?? 0;
+  const cashCollected = user?.riderDetails?.earnings?.cashCollected ?? 0;
 
   const handleWithdraw = async () => {
-    if (!amount || isNaN(amount) || amount <= 0) {
-      alert("Please enter a valid amount.");
+    const withdrawAmt = Number(amount);
+    if (!amount || Number.isNaN(withdrawAmt) || withdrawAmt <= 0) {
+      setPayoutNotice({ type: 'error', text: 'Please enter a valid withdrawal amount.' });
       return;
     }
-    if (amount > walletBalance) {
-      alert("Amount exceeds your wallet balance.");
+    if (withdrawAmt > walletBalance) {
+      setPayoutNotice({ type: 'error', text: 'Amount exceeds your available balance.' });
       return;
     }
     
     setLoading(true);
+    setPayoutNotice(null);
     try {
-      const res = await api.post('/rider/withdraw', { userId: user?._id, amount: Number(amount) });
+      const res = await api.post('/rider/withdraw', {
+        userId: user?._id || user?.id,
+        amount: withdrawAmt,
+        ...(vpa.trim() ? { vpa: vpa.trim() } : {})
+      });
       if (res.data.success) {
-        alert(res.data.message || 'Withdrawal initiated successfully!');
+        const nextBal = res.data.data?.newBalance ?? Math.max(0, walletBalance - withdrawAmt);
+        setLocalBalance(nextBal);
         setAmount('');
-        window.location.reload(); 
+        setPayoutNotice({
+          type: 'success',
+          text: res.data.message || `Withdrawal of ₹${withdrawAmt} initiated via Razorpay X.`
+        });
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Withdrawal request submitted.");
-      setAmount('');
+      setPayoutNotice({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to initiate Razorpay X withdrawal.'
+      });
     } finally {
       setLoading(false);
     }
@@ -149,25 +164,43 @@ export default function RiderEarnings({ user, onLogout }) {
           </div>
 
           {/* Compact Cashout Input & Button */}
-          <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-2 flex items-center gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-xs font-bold">₹</span>
-              <input 
-                type="number" 
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Amount to withdraw" 
-                className="w-full bg-transparent text-white font-bold text-xs py-2 pl-7 pr-2 outline-none placeholder:text-white/40"
-              />
+          <div className="space-y-2">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-2 flex items-center gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 text-xs font-bold">₹</span>
+                <input 
+                  type="number" 
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Amount to withdraw" 
+                  className="w-full bg-transparent text-white font-bold text-xs py-2 pl-7 pr-2 outline-none placeholder:text-white/40"
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={handleWithdraw}
+                disabled={loading || !amount || walletBalance <= 0}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer"
+              >
+                {loading ? 'Processing...' : 'Cash Out'}
+              </button>
             </div>
-            <button 
-              type="button"
-              onClick={handleWithdraw}
-              disabled={loading || !amount || walletBalance <= 0}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-xs transition-all active:scale-95 disabled:opacity-40 whitespace-nowrap cursor-pointer"
-            >
-              {loading ? 'Processing...' : 'Cash Out'}
-            </button>
+            <input
+              type="text"
+              value={vpa}
+              onChange={(e) => setVpa(e.target.value)}
+              placeholder="Optional UPI ID (e.g. captain@upi) — uses bank if blank"
+              className="w-full bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-3 py-2 text-white font-semibold text-[11px] outline-none placeholder:text-white/40"
+            />
+            {payoutNotice && (
+              <div className={`px-3 py-2 rounded-xl text-[11px] font-bold ${
+                payoutNotice.type === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30'
+                  : 'bg-red-500/20 text-red-200 border border-red-400/30'
+              }`}>
+                {payoutNotice.text}
+              </div>
+            )}
           </div>
         </div>
 

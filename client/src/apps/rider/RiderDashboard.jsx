@@ -38,6 +38,14 @@ export default function RiderDashboard({ user, onLogout }) {
   // Form State
   const [otp, setOtp] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
+  const [helperActionNotice, setHelperActionNotice] = useState('');
+  const [completedHelperTasks, setCompletedHelperTasks] = useState({});
+
+  const isHelper = user?.riderDetails?.partnerMode === 'Helper';
+  const helperWorkType = user?.riderDetails?.helperWorkType || 'Load & Unload';
+  const assignedCaptain = user?.riderDetails?.assignedCaptain;
+  const captainDisplayName = assignedCaptain?.name || user?.riderDetails?.captainName || '';
+  const captainDisplayPhone = assignedCaptain?.phone || user?.riderDetails?.captainPhone || '';
 
   // Fetch Jobs
   const fetchJobs = async () => {
@@ -254,6 +262,175 @@ export default function RiderDashboard({ user, onLogout }) {
       />
     );
   };
+
+  const handleHelperConfirmAction = async (job, actionLabel) => {
+    setCompletedHelperTasks((prev) => ({
+      ...prev,
+      [`${job._id}_${actionLabel}`]: true
+    }));
+    setHelperActionNotice(`${actionLabel} marked complete for #${job.trackingId || job._id?.slice(-6).toUpperCase()}`);
+    setTimeout(() => setHelperActionNotice(''), 3500);
+  };
+
+  if (isHelper) {
+    const canLoad = helperWorkType === 'Load Only' || helperWorkType === 'Load & Unload';
+    const canUnload = helperWorkType === 'Unload Only' || helperWorkType === 'Load & Unload';
+    const helperQueue = [...myJobs, ...availableJobs].filter(
+      (job, idx, arr) => arr.findIndex((x) => x._id === job._id) === idx
+    );
+
+    return (
+      <div className="min-h-screen bg-[#F4F9F9] font-sans flex flex-col text-slate-900 pb-24">
+        <RiderHeader
+          user={user}
+          onLogout={onLogout}
+          onShowEarnings={() => {}}
+          onStatusChange={(status) => {
+            setRiderDetails((prev) => ({ ...prev, ...status }));
+            fetchJobs();
+          }}
+        />
+
+        {isOffline && (
+          <div className="bg-red-600 text-white text-center py-2 text-sm font-bold flex items-center justify-center gap-2 z-50">
+            <AlertTriangle size={16} /> No Internet Connection. Check your network.
+          </div>
+        )}
+
+        <main className="flex-1 w-full max-w-md mx-auto px-4 pt-4 space-y-4">
+          {/* Helper Mode Banner Card */}
+          <div className="bg-gradient-to-br from-[#006D77] to-[#004E56] rounded-3xl p-5 text-white shadow-lg relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black uppercase tracking-wider mb-2">
+                  Helper Panel
+                </span>
+                <h2 className="text-xl font-black leading-tight capitalize">{user?.name || 'ZyperGo Helper'}</h2>
+                <p className="text-xs text-teal-100 font-semibold mt-1">
+                  Work Scope: <span className="text-amber-300 font-black">{helperWorkType}</span>
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
+                <Package size={22} className="text-amber-300" />
+              </div>
+            </div>
+
+            {(captainDisplayName || captainDisplayPhone) && (
+              <div className="mt-4 pt-3 border-t border-white/15 flex items-center justify-between text-xs">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-teal-200 font-bold">Assigned Captain</p>
+                  <p className="font-black text-white">{captainDisplayName || 'Captain'} {captainDisplayPhone ? `· ${captainDisplayPhone}` : ''}</p>
+                </div>
+                {captainDisplayPhone && (
+                  <a
+                    href={`tel:${captainDisplayPhone}`}
+                    className="px-3 py-1.5 rounded-xl bg-white text-[#006D77] font-black text-[11px] flex items-center gap-1 shadow-xs"
+                  >
+                    <Phone size={12} /> Call
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Work Scope Summary Pills */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className={`p-3.5 rounded-2xl border ${canLoad ? 'bg-white border-teal-200 shadow-xs' : 'bg-slate-100/70 border-slate-200 opacity-55'}`}>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Loading Work</p>
+              <p className="text-sm font-black text-slate-900 mt-0.5">{canLoad ? 'Active' : 'Not Assigned'}</p>
+            </div>
+            <div className={`p-3.5 rounded-2xl border ${canUnload ? 'bg-white border-teal-200 shadow-xs' : 'bg-slate-100/70 border-slate-200 opacity-55'}`}>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Unloading Work</p>
+              <p className="text-sm font-black text-slate-900 mt-0.5">{canUnload ? 'Active' : 'Not Assigned'}</p>
+            </div>
+          </div>
+
+          {helperActionNotice && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+              <span>{helperActionNotice}</span>
+            </div>
+          )}
+
+          {/* Loading & Unloading Assignment Queue */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                {helperWorkType} Queue
+              </h3>
+              <span className="text-[10px] font-bold text-slate-500">
+                {riderDetails.isOnline && !riderDetails.isOnBreak ? `${helperQueue.length} active parcel(s)` : 'Go Online to receive tasks'}
+              </span>
+            </div>
+
+            {(!riderDetails.isOnline || riderDetails.isOnBreak) ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center">
+                <Clock size={24} className="mx-auto text-slate-400 mb-2" />
+                <h4 className="text-sm font-black text-slate-800">
+                  {riderDetails.isOnBreak ? 'On Break' : 'Helper Shift Offline'}
+                </h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  Tap &ldquo;Go Online&rdquo; above to view and confirm {helperWorkType.toLowerCase()} tasks.
+                </p>
+              </div>
+            ) : helperQueue.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-teal-200 p-6 text-center">
+                <Package size={26} className="mx-auto text-[#006D77] mb-2" />
+                <h4 className="text-sm font-black text-slate-800">Ready for {helperWorkType}</h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  New parcels assigned for {helperWorkType.toLowerCase()} will appear here automatically.
+                </p>
+              </div>
+            ) : (
+              helperQueue.map((job) => (
+                <div key={job._id} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-50 text-[#006D77] border border-teal-200">
+                      {job.status}
+                    </span>
+                    <span className="text-[11px] font-black text-slate-500">
+                      #{job.trackingId || job._id?.slice(-6).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs">
+                    <p className="font-bold text-slate-800 line-clamp-1">
+                      <span className="text-slate-400">Load Pickup:</span> {job.pickupLocation?.address || 'Hub / Sender'}
+                    </p>
+                    <p className="font-bold text-slate-800 line-clamp-1">
+                      <span className="text-slate-400">Unload Drop:</span> {job.dropLocation?.address || 'Drop Destination'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {canLoad && (
+                      <button
+                        type="button"
+                        onClick={() => handleHelperConfirmAction(job, 'Loading')}
+                        disabled={!!completedHelperTasks[`${job._id}_Loading`]}
+                        className="flex-1 py-2.5 rounded-xl bg-[#006D77] hover:bg-[#00555d] text-white font-black text-xs disabled:opacity-50 cursor-pointer transition-colors"
+                      >
+                        {completedHelperTasks[`${job._id}_Loading`] ? '✓ Loaded' : 'Confirm Load'}
+                      </button>
+                    )}
+                    {canUnload && (
+                      <button
+                        type="button"
+                        onClick={() => handleHelperConfirmAction(job, 'Unloading')}
+                        disabled={!!completedHelperTasks[`${job._id}_Unloading`]}
+                        className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs disabled:opacity-50 cursor-pointer transition-colors"
+                      >
+                        {completedHelperTasks[`${job._id}_Unloading`] ? '✓ Unloaded' : 'Confirm Unload'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans flex flex-col text-slate-900">

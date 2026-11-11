@@ -31,11 +31,15 @@ import {
   Bike,
   Car,
   Image as ImageIcon,
-  Plus
+  Plus,
+  Users,
+  Package,
+  Briefcase
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import { getImageUrl } from '../../utils/imageUrl';
+import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
 
 export default function RiderProfile({ user: initialUser, onLogout }) {
   const [user, setUser] = useState(initialUser || {});
@@ -51,7 +55,21 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     vehicleType: initialUser?.riderDetails?.vehicleType || 'Bike',
     customVehicleType: '',
     vehicleNumber: initialUser?.riderDetails?.vehicleRegistration || initialUser?.riderDetails?.vehicleNumber || '',
-    vehicleImageUrl: initialUser?.riderDetails?.vehicleImageUrl || initialUser?.riderDetails?.documents?.vehiclePicUrl || ''
+    vehicleImageUrl: initialUser?.riderDetails?.vehicleImageUrl || initialUser?.riderDetails?.documents?.vehiclePicUrl || '',
+    helperWorkType: initialUser?.riderDetails?.helperWorkType || 'Load & Unload'
+  });
+
+  // Captain Helpers Management State
+  const [myHelpers, setMyHelpers] = useState([]);
+  const [showAddHelper, setShowAddHelper] = useState(false);
+  const [addingHelper, setAddingHelper] = useState(false);
+  const [uploadingHelperPhoto, setUploadingHelperPhoto] = useState(false);
+  const [helperForm, setHelperForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    helperWorkType: 'Load & Unload',
+    profilePhoto: ''
   });
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -149,6 +167,17 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
           }
         }).catch(() => {});
 
+        // Fetch helpers if Captain
+        if (userId && parsed?.riderDetails?.partnerMode !== 'Helper') {
+          api.get(`/rider/helpers?captainId=${userId}`)
+            .then(res => {
+              if (res.data?.success && Array.isArray(res.data.data)) {
+                setMyHelpers(res.data.data);
+              }
+            })
+            .catch(() => {});
+        }
+
         // Fetch real rider stats from backend
         if (userId) {
           api.get(`/rider/history?userId=${userId}`)
@@ -203,9 +232,12 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
       vehicleType: isKnown ? rawType : 'Other',
       customVehicleType: isKnown ? '' : rawType,
       vehicleNumber: u?.riderDetails?.vehicleRegistration || u?.riderDetails?.vehicleNumber || '',
-      vehicleImageUrl: u?.riderDetails?.vehicleImageUrl || u?.riderDetails?.documents?.vehiclePicUrl || ''
+      vehicleImageUrl: u?.riderDetails?.vehicleImageUrl || u?.riderDetails?.documents?.vehiclePicUrl || '',
+      helperWorkType: u?.riderDetails?.helperWorkType || 'Load & Unload'
     });
   };
+
+  const isHelper = user?.riderDetails?.partnerMode === 'Helper';
 
   const approvalStatus = user?.riderDetails?.approvalStatus || 'Approved';
   const profileImg = user?.photoUrl || user?.riderDetails?.documents?.profileImageUrl;
@@ -411,6 +443,64 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     }
   };
 
+  const handleHelperPhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingHelperPhoto(true);
+    try {
+      let resolved = '';
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await api.post('/upload', fd);
+        if (res.data?.success && res.data?.url) resolved = getImageUrl(res.data.url);
+      } catch (err) {}
+      if (!resolved) {
+        resolved = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      }
+      setHelperForm((prev) => ({ ...prev, profilePhoto: resolved }));
+    } finally {
+      setUploadingHelperPhoto(false);
+    }
+  };
+
+  const handleAddHelperSubmit = async (e) => {
+    e.preventDefault();
+    const cleanPhone = sanitizeDigits(helperForm.phone, 10);
+    if (!helperForm.name.trim() || cleanPhone.length !== 10) {
+      setMessage('Enter Helper Name and 10-digit Mobile Number.');
+      return;
+    }
+    setAddingHelper(true);
+    setMessage('');
+    try {
+      const res = await api.post('/rider/helpers', {
+        captainId: user._id || user.id,
+        name: helperForm.name.trim(),
+        phone: cleanPhone,
+        email: helperForm.email.trim() || undefined,
+        helperWorkType: helperForm.helperWorkType,
+        profilePhoto: helperForm.profilePhoto || undefined
+      });
+      if (res.data?.success && res.data?.data) {
+        setMyHelpers((prev) => [res.data.data, ...prev.filter((h) => h._id !== res.data.data._id)]);
+        setHelperForm({ name: '', phone: '', email: '', helperWorkType: 'Load & Unload', profilePhoto: '' });
+        setShowAddHelper(false);
+        setMessage(res.data.message || 'Helper registered successfully!');
+        setTimeout(() => setMessage(''), 3500);
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.error || 'Failed to register helper.');
+      setTimeout(() => setMessage(''), 3500);
+    } finally {
+      setAddingHelper(false);
+    }
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -421,23 +511,32 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
       : editForm.vehicleType;
 
     const resolvedVehicleNumber = editForm.vehicleNumber.toUpperCase().trim();
+    const cleanPhone = sanitizeDigits(editForm.phone, 10) || editForm.phone;
 
     try {
       const updatedUser = {
         ...user,
         name: editForm.name,
-        phone: editForm.phone,
+        phone: cleanPhone,
         email: editForm.email,
         riderDetails: {
           ...(user.riderDetails || {}),
           address: editForm.address,
-          vehicleType: resolvedVehicleType,
-          vehicleRegistration: resolvedVehicleNumber,
-          vehicleNumber: resolvedVehicleNumber,
-          vehicleImageUrl: editForm.vehicleImageUrl,
+          ...(isHelper
+            ? {
+                partnerMode: 'Helper',
+                helperWorkType: editForm.helperWorkType || 'Load & Unload'
+              }
+            : {
+                vehicleType: resolvedVehicleType,
+                vehicleRegistration: resolvedVehicleNumber,
+                vehicleNumber: resolvedVehicleNumber,
+                vehicleImageUrl: editForm.vehicleImageUrl
+              }),
           documents: {
             ...(user.riderDetails?.documents || {}),
-            vehiclePicUrl: editForm.vehicleImageUrl
+            ...(user.photoUrl ? { profileImageUrl: user.photoUrl } : {}),
+            ...(!isHelper && editForm.vehicleImageUrl ? { vehiclePicUrl: editForm.vehicleImageUrl } : {})
           }
         }
       };
@@ -447,26 +546,37 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
 
       try {
         await api.put('/users/profile', {
+          id: user._id || user.id,
           name: editForm.name,
-          phone: editForm.phone,
+          phone: cleanPhone,
           email: editForm.email,
           address: editForm.address,
           photoUrl: user.photoUrl,
-          vehicleType: resolvedVehicleType,
-          vehicleNumber: resolvedVehicleNumber,
-          vehicleRegistration: resolvedVehicleNumber,
-          vehicleImageUrl: editForm.vehicleImageUrl,
-          riderDetails: {
-            address: editForm.address,
-            vehicleType: resolvedVehicleType,
-            vehicleRegistration: resolvedVehicleNumber,
-            vehicleImageUrl: editForm.vehicleImageUrl
-          }
+          ...(!isHelper
+            ? {
+                vehicleType: resolvedVehicleType,
+                vehicleNumber: resolvedVehicleNumber,
+                vehicleRegistration: resolvedVehicleNumber,
+                vehicleImageUrl: editForm.vehicleImageUrl
+              }
+            : {}),
+          riderDetails: isHelper
+            ? {
+                partnerMode: 'Helper',
+                helperWorkType: editForm.helperWorkType || 'Load & Unload',
+                address: editForm.address
+              }
+            : {
+                address: editForm.address,
+                vehicleType: resolvedVehicleType,
+                vehicleRegistration: resolvedVehicleNumber,
+                vehicleImageUrl: editForm.vehicleImageUrl
+              }
         });
       } catch (e) {}
 
       setIsEditing(false);
-      setMessage('Profile and vehicle details saved!');
+      setMessage(isHelper ? 'Helper profile updated successfully!' : 'Profile and vehicle details saved!');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error('Failed to update rider profile:', err);
@@ -498,7 +608,7 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     if (onLogout) {
       onLogout();
     }
-    window.location.href = '/rider/login';
+    window.location.href = `/rider/login?mode=${isHelper ? 'helper' : 'captain'}`;
   };
 
   if (isEditing) {
@@ -515,7 +625,9 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
               <ChevronLeft size={22} />
             </button>
             <div>
-              <h1 className="text-base font-black text-slate-900 leading-tight">Edit Profile & Vehicle</h1>
+              <h1 className="text-base font-black text-slate-900 leading-tight">
+                {isHelper ? 'Edit Helper Profile' : 'Edit Profile & Vehicle'}
+              </h1>
               <p className="text-[10px] font-bold text-slate-400">PARTNER ID: {user?._id?.substring(0, 8).toUpperCase() || 'ZYP-8821'}</p>
             </div>
           </div>
@@ -531,7 +643,44 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
 
         <div className="max-w-md mx-auto px-4 pt-4 space-y-4">
           <form onSubmit={handleSaveProfile} className="space-y-4">
-            
+            {/* Profile Photo Upload Inside Edit View */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 flex items-center gap-4">
+              <input
+                type="file"
+                ref={photoInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+              <div
+                onClick={() => photoInputRef.current?.click()}
+                className="w-16 h-16 rounded-full bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden cursor-pointer relative shrink-0"
+              >
+                {profileImg && !imageError ? (
+                  <img src={getImageUrl(profileImg)} alt={user?.name || 'Profile'} className="w-full h-full object-cover" onError={() => setImageError(true)} />
+                ) : (
+                  <UserIcon size={24} className="text-slate-400" />
+                )}
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Loader2 size={18} className="animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-black text-slate-900">Profile Image</h4>
+                <p className="text-[10px] text-slate-500 mb-2">Upload a new photo anytime</p>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Camera size={12} />
+                  <span>{uploadingPhoto ? 'Uploading...' : 'Upload New Image'}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Personal Information Card */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3.5">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -554,8 +703,11 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
                 <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">Phone Number</label>
                 <input 
                   type="tel" 
+                  inputMode="numeric"
+                  maxLength={10}
                   value={editForm.phone} 
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, phone: sanitizeDigits(e.target.value, 10) })}
+                  onKeyDown={(e) => handleNumericKeyDown(e, editForm.phone, 10)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:border-amber-500 focus:bg-white transition-all shadow-2xs"
                   required 
                 />
@@ -568,12 +720,43 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
                   value={editForm.email} 
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:border-amber-500 focus:bg-white transition-all shadow-2xs"
-                  required 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">Address (Optional)</label>
+                <input 
+                  type="text" 
+                  value={editForm.address} 
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  placeholder="Area, City"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:border-amber-500 focus:bg-white transition-all shadow-2xs"
                 />
               </div>
             </div>
 
-            {/* Vehicle Information Card */}
+            {isHelper ? (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Briefcase size={14} className="text-[#006D77]" />
+                  <span>Helper Work Type</span>
+                </h3>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1.5">
+                    Select Work Responsibility
+                  </label>
+                  <select
+                    value={editForm.helperWorkType}
+                    onChange={(e) => setEditForm({ ...editForm, helperWorkType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:border-[#006D77] focus:bg-white cursor-pointer"
+                  >
+                    <option value="Load & Unload">Load &amp; Unload Both</option>
+                    <option value="Load Only">Load Only</option>
+                    <option value="Unload Only">Unload Only</option>
+                  </select>
+                </div>
+              </div>
+            ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3.5">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <Truck size={14} className="text-[#FF6B00]" />
@@ -646,6 +829,7 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
                 </button>
               </div>
             </div>
+            )}
 
             {/* Action Buttons */}
             <div className="pt-2 pb-14 flex gap-2.5">
@@ -689,7 +873,9 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
             <ChevronLeft size={22} />
           </button>
           <div>
-            <h1 className="text-base font-black text-slate-900 leading-tight">Rider Profile</h1>
+            <h1 className="text-base font-black text-slate-900 leading-tight">
+              {isHelper ? 'Helper Profile' : 'Captain Profile'}
+            </h1>
             <p className="text-[10px] font-bold text-slate-400">PARTNER ID: {user?._id?.substring(0, 8).toUpperCase() || 'ZYP-8821'}</p>
           </div>
         </div>
@@ -827,6 +1013,58 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
           </div>
         </div>
 
+        {isHelper ? (
+          /* Helper Work Type & Linked Captain Card */
+          <div className="bg-white rounded-2xl border border-teal-200/80 shadow-xs p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Package size={14} className="text-[#006D77]" />
+                <span>Helper Work Role</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  initEditForm(user);
+                  setIsEditing(true);
+                }}
+                className="text-[11px] font-bold text-[#006D77] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 size={11} />
+                <span>Edit Details</span>
+              </button>
+            </div>
+
+            <div className="p-3 bg-teal-50/60 rounded-2xl border border-teal-100 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-teal-700">Assigned Responsibility</p>
+                <h4 className="text-sm font-black text-slate-900 mt-0.5">
+                  {user?.riderDetails?.helperWorkType || 'Load & Unload'}
+                </h4>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-white text-[#006D77] border border-teal-200 text-[10px] font-black">
+                Active Helper
+              </span>
+            </div>
+
+            {(user?.riderDetails?.assignedCaptain?.name || user?.riderDetails?.captainName || user?.riderDetails?.captainPhone) && (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Assigned Captain</p>
+                  <p className="text-xs font-black text-slate-900">
+                    {user?.riderDetails?.assignedCaptain?.name || user?.riderDetails?.captainName || 'Captain'}
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    {user?.riderDetails?.assignedCaptain?.phone || user?.riderDetails?.captainPhone}
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                  Linked
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Vehicle Information Card (Prominent & Editable) */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -910,6 +1148,117 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
             <span>{uploadingVehiclePic ? 'Saving to database...' : (currentVehicleImage ? 'Change Vehicle Photo' : 'Upload Vehicle Photo')}</span>
           </button>
         </div>
+
+        {/* Registered Helpers Under Captain */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Users size={14} className="text-[#006D77]" />
+              <span>Helpers Under You ({myHelpers.length})</span>
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowAddHelper((prev) => !prev)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-[#006D77] border border-teal-200 text-[11px] font-black cursor-pointer"
+            >
+              <Plus size={12} />
+              <span>{showAddHelper ? 'Close' : 'Add Helper'}</span>
+            </button>
+          </div>
+
+          {showAddHelper && (
+            <form onSubmit={handleAddHelperSubmit} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="flex items-center gap-3">
+                <label className="w-12 h-12 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden cursor-pointer shrink-0">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleHelperPhotoChange} />
+                  {helperForm.profilePhoto ? (
+                    <img src={getImageUrl(helperForm.profilePhoto)} alt="Helper" className="w-full h-full object-cover" />
+                  ) : uploadingHelperPhoto ? (
+                    <Loader2 size={15} className="animate-spin text-[#006D77]" />
+                  ) : (
+                    <Camera size={15} className="text-slate-400" />
+                  )}
+                </label>
+                <div className="flex-1">
+                  <p className="text-[11px] font-bold text-slate-800">Helper Photo</p>
+                  <p className="text-[10px] text-slate-400">Tap icon to upload helper photo</p>
+                </div>
+              </div>
+
+              <input
+                type="text"
+                value={helperForm.name}
+                onChange={(e) => setHelperForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Helper Full Name"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+                required
+              />
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                value={helperForm.phone}
+                onChange={(e) => setHelperForm((prev) => ({ ...prev, phone: sanitizeDigits(e.target.value, 10) }))}
+                onKeyDown={(e) => handleNumericKeyDown(e, helperForm.phone, 10)}
+                placeholder="Helper 10-digit Mobile Number"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+                required
+              />
+              <input
+                type="email"
+                value={helperForm.email}
+                onChange={(e) => setHelperForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="Helper Email (Optional)"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#006D77]"
+              />
+              <select
+                value={helperForm.helperWorkType}
+                onChange={(e) => setHelperForm((prev) => ({ ...prev, helperWorkType: e.target.value }))}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-[#006D77]"
+              >
+                <option value="Load & Unload">Load &amp; Unload Both</option>
+                <option value="Load Only">Load Only</option>
+                <option value="Unload Only">Unload Only</option>
+              </select>
+              <button
+                type="submit"
+                disabled={addingHelper}
+                className="w-full py-2.5 rounded-xl bg-[#006D77] hover:bg-[#00555d] text-white text-xs font-black cursor-pointer disabled:opacity-50"
+              >
+                {addingHelper ? 'Registering Helper...' : 'Register Helper Under Me'}
+              </button>
+            </form>
+          )}
+
+          {myHelpers.length === 0 ? (
+            <p className="text-[11px] text-slate-400 font-medium bg-slate-50 border border-dashed border-slate-200 rounded-xl p-3">
+              No helpers registered under you yet. Tap &ldquo;Add Helper&rdquo; to register one.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {myHelpers.map((h) => (
+                <div key={h._id} className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-teal-100 text-[#006D77] flex items-center justify-center overflow-hidden shrink-0 font-black text-xs">
+                    {h.photoUrl ? (
+                      <img src={getImageUrl(h.photoUrl)} alt={h.name} className="w-full h-full object-cover" />
+                    ) : (
+                      (h.name || 'HL').substring(0, 2).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-black text-slate-900 truncate">{h.name}</h4>
+                    <p className="text-[10px] text-slate-500 font-semibold">{h.phone}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-teal-50 text-[#006D77] border border-teal-200 text-[9px] font-black whitespace-nowrap">
+                    {h.riderDetails?.helperWorkType || 'Load & Unload'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        </>
+        )}
 
         {/* Grouped Details Cards */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3.5">
@@ -1062,7 +1411,7 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
             className="w-full py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 font-black text-xs border border-red-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <LogOut size={15} />
-            <span>Logout Rider Session</span>
+            <span>{isHelper ? 'Logout Helper Session' : 'Logout Captain Session'}</span>
           </button>
         </div>
 

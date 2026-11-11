@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShieldCheck, Phone, KeyRound, ArrowRight, Eye, EyeOff, 
   CheckCircle2, RefreshCw, Loader2, User, UserPlus, Mail, Headphones, Shield, 
@@ -31,15 +31,15 @@ const ROLE_CONFIGS = {
     ]
   },
   rider: {
-    portalName: 'Rider Partner Portal',
-    badgeText: 'Rider Partner Login',
+    portalName: 'Captain Partner Portal',
+    badgeText: 'Captain Login',
     badgeColor: 'bg-amber-50 text-amber-800 border-amber-200/90',
     dotColor: 'bg-amber-500',
-    titleHighlight: 'Rider Partner Login',
+    titleHighlight: 'Captain Partner Login',
     titleSuffix: 'Driver Login & Tasks',
-    subtitle: 'Accept pickup trips, scan customer OTP handovers, and track your daily payouts.',
-    loginTabLabel: 'Rider Login',
-    registerTabLabel: 'Join as Rider',
+    subtitle: 'Accept pickup trips, manage your helpers, scan customer OTP handovers, and track payouts.',
+    loginTabLabel: 'Captain Login',
+    registerTabLabel: 'Join as Captain',
     themeColor: '#D97706',
     btnClass: 'bg-[#D97706] hover:bg-[#B45309] text-white',
     activeTabClass: 'bg-[#D97706] text-white shadow-xs',
@@ -49,6 +49,27 @@ const ROLE_CONFIGS = {
       { title: 'Quick Trips', subtitle: 'Instant Trip Alerts', bg: 'bg-amber-50/80 border-amber-100/80', text: 'text-amber-600', icon: Zap },
       { title: 'OTP Safe', subtitle: 'Zero Dispute Handover', bg: 'bg-blue-50/80 border-blue-100/80', text: 'text-[#0052CC]', icon: ShieldCheck },
       { title: 'Payouts', subtitle: 'Direct Daily Bank Pay', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: Star },
+    ]
+  },
+  helper: {
+    portalName: 'Helper Partner Portal',
+    badgeText: 'Helper Login',
+    badgeColor: 'bg-teal-50 text-[#006D77] border-teal-200/90',
+    dotColor: 'bg-[#006D77]',
+    titleHighlight: 'Helper Partner Login',
+    titleSuffix: 'Load & Unload Panel',
+    subtitle: 'Sign in with your Helper credentials for parcel loading, unloading, and hub dispatch support.',
+    loginTabLabel: 'Helper Login',
+    registerTabLabel: 'Register as Helper',
+    themeColor: '#006D77',
+    btnClass: 'bg-[#006D77] hover:bg-[#00555d] text-white',
+    activeTabClass: 'bg-[#006D77] text-white shadow-xs',
+    activeMethodClass: 'text-[#006D77] border-[#006D77]',
+    focusRingClass: 'focus:border-[#006D77] focus:ring-[#006D77]/20',
+    badges: [
+      { title: 'Load Tasks', subtitle: 'Hub & Vehicle Loading', bg: 'bg-teal-50/80 border-teal-100/80', text: 'text-[#006D77]', icon: Package },
+      { title: 'Unload Tasks', subtitle: 'Drop Point Unloading', bg: 'bg-amber-50/80 border-amber-100/80', text: 'text-amber-600', icon: Truck },
+      { title: 'Captain Link', subtitle: 'Synced with Captain', bg: 'bg-emerald-50/80 border-emerald-100/80', text: 'text-emerald-600', icon: ShieldCheck },
     ]
   },
   hubmanager: {
@@ -158,8 +179,9 @@ const ROLE_CONFIGS = {
   }
 };
 
-export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwitchRole = false }) {
+export default function LoginScreen({ role = 'Customer', partnerMode = null, onLoginSuccess, hideSwitchRole = false }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
   const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'password'
   const [identifier, setIdentifier] = useState('');
@@ -185,13 +207,23 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     return () => clearInterval(timer);
   }, [step, cooldown]);
 
-  const normalizedKey = (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
+  const searchParams = new URLSearchParams(location.search);
+  const queryMode = (searchParams.get('mode') || '').toLowerCase();
+  const isHelperLogin =
+    role === 'Rider' &&
+    (partnerMode === 'Helper' || queryMode === 'helper' || location.pathname.includes('/helper/'));
+  const effectiveRiderLoginMode = role === 'Rider' ? (isHelperLogin ? 'helper' : 'captain') : undefined;
+
+  const normalizedKey = isHelperLogin
+    ? 'helper'
+    : (role || 'Customer').toLowerCase().replace(/[^a-z]/g, '');
   const currentConfig = ROLE_CONFIGS[normalizedKey] || ROLE_CONFIGS.customer;
 
   const isPrefixCustomer = window.location.pathname.startsWith('/customer');
   const isPrefixRider = window.location.pathname.startsWith('/rider');
+  const loginBasePath = isPrefixRider ? '/rider/login' : '/login';
   const signupUrl = role === 'Rider' 
-    ? (isPrefixRider ? '/rider/signup' : '/signup') 
+    ? `${isPrefixRider ? '/rider/signup' : '/signup'}?mode=${effectiveRiderLoginMode}` 
     : (isPrefixCustomer ? '/customer/signup' : '/signup');
 
   const isEmail = identifier.includes('@');
@@ -212,7 +244,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     setError('');
     setResendSuccess('');
     try {
-      const payload = { role };
+      const payload = { role, ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {}) };
       if (isEmail) payload.email = identifier;
       else payload.phone = identifier;
       
@@ -235,7 +267,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     setError('');
     setResendSuccess('');
     try {
-      const payload = { role };
+      const payload = { role, ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {}) };
       if (isEmail) payload.email = identifier;
       else payload.phone = identifier;
 
@@ -261,7 +293,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
     setLoading(true);
     setError('');
     try {
-      const payload = { role, otp, name: name || undefined };
+      const payload = { role, otp, name: name || undefined, ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {}) };
       if (isEmail) payload.email = identifier;
       else payload.phone = identifier;
 
@@ -295,7 +327,7 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
       const endpoint = activeTab === 'register' ? '/auth/register' : '/auth/login-password';
       const payload = activeTab === 'register' 
         ? { name: name || identifier.split('@')[0], email: isEmail ? identifier : undefined, phone: !isEmail ? identifier : undefined, password, role }
-        : { identifier, password, role };
+        : { identifier, password, role, ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {}) };
 
       const res = await api.post(endpoint, payload);
       const data = res.data;
@@ -353,7 +385,8 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
         const res = await api.post('/auth/google', { 
           accessToken: tokenResponse.access_token, 
           role,
-          isSignup: false
+          isSignup: false,
+          ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {})
         });
         const data = res.data;
         
@@ -538,12 +571,27 @@ export default function LoginScreen({ role = 'Customer', onLoginSuccess, hideSwi
                 <button
                   type="button"
                   onClick={() => navigate(signupUrl)}
-                  className="mt-2 inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 text-xs font-black transition-all active:scale-[0.98] shadow-xs"
+                  className="mt-2 inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 text-xs font-black transition-all active:scale-[0.98] shadow-xs cursor-pointer"
                 >
-                  <UserPlus size={15} className="text-[#FF6B00]" />
-                  <span>{role === 'Customer' ? 'New Customer Sign Up' : (role === 'Rider' ? 'Apply as New Rider (Sign Up)' : 'Create New Account')}</span>
+                  <UserPlus size={15} className={isHelperLogin ? 'text-[#006D77]' : 'text-[#FF6B00]'} />
+                  <span>
+                    {role === 'Customer'
+                      ? 'New Customer Sign Up'
+                      : role === 'Rider'
+                        ? (isHelperLogin ? 'Register as New Helper (Sign Up)' : 'Apply as New Captain (Sign Up)')
+                        : 'Create New Account'}
+                  </span>
                   <ArrowRight size={14} className="text-slate-400" />
                 </button>
+                {role === 'Rider' && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`${loginBasePath}?mode=${isHelperLogin ? 'captain' : 'helper'}`)}
+                    className="mt-2.5 text-[11px] font-bold text-[#0052CC] hover:underline cursor-pointer"
+                  >
+                    {isHelperLogin ? 'Are you a Captain? Login as Captain instead →' : 'Are you a Helper? Login as Helper instead →'}
+                  </button>
+                )}
               </div>
 
             </div>

@@ -4,12 +4,29 @@ const NotificationService = require('../services/notificationService');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { OAuth2Client } = require('google-auth-library');
+const { ensureUserPickupOtp } = require('../utils/pickupOtpHelper');
+const { findCaptainByPhone, upsertHelperAccount, normalizeWorkType } = require('../utils/partnerHelper');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+function checkRiderLoginMode(user, role, loginMode) {
+  if (role !== 'Rider' || !loginMode || !user || user.role !== 'Rider') {
+    return null;
+  }
+  const normalizedMode = String(loginMode).toLowerCase();
+  const accountMode = user.riderDetails?.partnerMode === 'Helper' ? 'helper' : 'captain';
+  if (normalizedMode === 'helper' && accountMode !== 'helper') {
+    return 'This account is registered as a Captain. Please use "Login as Captain".';
+  }
+  if (normalizedMode === 'captain' && accountMode === 'helper') {
+    return 'This account is registered as a Helper. Please use "Login as Helper".';
+  }
+  return null;
+}
+
 exports.sendOtp = async (req, res) => {
   try {
-    const { email, phone, role, name, password, riderDetails } = req.body;
+    const { email, phone, role, name, password, riderDetails, loginMode } = req.body;
     
     // We can allow either email or phone for login, but for signup we want both
     if (!email && !phone) return res.status(400).json({ success: false, error: 'Email or phone number is required' });
@@ -39,6 +56,10 @@ exports.sendOtp = async (req, res) => {
           success: false,
           error: 'This account is already registered as ' + user.role + '. Please use the ' + user.role + ' app to login.'
         });
+      }
+      const modeMismatchError = checkRiderLoginMode(user, role, loginMode);
+      if (modeMismatchError) {
+        return res.status(403).json({ success: false, error: modeMismatchError });
       }
     } else {
       // New user registration / customer quick login
@@ -118,7 +139,7 @@ exports.sendOtp = async (req, res) => {
 
 exports.verifyOtp = async (req, res) => {
   try {
-    const { email, phone, role, otp } = req.body;
+    const { email, phone, role, otp, loginMode } = req.body;
 
     const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : null;
     let query = {};
@@ -138,14 +159,14 @@ exports.verifyOtp = async (req, res) => {
         { phone: '91' + cleanPhone }
       ];
     }
-    const user = await User.findOne(query);
+    const user = await User.findOne(query).populate('riderDetails.assignedCaptain', 'name phone photoUrl');
     
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
     if (role) {
-      const adminRoles = ['SuperAdmin', 'OperationsAdmin', 'OperationsStaff', 'HubManager', 'DispatchManager', 'FinanceManager'];
+      const adminRoles = ['SuperAdmin', 'OperationsAdmin', 'OperationsStaff', 'HubManager', 'HubOperator', 'DispatchManager', 'FinanceManager'];
       const hubRoles = ['HubManager', 'HubOperator'];
       
       let isAuthorized = false;
@@ -161,6 +182,10 @@ exports.verifyOtp = async (req, res) => {
 
       if (!isAuthorized) {
         return res.status(403).json({ success: false, error: `Unauthorized. User role '${user.role}' cannot access this portal.` });
+      }
+      const modeMismatchError = checkRiderLoginMode(user, role, loginMode);
+      if (modeMismatchError) {
+        return res.status(403).json({ success: false, error: modeMismatchError });
       }
     }
 
@@ -182,6 +207,7 @@ exports.verifyOtp = async (req, res) => {
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
+    await ensureUserPickupOtp(user);
 
     // Generate JWT
     const token = jwt.sign(
@@ -202,6 +228,7 @@ exports.verifyOtp = async (req, res) => {
         role: user.role,
         photoUrl: user.photoUrl,
         vehicleImageUrl: user.vehicleImageUrl || user.riderDetails?.vehicleImageUrl,
+        pickupOtp: user.pickupOtp,
         riderDetails: user.riderDetails
       }
     });
@@ -212,7 +239,7 @@ exports.verifyOtp = async (req, res) => {
 
 exports.loginWithPassword = async (req, res) => {
   try {
-    const { identifier, password, role } = req.body;
+    const { identifier, password, role, loginMode } = req.body;
 
     if (!identifier || !password) {
       return res.status(400).json({ success: false, error: 'Email/Phone and password are required' });
@@ -221,9 +248,9 @@ exports.loginWithPassword = async (req, res) => {
     const isEmail = identifier.includes('@');
     const query = {};
     if (isEmail) query.email = { $regex: new RegExp(`^${identifier}$`, 'i') };
-    else query.phone = identifier.replace(/\D/g, '');
+    else query.phone = identifier.replace(/\D/g, '').slice(-10);
 
-    const user = await User.findOne(query);
+    const user = await User.findOne(query).populate('riderDetails.assignedCaptain', 'name phone photoUrl');
     
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found. Please check your credentials.' });
@@ -247,6 +274,10 @@ exports.loginWithPassword = async (req, res) => {
       if (!isAuthorized) {
         return res.status(403).json({ success: false, error: `Unauthorized. User role '${user.role}' cannot access this portal.` });
       }
+      const modeMismatchError = checkRiderLoginMode(user, role, loginMode);
+      if (modeMismatchError) {
+        return res.status(403).json({ success: false, error: modeMismatchError });
+      }
     }
 
     if (user.isActive === false) {
@@ -265,6 +296,8 @@ exports.loginWithPassword = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ success: false, error: 'Invalid password' });
     }
+
+    await ensureUserPickupOtp(user);
 
     // Generate JWT
     const token = jwt.sign(
@@ -285,6 +318,7 @@ exports.loginWithPassword = async (req, res) => {
         role: user.role,
         photoUrl: user.photoUrl,
         vehicleImageUrl: user.vehicleImageUrl || user.riderDetails?.vehicleImageUrl,
+        pickupOtp: user.pickupOtp,
         riderDetails: user.riderDetails
       }
     });
@@ -324,6 +358,7 @@ exports.register = async (req, res) => {
     }
 
     await user.save();
+    await ensureUserPickupOtp(user);
 
     // Generate JWT token so user is immediately logged in
     const token = jwt.sign(
@@ -341,7 +376,8 @@ exports.register = async (req, res) => {
         phone: user.phone,
         email: user.email,
         role: user.role,
-        photoUrl: user.photoUrl
+        photoUrl: user.photoUrl,
+        pickupOtp: user.pickupOtp
       },
       message: 'Account created successfully!'
     });
@@ -364,15 +400,106 @@ exports.riderApply = async (req, res) => {
       vehicleType,
       vehicleNumber,
       vehicleRegistration,
-      vehicleImageUrl
+      vehicleImageUrl,
+      partnerMode = 'Captain',
+      helperWorkType = 'Load & Unload',
+      captainPhone,
+      helpers = []
     } = req.body;
     
     if (!name || (!email && !phone)) {
       return res.status(400).json({ success: false, error: 'Name and Phone/Email are required' });
     }
 
-    let user = await User.findOne({ $or: [{ email }, { phone }], role: 'Rider' });
-    
+    const normalizedMode = partnerMode === 'Helper' ? 'Helper' : 'Captain';
+    const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : undefined;
+    const orClauses = [];
+    if (email) orClauses.push({ email: new RegExp('^' + email.trim() + '$', 'i') });
+    if (cleanPhone) orClauses.push({ phone: cleanPhone }, { phone: '+91' + cleanPhone }, { phone: '91' + cleanPhone });
+
+    let user = orClauses.length ? await User.findOne({ $or: orClauses, role: 'Rider' }) : null;
+
+    if (normalizedMode === 'Helper') {
+      const linkedCaptain = captainPhone ? await findCaptainByPhone(captainPhone) : null;
+      const resolvedWorkType = normalizeWorkType(helperWorkType || riderDetails?.helperWorkType);
+      const docs = {
+        aadhaarUrl: aadhaarCardUrl || riderDetails?.documents?.aadhaarUrl || '',
+        profileImageUrl: profilePhoto || riderDetails?.documents?.profileImageUrl || ''
+      };
+
+      if (user) {
+        user.name = name;
+        if (email) user.email = email;
+        if (cleanPhone) user.phone = cleanPhone;
+        if (profilePhoto) user.photoUrl = profilePhoto;
+        user.riderDetails = {
+          ...(user.riderDetails || {}),
+          ...(riderDetails || {}),
+          partnerMode: 'Helper',
+          helperWorkType: resolvedWorkType,
+          ...(linkedCaptain ? {
+            assignedCaptain: linkedCaptain._id,
+            captainName: linkedCaptain.name,
+            captainPhone: linkedCaptain.phone
+          } : {}),
+          documents: { ...(user.riderDetails?.documents || {}), ...docs },
+          approvalStatus: 'Approved',
+          isOnline: true
+        };
+      } else {
+        user = new User({
+          name,
+          email: email || undefined,
+          phone: cleanPhone || phone || undefined,
+          role: 'Rider',
+          photoUrl: profilePhoto || undefined,
+          isActive: true,
+          riderDetails: {
+            ...(riderDetails || {}),
+            partnerMode: 'Helper',
+            helperWorkType: resolvedWorkType,
+            ...(linkedCaptain ? {
+              assignedCaptain: linkedCaptain._id,
+              captainName: linkedCaptain.name,
+              captainPhone: linkedCaptain.phone
+            } : {}),
+            documents: docs,
+            approvalStatus: 'Approved',
+            isOnline: true,
+            isOnShift: false
+          }
+        });
+      }
+
+      await user.save();
+      if (user.riderDetails?.assignedCaptain) {
+        await user.populate('riderDetails.assignedCaptain', 'name phone photoUrl');
+      }
+
+      const token = jwt.sign(
+        { id: user._id, role: user.role },
+        process.env.JWT_SECRET || 'fallback_secret',
+        { expiresIn: '7d' }
+      );
+
+      return res.status(201).json({
+        success: true,
+        token,
+        data: {
+          id: user._id,
+          _id: user._id,
+          name: user.name,
+          phone: user.phone,
+          email: user.email,
+          role: user.role,
+          photoUrl: user.photoUrl,
+          riderDetails: user.riderDetails
+        },
+        message: 'Helper account created and approved!'
+      });
+    }
+
+    // Captain onboarding branch
     const vehReg = vehicleNumber || vehicleRegistration || riderDetails?.vehicleRegistration || '';
     const vehType = vehicleType || riderDetails?.vehicleType || 'Bike';
     const vehImg = vehicleImageUrl || riderDetails?.vehicleImageUrl || riderDetails?.documents?.vehiclePicUrl || '';
@@ -380,17 +507,19 @@ exports.riderApply = async (req, res) => {
     const docs = {
       drivingLicenseUrl: drivingLicenseUrl || riderDetails?.documents?.drivingLicenseUrl || '',
       aadhaarUrl: aadhaarCardUrl || riderDetails?.documents?.aadhaarUrl || '',
-      vehiclePicUrl: vehImg || riderDetails?.documents?.vehiclePicUrl || ''
+      vehiclePicUrl: vehImg || riderDetails?.documents?.vehiclePicUrl || '',
+      profileImageUrl: profilePhoto || riderDetails?.documents?.profileImageUrl || ''
     };
 
     if (user) {
       user.name = name;
       if (email) user.email = email;
-      if (phone) user.phone = phone;
+      if (cleanPhone) user.phone = cleanPhone;
       if (profilePhoto) user.photoUrl = profilePhoto;
       user.riderDetails = {
         ...(user.riderDetails || {}),
         ...(riderDetails || {}),
+        partnerMode: 'Captain',
         vehicleType: vehType,
         vehicleRegistration: vehReg,
         vehicleImageUrl: vehImg,
@@ -402,12 +531,13 @@ exports.riderApply = async (req, res) => {
       user = new User({
         name,
         email: email || undefined,
-        phone: phone || undefined,
+        phone: cleanPhone || phone || undefined,
         role: 'Rider',
         photoUrl: profilePhoto || undefined,
         isActive: true,
         riderDetails: {
           ...(riderDetails || {}),
+          partnerMode: 'Captain',
           vehicleType: vehType,
           vehicleRegistration: vehReg,
           vehicleImageUrl: vehImg,
@@ -420,6 +550,29 @@ exports.riderApply = async (req, res) => {
     }
 
     await user.save();
+
+    // Register any Helpers added by Captain under him
+    const createdHelpers = [];
+    if (Array.isArray(helpers) && helpers.length > 0) {
+      for (const h of helpers) {
+        if (h && h.name && h.phone) {
+          const savedHelper = await upsertHelperAccount({
+            name: h.name,
+            phone: h.phone,
+            email: h.email,
+            helperWorkType: h.helperWorkType,
+            profilePhoto: h.profilePhoto,
+            captain: user
+          });
+          createdHelpers.push({
+            id: savedHelper._id,
+            name: savedHelper.name,
+            phone: savedHelper.phone,
+            helperWorkType: savedHelper.riderDetails?.helperWorkType
+          });
+        }
+      }
+    }
 
     // Generate JWT so newly registered rider is immediately logged in
     const token = jwt.sign(
@@ -439,13 +592,17 @@ exports.riderApply = async (req, res) => {
         email: user.email,
         role: user.role,
         photoUrl: user.photoUrl,
-        riderDetails: user.riderDetails
+        riderDetails: user.riderDetails,
+        createdHelpers
       },
-      message: 'Rider account created and approved!' 
+      message: createdHelpers.length
+        ? `Captain account & ${createdHelpers.length} helper(s) created and approved!`
+        : 'Captain account created and approved!'
     });
   } catch (error) {
     console.error('Rider apply error:', error);
-    res.status(500).json({ success: false, error: 'Failed to create Rider account' });
+    const status = error.message?.includes('Valid 10-digit') || error.message?.includes('already registered') ? 400 : 500;
+    res.status(status).json({ success: false, error: error.message || 'Failed to create Partner account' });
   }
 };
 
@@ -549,6 +706,7 @@ exports.getMe = async (req, res) => {
     if (!user.isActive) {
       return res.status(403).json({ success: false, error: 'Account suspended' });
     }
+    await ensureUserPickupOtp(user);
     res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -557,7 +715,7 @@ exports.getMe = async (req, res) => {
 
 exports.googleLogin = async (req, res) => {
   try {
-    const { token, accessToken, role, isSignup } = req.body;
+    const { token, accessToken, role, isSignup, loginMode } = req.body;
     let email, name, picture;
     
     if (!token && !accessToken) {
@@ -658,6 +816,13 @@ exports.googleLogin = async (req, res) => {
           });
         }
       }
+      const modeMismatchError = checkRiderLoginMode(user, role, loginMode);
+      if (modeMismatchError) {
+        return res.status(403).json({ success: false, error: modeMismatchError });
+      }
+      if (user.riderDetails?.assignedCaptain) {
+        await user.populate('riderDetails.assignedCaptain', 'name phone photoUrl');
+      }
       
       // Check if account is active
       if (user.isActive === false) {
@@ -670,6 +835,8 @@ exports.googleLogin = async (req, res) => {
         await user.save();
       }
     }
+
+    await ensureUserPickupOtp(user);
 
     // Generate ZyperGo JWT
     const jwtToken = jwt.sign(
@@ -689,6 +856,7 @@ exports.googleLogin = async (req, res) => {
         phone: user.phone,
         role: user.role,
         photoUrl: user.photoUrl || picture,
+        pickupOtp: user.pickupOtp,
         riderDetails: user.riderDetails
       }
     });

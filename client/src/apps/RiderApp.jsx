@@ -42,15 +42,17 @@ function RiderLayout({ children, onLogout, user }) {
 
   const navProfilePhoto = getProfilePhoto();
 
+  const isHelper = user?.riderDetails?.partnerMode === 'Helper';
+
   const navItems = [
-    { name: 'Dashboard', path: `${base}/dashboard`, icon: <LayoutDashboard size={20} /> },
+    { name: isHelper ? 'Tasks' : 'Dashboard', path: `${base}/dashboard`, icon: <LayoutDashboard size={20} /> },
     { name: 'Earnings', path: `${base}/earnings`, icon: <Wallet size={20} /> },
     { name: 'History', path: `${base}/history`, icon: <Clock size={20} /> },
     { 
       name: 'Profile', 
       path: `${base}/profile`, 
       icon: navProfilePhoto ? (
-        <div className="w-5 h-5 rounded-full overflow-hidden border border-amber-400 shadow-2xs">
+        <div className={`w-5 h-5 rounded-full overflow-hidden border shadow-2xs ${isHelper ? 'border-teal-500' : 'border-amber-400'}`}>
           <img src={getImageUrl(navProfilePhoto)} alt="Profile" className="w-full h-full object-cover" />
         </div>
       ) : (
@@ -228,9 +230,19 @@ export default function RiderApp() {
           <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/rider/helper/login" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" partnerMode="Helper" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
       <Route path="/login" element={
         <PublicRoute requiredRole="Rider">
           <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/helper/login" element={
+        <PublicRoute requiredRole="Rider">
+          <LoginScreen role="Rider" partnerMode="Helper" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
 
@@ -240,9 +252,19 @@ export default function RiderApp() {
           <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/rider/helper/signup" element={
+        <PublicRoute requiredRole="Rider">
+          <SignupScreen role="Rider" initialMode="Helper" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
       <Route path="/signup" element={
         <PublicRoute requiredRole="Rider">
           <SignupScreen role="Rider" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/helper/signup" element={
+        <PublicRoute requiredRole="Rider">
+          <SignupScreen role="Rider" initialMode="Helper" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
 
@@ -273,7 +295,7 @@ export default function RiderApp() {
 
   if (isStandaloneApp) {
     return (
-      <MobileDeviceFrame appName="ZyperGo Rider Partner App" deviceTheme="gold">
+      <MobileDeviceFrame appName="ZyperGo Captain App" deviceTheme="gold">
         {routesContent}
       </MobileDeviceFrame>
     );

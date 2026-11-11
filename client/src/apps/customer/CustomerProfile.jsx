@@ -28,13 +28,18 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import { getImageUrl } from '../../utils/imageUrl';
+import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
+import { openRazorpayCheckout } from '../../utils/razorpayCheckout';
 
 export default function CustomerProfile({ defaultView = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState({ name: 'Guest', email: 'guest@zypergo.com', phone: '0000000000', photoUrl: '' });
   const [activeView, setActiveView] = useState(defaultView); // 'wallet' | 'rateCard' | 'edit' | null
-  const [walletBalance, setWalletBalance] = useState(450);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [customTopUpAmount, setCustomTopUpAmount] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
   const [rateCardTab, setRateCardTab] = useState('city'); // 'city' or 'outstation'
   
   const [editForm, setEditForm] = useState({ name: '', phone: '', email: '' });
@@ -87,17 +92,116 @@ export default function CustomerProfile({ defaultView = null }) {
           parsed.photoUrl = '';
         }
         
+        const storedWallet = Number(localStorage.getItem('zypergo_wallet_' + userId));
+        if (!Number.isNaN(storedWallet) && storedWallet >= 0 && localStorage.getItem('zypergo_wallet_' + userId) !== null) {
+          setWalletBalance(storedWallet);
+        } else if (typeof parsed.walletBalance === 'number') {
+          setWalletBalance(parsed.walletBalance);
+        } else {
+          setWalletBalance(0);
+        }
+        try {
+          const storedTx = JSON.parse(localStorage.getItem('zypergo_wallet_tx_' + userId) || '[]');
+          if (Array.isArray(storedTx)) setWalletTransactions(storedTx);
+        } catch {
+          setWalletTransactions([]);
+        }
+
         setUser(parsed);
         setEditForm({
           name: parsed.name || '',
           phone: parsed.phone || '',
           email: parsed.email || ''
         });
+        if (parsed._id || parsed.id || parsed.phone) {
+          api.get('/users/profile', { params: { userId: parsed._id || parsed.id, phone: parsed.phone } })
+            .then((res) => {
+              const serverUser = res.data?.data;
+              if (!serverUser) return;
+              const nextUser = {
+                ...parsed,
+                ...(serverUser.pickupOtp ? { pickupOtp: serverUser.pickupOtp } : {}),
+                ...(typeof serverUser.walletBalance === 'number' ? { walletBalance: serverUser.walletBalance } : {})
+              };
+              setUser((prev) => ({ ...prev, ...nextUser }));
+              localStorage.setItem('zypergo_user', JSON.stringify(nextUser));
+
+              if (typeof serverUser.walletBalance === 'number') {
+                setWalletBalance(serverUser.walletBalance);
+                localStorage.setItem('zypergo_wallet_' + userId, String(serverUser.walletBalance));
+              }
+              if (Array.isArray(serverUser.walletTransactions) && serverUser.walletTransactions.length > 0) {
+                setWalletTransactions(serverUser.walletTransactions);
+                localStorage.setItem('zypergo_wallet_tx_' + userId, JSON.stringify(serverUser.walletTransactions));
+              }
+            })
+            .catch(() => {});
+        }
       } catch (e) {
         console.error('Failed to parse user profile', e);
       }
     }
   }, []);
+
+  const handleWalletTopUp = async (rawAmt) => {
+    const amt = Number(rawAmt);
+    if (!amt || amt <= 0) {
+      setMessage('Please enter a valid amount to add.');
+      return;
+    }
+
+    const dbUserId = user?._id || user?.id;
+    const uid = dbUserId || user?.phone || 'guest';
+    setWalletLoading(true);
+    setMessage('');
+
+    try {
+      const verified = await openRazorpayCheckout({
+        amount: amt,
+        name: 'ZyperGo Wallet',
+        description: `Add ₹${amt} to ZyperGo Wallet`,
+        purpose: 'wallet_topup',
+        userId: dbUserId,
+        prefill: {
+          name: user?.name,
+          email: user?.email,
+          contact: user?.phone
+        }
+      });
+
+      const serverBal = verified?.data?.walletBalance;
+      const serverTxs = verified?.data?.walletTransactions;
+
+      const nextBalance = typeof serverBal === 'number' ? serverBal : (walletBalance + amt);
+      const fallbackTx = {
+        id: verified.razorpay_payment_id || Date.now().toString(),
+        referenceId: verified.razorpay_payment_id,
+        title: 'Wallet Top Up (Razorpay)',
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
+        amount: `+₹${amt.toFixed(2)}`,
+        positive: true
+      };
+      const nextTx = Array.isArray(serverTxs) ? serverTxs : [fallbackTx, ...walletTransactions];
+
+      setWalletBalance(nextBalance);
+      setWalletTransactions(nextTx);
+      localStorage.setItem('zypergo_wallet_' + uid, String(nextBalance));
+      localStorage.setItem('zypergo_wallet_tx_' + uid, JSON.stringify(nextTx));
+
+      const updatedUser = { ...user, walletBalance: nextBalance };
+      setUser(updatedUser);
+      localStorage.setItem('zypergo_user', JSON.stringify(updatedUser));
+
+      setCustomTopUpAmount('');
+      setMessage(`₹${amt} added via Razorpay successfully!`);
+      setTimeout(() => setMessage(''), 4000);
+    } catch (err) {
+      setMessage(err.message || 'Wallet top-up was not completed.');
+      setTimeout(() => setMessage(''), 4000);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('zypergo_token');
@@ -298,12 +402,9 @@ export default function CustomerProfile({ defaultView = null }) {
                 <button
                   key={amt}
                   type="button"
-                  onClick={() => {
-                    setWalletBalance(prev => prev + amt);
-                    setMessage(`₹${amt} added to wallet successfully!`);
-                    setTimeout(() => setMessage(''), 3000);
-                  }}
-                  className="py-3 rounded-xl border border-slate-200 text-xs font-black text-slate-900 hover:border-[#0052CC] hover:bg-blue-50/50 active:scale-95 transition-all cursor-pointer shadow-2xs text-center"
+                  disabled={walletLoading}
+                  onClick={() => handleWalletTopUp(amt)}
+                  className="py-3 rounded-xl border border-slate-200 text-xs font-black text-slate-900 hover:border-[#0052CC] hover:bg-blue-50/50 active:scale-95 transition-all cursor-pointer shadow-2xs text-center disabled:opacity-50"
                 >
                   +₹{amt}
                 </button>
@@ -314,25 +415,19 @@ export default function CustomerProfile({ defaultView = null }) {
             <div className="pt-2 border-t border-slate-100 flex gap-2">
               <input 
                 type="number"
+                value={customTopUpAmount}
+                onChange={(e) => setCustomTopUpAmount(e.target.value)}
                 placeholder="Enter custom amount (₹)"
-                id="customWalletAmount"
-                className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#0052CC] focus:bg-white transition-all shadow-2xs"
+                disabled={walletLoading}
+                className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#0052CC] focus:bg-white transition-all shadow-2xs disabled:opacity-60"
               />
               <button
                 type="button"
-                onClick={() => {
-                  const input = document.getElementById('customWalletAmount');
-                  const val = Number(input?.value);
-                  if (val > 0) {
-                    setWalletBalance(prev => prev + val);
-                    setMessage(`₹${val} added to wallet successfully!`);
-                    input.value = '';
-                    setTimeout(() => setMessage(''), 3000);
-                  }
-                }}
-                className="px-4 py-2.5 bg-[#0052CC] hover:bg-[#0047cc] text-white font-black text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                disabled={walletLoading}
+                onClick={() => handleWalletTopUp(customTopUpAmount)}
+                className="px-4 py-2.5 bg-[#0052CC] hover:bg-[#0047cc] text-white font-black text-xs rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
               >
-                Add Money
+                {walletLoading ? 'Opening...' : 'Add Money'}
               </button>
             </div>
           </div>
@@ -386,23 +481,26 @@ export default function CustomerProfile({ defaultView = null }) {
           {/* Recent Wallet Transactions */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Recent Transactions</h3>
-            <div className="space-y-2 text-xs">
-              {[
-                { title: 'Promo Reward Cashback', date: 'Today, 1:45 PM', amount: '+₹25.00', positive: true },
-                { title: 'Delivery - Madhapur to Banjara Hills', date: 'Yesterday, 4:20 PM', amount: '-₹180.00', positive: false },
-                { title: 'Quick Top Up (UPI)', date: '24 Oct, 11:30 AM', amount: '+₹500.00', positive: true },
-              ].map((tx, i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <div>
-                    <h5 className="font-bold text-slate-800 text-xs">{tx.title}</h5>
-                    <p className="text-[10px] text-slate-400 font-medium">{tx.date}</p>
+            {walletTransactions.length === 0 ? (
+              <div className="py-6 text-center bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                <p className="text-xs font-bold text-slate-500">No wallet transactions yet</p>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">Added money and wallet payments will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-2 text-xs">
+                {walletTransactions.map((tx, i) => (
+                  <div key={tx.id || i} className="flex items-center justify-between p-2.5 bg-slate-50/70 rounded-xl border border-slate-100">
+                    <div>
+                      <h5 className="font-bold text-slate-800 text-xs">{tx.title}</h5>
+                      <p className="text-[10px] text-slate-400 font-medium">{tx.date}</p>
+                    </div>
+                    <span className={`font-black text-xs ${tx.positive ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {tx.amount}
+                    </span>
                   </div>
-                  <span className={`font-black text-xs ${tx.positive ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {tx.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="pt-2 pb-8">
@@ -605,9 +703,13 @@ export default function CustomerProfile({ defaultView = null }) {
                 </label>
                 <input 
                   type="tel" 
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
                   value={editForm.phone} 
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  placeholder="Enter mobile number" 
+                  onChange={(e) => setEditForm({ ...editForm, phone: sanitizeDigits(e.target.value, 10) })}
+                  onKeyDown={(e) => handleNumericKeyDown(e, editForm.phone, 10)}
+                  placeholder="Enter 10-digit mobile number" 
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0052CC] outline-none font-bold text-xs text-slate-900 shadow-2xs transition-all"
                   required 
                 />
@@ -744,6 +846,12 @@ export default function CustomerProfile({ defaultView = null }) {
               <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-md">Verified</span>
             </div>
             <p className="text-slate-400 text-[11px] font-medium truncate">{user.email || 'customer@zypergo.com'}</p>
+            {user.pickupOtp && (
+              <div className="mt-1.5 inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg">
+                <span className="text-[9.5px] font-black text-slate-500 uppercase tracking-wider">Pickup PIN:</span>
+                <span className="font-mono text-xs font-black text-[#0052CC] tracking-widest">{user.pickupOtp}</span>
+              </div>
+            )}
           </div>
         </div>
 

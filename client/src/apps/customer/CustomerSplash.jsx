@@ -34,48 +34,20 @@ export default function CustomerSplash() {
     setStage('welcome');
   };
 
-  // 1. Initial Animated Logo Splash Screen (Instant Zero-Latency Render)
+  // 1. Initial Logo Splash Screen (Clean & Simple Logo Only)
   if (stage === 'splash') {
     return (
       <div 
         onClick={handleSkipToWelcome}
-        className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-slate-50 to-blue-50/50 text-slate-900 font-sans relative overflow-hidden select-none cursor-pointer"
+        className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-center p-8 bg-white font-sans relative overflow-hidden select-none cursor-pointer"
       >
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="pt-8">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
-            ZyperGo Logistics
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center text-center my-auto w-full px-4">
-          <div className="relative flex flex-col items-center justify-center w-full">
-            <div className="absolute -inset-10 bg-gradient-to-r from-blue-500/15 via-orange-500/20 to-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            
-            <img 
-              src={SPLASH_LOGO_DATA_URI || "/images/splash-logo.png"} 
-              alt="ZyperGo Logo" 
-              className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
-              loading="eager"
-              decoding="sync"
-            />
-          </div>
-
-          <div className="mt-6 flex flex-col items-center text-center">
-            <h1 className="text-xl font-black text-slate-800 tracking-tight capitalize">welcome to customer app</h1>
-          </div>
-        </div>
-
-        <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
-          <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden p-0.5">
-            <div className="h-full bg-gradient-to-r from-[#0052CC] via-orange-500 to-[#FF6B00] rounded-full animate-splash-progress" />
-          </div>
-          <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
-            Tap to continue
-          </span>
-        </div>
+        <img 
+          src="/images/customer-splash-logo.png" 
+          alt="ZyperGo Customer" 
+          className="w-64 max-w-[80%] h-auto object-contain animate-splash-logo"
+          loading="eager"
+          decoding="sync"
+        />
       </div>
     );
   }

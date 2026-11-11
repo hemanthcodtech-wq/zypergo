@@ -2,6 +2,7 @@ const Transaction = require('../models/Transaction');
 const Settlement = require('../models/Settlement');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const razorpayService = require('../services/razorpayService');
 
 // --- CUSTOMER TRANSACTIONS ---
 exports.getTransactions = async (req, res) => {
@@ -111,20 +112,43 @@ exports.getSettlements = async (req, res) => {
 
 exports.logPayout = async (req, res) => {
   try {
-    const { partnerId, amount, notes, type } = req.body; // type: Payout, Penalty
+    const { partnerId, amount, notes, type, name, phone, email, accountNumber, ifscCode, vpa } = req.body; // type: Payout, Penalty
+    const payoutType = type || 'Payout';
+    let payoutNote = notes || '';
+    let status = 'Settled';
+
+    if (payoutType === 'Payout' && ((accountNumber && ifscCode) || vpa)) {
+      const xResult = await razorpayService.createRazorpayXPayout({
+        name: name || 'ZyperGo Partner',
+        phone,
+        email,
+        accountNumber,
+        ifscCode,
+        vpa,
+        amountInRupees: amount,
+        referenceId: partnerId ? `fin_${partnerId}_${Date.now()}` : `fin_${Date.now()}`,
+        narration: 'ZyperGo Partner Payout'
+      });
+      if (!xResult.payoutId) status = 'Pending';
+      const refTag = xResult.payoutId
+        ? `RazorpayX Payout: ${xResult.payoutId}`
+        : `RazorpayX FundAcct: ${xResult.fundAccountId || xResult.contactId || 'Queued'}`;
+      payoutNote = payoutNote ? `${payoutNote} | ${refTag}` : refTag;
+    }
+
     const settlement = await Settlement.create({
       entityType: 'Partner',
       entityId: partnerId,
       entityTypeModel: 'Partner',
-      type: type || 'Payout',
+      type: payoutType,
       amount,
-      status: 'Settled',
-      notes,
+      status,
+      notes: payoutNote,
       processedBy: req.user?.id
     });
     res.status(201).json({ success: true, data: settlement });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Failed to log payout.' });
+    res.status(500).json({ success: false, error: err.message || 'Failed to log payout.' });
   }
 };
 

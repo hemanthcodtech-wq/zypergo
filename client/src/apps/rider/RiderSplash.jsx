@@ -33,48 +33,20 @@ export default function RiderSplash() {
     setStage('welcome');
   };
 
-  // 1. Initial Animated Logo Splash Screen (Instant Zero-Latency Render)
+  // 1. Initial Logo Splash Screen (Clean & Simple Logo Only)
   if (stage === 'splash') {
     return (
       <div 
         onClick={handleSkipToWelcome}
-        className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-between p-8 bg-gradient-to-b from-white via-amber-50/30 to-amber-100/40 text-slate-900 font-sans relative overflow-hidden select-none cursor-pointer"
+        className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-center p-8 bg-white font-sans relative overflow-hidden select-none cursor-pointer"
       >
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-0 w-64 h-64 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="pt-8">
-          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-800/60">
-            ZyperGo Partner Network
-          </span>
-        </div>
-
-        <div className="flex flex-col items-center text-center my-auto w-full px-4">
-          <div className="relative flex flex-col items-center justify-center w-full">
-            <div className="absolute -inset-10 bg-gradient-to-r from-amber-400/20 via-orange-500/25 to-yellow-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            
-            <img 
-              src={SPLASH_LOGO_DATA_URI || "/images/splash-logo.png"} 
-              alt="ZyperGo Logo" 
-              className="relative w-64 max-w-[85%] h-auto object-contain animate-splash-logo"
-              loading="eager"
-              decoding="sync"
-            />
-          </div>
-
-          <div className="mt-6 flex flex-col items-center text-center">
-            <h1 className="text-xl font-black text-slate-800 tracking-tight capitalize">welcome to rider app</h1>
-          </div>
-        </div>
-
-        <div className="w-full max-w-[200px] pb-8 flex flex-col items-center gap-2.5">
-          <div className="w-full h-1.5 bg-amber-200/70 rounded-full overflow-hidden p-0.5">
-            <div className="h-full bg-gradient-to-r from-amber-500 via-[#FF6B00] to-yellow-500 rounded-full animate-splash-progress" />
-          </div>
-          <span className="text-[10px] text-amber-800/60 font-bold tracking-widest uppercase">
-            Tap to continue
-          </span>
-        </div>
+        <img 
+          src="/images/captain-splash-logo.png" 
+          alt="ZyperGo Captain" 
+          className="w-64 max-w-[80%] h-auto object-contain animate-splash-logo"
+          loading="eager"
+          decoding="sync"
+        />
       </div>
     );
   }
@@ -86,7 +58,7 @@ export default function RiderSplash() {
       {/* Top Branding (Logo removed per user instruction - splash only) */}
       <div className="flex flex-col items-center pt-4 text-center">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300/80 text-amber-900 text-xs font-black uppercase tracking-wider mb-3">
-          <span>Rider Partner App</span>
+          <span>Captain App</span>
         </span>
 
         <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight uppercase">
@@ -136,22 +108,38 @@ export default function RiderSplash() {
       {/* Bottom CTA Buttons */}
       <div className="flex flex-col gap-2.5 pb-2">
         <button
-          onClick={() => navigate(loginPath)}
+          onClick={() => navigate(`${loginPath}?mode=captain`)}
           className="w-full bg-black hover:bg-slate-800 active:scale-[0.98] text-[#FFB703] font-black py-3.5 px-6 rounded-2xl text-sm shadow-lg flex items-center justify-center gap-2 transition-all uppercase tracking-wide cursor-pointer"
         >
-          <span>Login as Rider Partner</span>
+          <span>Login as Captain</span>
           <ArrowRight size={18} strokeWidth={2.5} />
         </button>
 
         <button
-          onClick={() => navigate(signupPath)}
-          className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 font-black py-3 px-6 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] uppercase tracking-wide cursor-pointer"
+          onClick={() => navigate(`${loginPath}?mode=helper`)}
+          className="w-full bg-[#006D77] hover:bg-[#005860] active:scale-[0.98] text-white font-black py-3.5 px-6 rounded-2xl text-sm shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wide cursor-pointer"
         >
-          <span>Apply as New Rider (Sign Up)</span>
+          <span>Login as Helper</span>
+          <ArrowRight size={18} strokeWidth={2.5} />
         </button>
 
+        <div className="grid grid-cols-2 gap-2 pt-0.5">
+          <button
+            onClick={() => navigate(`${signupPath}?mode=captain`)}
+            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 font-black py-2.5 px-3 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] uppercase tracking-wide cursor-pointer shadow-2xs"
+          >
+            <span>Captain Sign Up</span>
+          </button>
+          <button
+            onClick={() => navigate(`${signupPath}?mode=helper`)}
+            className="w-full bg-teal-50/80 hover:bg-teal-100/70 border border-teal-200 text-[#006D77] font-black py-2.5 px-3 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] uppercase tracking-wide cursor-pointer shadow-2xs"
+          >
+            <span>Helper Sign Up</span>
+          </button>
+        </div>
+
         <p className="text-center text-[10px] text-slate-400 mt-0.5">
-          ZyperGo Rider Partner Network • Fast Verification
+          ZyperGo Captain &amp; Helper Partner Network
         </p>
       </div>
 

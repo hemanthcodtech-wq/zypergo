@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const NotificationService = require('../services/notificationService');
 const jwt = require('jsonwebtoken');
+const { ensureUserPickupOtp } = require('../utils/pickupOtpHelper');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -42,6 +43,11 @@ exports.getProfile = async (req, res) => {
     
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    await ensureUserPickupOtp(user);
+    if (user.riderDetails?.assignedCaptain) {
+      await user.populate('riderDetails.assignedCaptain', 'name phone photoUrl');
     }
 
     res.status(200).json({ success: true, data: user });
@@ -124,12 +130,16 @@ exports.updateProfile = async (req, res) => {
     }
 
     if (user.role === 'Rider' || vehType || vehReg || vehImg || riderDetails) {
+      const preservedCaptain = user.riderDetails?.assignedCaptain;
       user.riderDetails = {
         ...(user.riderDetails || {}),
         ...(riderDetails || {}),
         ...(vehType ? { vehicleType: vehType } : {}),
         ...(vehReg !== undefined ? { vehicleRegistration: vehReg, vehicleNumber: vehReg } : {}),
         ...(vehImg !== undefined ? { vehicleImageUrl: vehImg } : {}),
+        ...(riderDetails?.helperWorkType ? { helperWorkType: riderDetails.helperWorkType } : {}),
+        ...(riderDetails?.partnerMode ? { partnerMode: riderDetails.partnerMode } : {}),
+        ...(preservedCaptain && !riderDetails?.assignedCaptain ? { assignedCaptain: preservedCaptain } : {}),
         documents: {
           ...(user.riderDetails?.documents || {}),
           ...(riderDetails?.documents || {}),
@@ -140,6 +150,9 @@ exports.updateProfile = async (req, res) => {
     }
 
     await user.save();
+    if (user.riderDetails?.assignedCaptain) {
+      await user.populate('riderDetails.assignedCaptain', 'name phone photoUrl');
+    }
 
     res.status(200).json({ 
       success: true, 

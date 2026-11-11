@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, MapPin, Package, CheckCircle2, ChevronDown, Check, Truck, Zap, 
+  ArrowLeft, ArrowRight, MapPin, Package, CheckCircle2, ChevronDown, ChevronRight, Check, Truck, Zap, 
   Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
-  Map, Bookmark, Home, Building2, Search, Navigation 
+  Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock 
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -21,6 +21,8 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 import api from '../../api';
 import { reverseGeocode, searchPlaces, forwardGeocode } from '../../utils/locationService';
+import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
+import { openRazorpayCheckout } from '../../utils/razorpayCheckout';
 
 // Helper component for tracking map movements
 function MapCenterTracker({ onMoveEnd }) {
@@ -87,9 +89,20 @@ const createDropMarkerIcon = () => {
 function MapFitBounds({ pickup, drop }) {
   const map = useMap();
   useEffect(() => {
-    if (pickup && drop && pickup[0] && drop[0]) {
-      const bounds = L.latLngBounds([pickup, drop]);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    if (
+      Array.isArray(pickup) &&
+      Array.isArray(drop) &&
+      Number.isFinite(pickup[0]) &&
+      Number.isFinite(pickup[1]) &&
+      Number.isFinite(drop[0]) &&
+      Number.isFinite(drop[1])
+    ) {
+      if (pickup[0] === drop[0] && pickup[1] === drop[1]) {
+        map.setView(pickup, 14);
+      } else {
+        const bounds = L.latLngBounds([pickup, drop]);
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      }
     }
   }, [pickup, drop, map]);
   return null;
@@ -106,14 +119,153 @@ function MapFlyTo({ targetCoords }) {
   return null;
 }
 
+const DELIVERY_VEHICLES = [
+  {
+    id: 'Scooter',
+    displayName: 'Scooter',
+    weightLabel: 'Up to 20 kg',
+    maxKg: 20,
+    eta: '10 mins',
+    img: '/images/bike.png',
+    dimensions: '45 × 35 × 35 cm',
+    bestFor: 'Documents, food boxes & small urgent parcels',
+    baseFare: 60,
+    perKm: 6
+  },
+  {
+    id: 'Mini 3W',
+    displayName: 'Mini 3W',
+    weightLabel: 'Up to 90 kg',
+    maxKg: 90,
+    eta: '1 min',
+    img: '/images/miniAuto.png',
+    dimensions: '110 × 90 × 90 cm',
+    bestFor: 'Multiple cartons & medium home appliances',
+    baseFare: 90,
+    perKm: 9
+  },
+  {
+    id: '3 Wheeler',
+    displayName: '3 Wheeler',
+    weightLabel: 'Up to 500 kg',
+    maxKg: 500,
+    eta: '3 mins',
+    img: '/images/3%20wheeler.png',
+    dimensions: '170 × 125 × 125 cm',
+    bestFor: 'Bulk retail stock & wholesale crates',
+    baseFare: 180,
+    perKm: 13
+  },
+  {
+    id: 'Tata Ace',
+    displayName: 'Tata Ace',
+    weightLabel: 'Up to 750 kg',
+    maxKg: 750,
+    eta: '10 mins',
+    img: '/images/tataace.png',
+    dimensions: '215 × 145 × 140 cm',
+    bestFor: 'Home shifting, furniture & commercial goods',
+    baseFare: 280,
+    perKm: 16
+  },
+  {
+    id: 'Pickup 8ft',
+    displayName: 'Pickup 8ft',
+    weightLabel: 'Up to 1200 kg',
+    maxKg: 1200,
+    eta: '10 mins',
+    img: '/images/pickup8ft.png',
+    dimensions: '245 × 150 × 150 cm',
+    bestFor: 'Hardware, machinery & distributor dispatches',
+    baseFare: 420,
+    perKm: 20
+  },
+  {
+    id: 'Pickup 9ft',
+    displayName: 'Pickup 9ft',
+    weightLabel: 'Up to 1700 kg',
+    maxKg: 1700,
+    eta: '9 mins',
+    img: '/images/9ft.png',
+    dimensions: '275 × 160 × 160 cm',
+    bestFor: 'Heavy B2B cargo & warehouse transfers',
+    baseFare: 520,
+    perKm: 24
+  },
+  {
+    id: '14ft',
+    displayName: '14ft Truck',
+    weightLabel: 'Up to 3500 kg',
+    maxKg: 3500,
+    eta: '12 mins',
+    img: '/images/14ft.png',
+    dimensions: '425 × 200 × 200 cm',
+    bestFor: 'Large industrial freight & full loads',
+    baseFare: 780,
+    perKm: 32
+  },
+  {
+    id: '17ft',
+    displayName: '17ft Truck',
+    weightLabel: 'Up to 6000 kg',
+    maxKg: 6000,
+    eta: '15 mins',
+    img: '/images/17ft.png',
+    dimensions: '520 × 215 × 215 cm',
+    bestFor: 'Heavy intercity/intracity truckloads',
+    baseFare: 1200,
+    perKm: 40
+  }
+];
+
+function calcDistanceKm(c1, c2) {
+  if (!Array.isArray(c1) || !Array.isArray(c2) || !c1[0] || !c2[0]) return 5;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(c2[0] - c1[0]);
+  const dLng = toRad(c2[1] - c1[1]);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(c1[0])) * Math.cos(toRad(c2[0])) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return Math.max(1, Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
+}
+
+function getRecommendedVehicle(weightStr) {
+  const w = parseFloat(weightStr) || 5;
+  return DELIVERY_VEHICLES.find((v) => v.maxKg >= w) || DELIVERY_VEHICLES[DELIVERY_VEHICLES.length - 1];
+}
+
+function getVehicleEstimatedPrice(vehicleObj, distanceKm) {
+  const extraKm = Math.max(0, (distanceKm || 5) - 5);
+  return Math.round(vehicleObj.baseFare + extraKm * vehicleObj.perKm);
+}
+
+function BookingHeader({ title, onBack }) {
+  return (
+    <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-slate-100 flex items-center justify-between px-4 py-3.5">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+        >
+          <ArrowLeft size={22} />
+        </button>
+        <h1 className="text-lg font-black text-slate-900">{title}</h1>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingFlow() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookingResult, setBookingResult] = useState(null);
-  const [estimatedFare, setEstimatedFare] = useState(210);
+  const [estimatedFare, setEstimatedFare] = useState(60);
   const [fareBreakdown, setFareBreakdown] = useState(null);
+  const [vehicleDetailModal, setVehicleDetailModal] = useState(null);
   
   // Rapido-Style Map Picker Modal State
   const [mapModal, setMapModal] = useState({ show: false, targetField: '' });
@@ -130,6 +282,8 @@ export default function BookingFlow() {
 
   const [showPayment, setShowPayment] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [paymentError, setPaymentError] = useState('');
   
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [savedAddressModal, setSavedAddressModal] = useState({ show: false, targetField: '' });
@@ -150,7 +304,7 @@ export default function BookingFlow() {
     cashOnDelivery: false,
     
     // Step 2: Vehicle
-    vehicle: 'Auto',
+    vehicle: 'Scooter',
     
     // Step 3: Schedule
     pickupDate: 'Today',
@@ -168,6 +322,7 @@ export default function BookingFlow() {
           setFormData(prev => ({ ...prev, pickupAddress: parsed.formattedAddress }));
           if (parsed.lat && parsed.lng) {
             setUserLocation([parsed.lat, parsed.lng]);
+            setPickupCoords([parsed.lat, parsed.lng]);
           }
           return;
         }
@@ -217,43 +372,45 @@ export default function BookingFlow() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const nextValue = name === 'receiverPhone' ? sanitizeDigits(value, 10) : value;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : nextValue
     }));
   };
 
   useEffect(() => {
-    // Fetch estimated fare from the backend pricing engine
+    const selectedVeh = DELIVERY_VEHICLES.find((v) => v.id === formData.vehicle) || DELIVERY_VEHICLES[0];
+    const distKm = calcDistanceKm(pickupCoords, dropCoords);
+    setEstimatedFare(getVehicleEstimatedPrice(selectedVeh, distKm));
+
+    // Fetch estimated fare breakdown from the backend pricing engine when available
     const fetchEstimate = async () => {
       try {
         const basePayload = {
-          originCity: formData.pickupAddress.split(',')[0]?.trim() || 'Unknown',
-          destCity: formData.dropAddress.split(',')[0]?.trim() || 'Unknown',
+          originCity: (formData.pickupAddress || '').split(',')[0]?.trim() || 'Unknown',
+          destCity: (formData.dropAddress || '').split(',')[0]?.trim() || 'Unknown',
+          distanceKm: distKm,
           actualWeight: parseInt(formData.weight) || 5,
           category: formData.parcelType || 'General Parcel',
           speed: 'Standard'
         };
         
-        // Fetch for currently selected vehicle to get breakdown
         const res = await api.post('/bookings/estimate', { ...basePayload, vehicle: formData.vehicle });
-        if (res.data.success && res.data.data) {
-          setEstimatedFare(res.data.data.breakdown.totalCustomerPrice);
+        if (res.data.success && res.data.data?.breakdown) {
           setFareBreakdown(res.data.data.breakdown);
         }
-
       } catch (err) {
         console.error("Failed to estimate fare:", err);
       }
     };
     
-    // Only fetch if we have a drop address (to avoid spamming API too early)
     if (formData.dropAddress) {
       fetchEstimate();
     }
-  }, [formData.weight, formData.parcelType, formData.vehicle, formData.pickupAddress, formData.dropAddress]);
+  }, [formData.weight, formData.parcelType, formData.vehicle, formData.pickupAddress, formData.dropAddress, pickupCoords, dropCoords]);
 
-  const submitBooking = async () => {
+  const submitBooking = async (paymentDetails = null) => {
     setError('');
     setLoading(true);
 
@@ -267,9 +424,11 @@ export default function BookingFlow() {
           address: formData.dropAddress || 'Mysore, Karnataka 570001', 
           pincode: '570001'
         },
+        sender: currentUser._id || currentUser.id || undefined,
         senderDetails: { 
           name: currentUser.name || 'John Doe', 
-          phone: currentUser.phone || '9876543210'
+          phone: currentUser.phone || '9876543210',
+          email: currentUser.email || undefined
         },
         receiver: { 
           name: formData.receiverName, 
@@ -300,13 +459,25 @@ export default function BookingFlow() {
           total: estimatedFare
         },
         payment: { 
-          mode: formData.cashOnDelivery ? 'Cash' : 'UPI', 
-          payer: formData.cashOnDelivery ? 'Receiver' : 'Sender' 
+          mode: formData.cashOnDelivery ? 'Cash' : (paymentDetails?.mode || paymentMethod || 'UPI'), 
+          payer: formData.cashOnDelivery ? 'Receiver' : 'Sender',
+          ...(paymentDetails?.razorpay_payment_id ? {
+            status: 'Completed',
+            transactionId: paymentDetails.razorpay_payment_id,
+            razorpayOrderId: paymentDetails.razorpay_order_id,
+            razorpayPaymentId: paymentDetails.razorpay_payment_id,
+            razorpaySignature: paymentDetails.razorpay_signature
+          } : {})
         }
       };
 
       const response = await api.post('/bookings', payload);
-      setBookingResult(response.data.data);
+      const createdBooking = response.data.data;
+      if (createdBooking?.pickupOtp && currentUser && !currentUser.pickupOtp) {
+        const updatedUser = { ...currentUser, pickupOtp: createdBooking.pickupOtp };
+        localStorage.setItem('zypergo_user', JSON.stringify(updatedUser));
+      }
+      setBookingResult(createdBooking);
       setStep(4);
     } catch (err) {
       console.error(err);
@@ -384,6 +555,11 @@ export default function BookingFlow() {
         setFlyTarget([geo.lat, geo.lng]);
         setTempLocation({ lat: geo.lat, lng: geo.lng });
         setResolvedAddress(geo.formattedAddress || item.text);
+        if (mapModal.targetField === 'pickupAddress') {
+          setPickupCoords([geo.lat, geo.lng]);
+        } else if (mapModal.targetField === 'dropAddress') {
+          setDropCoords([geo.lat, geo.lng]);
+        }
       }
     } catch (err) {
       console.error('Forward geocode failed:', err);
@@ -446,28 +622,15 @@ export default function BookingFlow() {
     }
   };
 
-  const Header = ({ title }) => (
-    <div className="sticky top-0 z-20 bg-white shadow-sm border-b border-slate-100 flex items-center justify-between px-4 py-3.5">
-      <div className="flex items-center gap-3">
-        <button 
-          type="button"
-          onClick={() => {
-            if (step > 1 && step < 4) {
-              setStep(step - 1);
-            } else if (step === 1) {
-              setStep(0);
-            } else {
-              handleClose();
-            }
-          }} 
-          className="p-1 -ml-1 text-slate-700 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={22} />
-        </button>
-        <h1 className="text-lg font-black text-slate-900">{title}</h1>
-      </div>
-    </div>
-  );
+  const handleHeaderBack = () => {
+    if (step > 1 && step < 4) {
+      setStep(step - 1);
+    } else if (step === 1) {
+      setStep(0);
+    } else {
+      handleClose();
+    }
+  };
 
   return (
     <div className="bg-slate-50 min-h-full flex flex-col font-sans relative">
@@ -526,7 +689,7 @@ export default function BookingFlow() {
 
       {(step === 0 || step === 1) && (
         <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-          <Header title={`Book Parcel ${formData.serviceType ? `(${formData.serviceType})` : ''}`} />
+          <BookingHeader title={`Book Parcel ${formData.serviceType ? `(${formData.serviceType})` : ''}`} onBack={handleHeaderBack} />
           
           <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-4">
             <div>
@@ -651,12 +814,19 @@ export default function BookingFlow() {
               <div className="flex-1">
                 <input 
                   type="tel" 
+                  inputMode="numeric"
+                  pattern="[0-9]{10}"
+                  maxLength={10}
                   name="receiverPhone"
                   value={formData.receiverPhone}
                   onChange={handleChange}
-                  placeholder="Phone Number"
+                  onKeyDown={(e) => handleNumericKeyDown(e, formData.receiverPhone, 10)}
+                  placeholder="10-digit Mobile Number"
                   className="w-full border border-slate-200 rounded-xl px-4 py-3 shadow-sm bg-slate-50 font-bold text-sm outline-none focus:border-[#0052CC]"
                 />
+                {formData.receiverPhone.length > 0 && formData.receiverPhone.length < 10 && (
+                  <p className="text-[10px] font-bold text-amber-600 mt-1">Enter 10 digits ({formData.receiverPhone.length}/10)</p>
+                )}
               </div>
             </div>
 
@@ -716,8 +886,13 @@ export default function BookingFlow() {
           
           <div className="p-4 border-t border-slate-100 bg-white mt-auto">
              <button 
-                onClick={() => setStep(2)}
-                disabled={!formData.dropAddress || !formData.receiverName || !formData.receiverPhone || !formData.weight || !formData.parcelType}
+                type="button"
+                onClick={() => {
+                  const recommended = getRecommendedVehicle(formData.weight);
+                  setFormData((prev) => ({ ...prev, vehicle: recommended.id }));
+                  setStep(2);
+                }}
+                disabled={!formData.dropAddress || !formData.receiverName || formData.receiverPhone.length !== 10 || !formData.weight || !formData.parcelType}
                 className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] disabled:opacity-50 transition-all hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
               >
                Continue
@@ -726,155 +901,198 @@ export default function BookingFlow() {
         </div>
       )}
 
-      {step === 2 && (
-        <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
-          <Header title="Select Vehicle / Service" />
-          
-          {/* Rapido-Style Top Live Map with Route & Nearby Vehicles */}
-          <div className="relative w-full h-[230px] shrink-0 border-b border-slate-200 bg-slate-100 overflow-hidden shadow-xs">
-            <MapContainer
-              center={pickupCoords}
-              zoom={14}
-              zoomControl={false}
-              attributionControl={false}
-              style={{ height: '100%', width: '100%', zIndex: 0 }}
-            >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <MapFitBounds pickup={pickupCoords} drop={dropCoords} />
+      {step === 2 && (() => {
+        const distanceKm = calcDistanceKm(pickupCoords, dropCoords);
+        const recommendedVehicle = getRecommendedVehicle(formData.weight);
+        const selectedVehicle = DELIVERY_VEHICLES.find((v) => v.id === formData.vehicle) || recommendedVehicle;
+        const selectedPrice = getVehicleEstimatedPrice(selectedVehicle, distanceKm);
 
-              {/* Route Polyline connecting pickup to drop */}
-              <Polyline 
-                positions={[pickupCoords, dropCoords]} 
-                color="#0052CC" 
-                weight={4} 
-                opacity={0.85} 
-                dashArray="6, 8"
-              />
+        return (
+          <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300 bg-[#F8FAFC]">
+            <BookingHeader title="Choose Your Delivery Vehicle" onBack={handleHeaderBack} />
 
-              {/* Pickup Marker */}
-              <Marker position={pickupCoords} icon={createPickupMarkerIcon()} />
+            {/* Live Route Map with Nearby Captains */}
+            <div className="relative w-full h-[185px] shrink-0 border-b border-slate-200 bg-slate-100 overflow-hidden shadow-xs">
+              <MapContainer
+                center={pickupCoords}
+                zoom={14}
+                zoomControl={false}
+                attributionControl={false}
+                style={{ height: '100%', width: '100%', zIndex: 0 }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <MapFitBounds pickup={pickupCoords} drop={dropCoords} />
 
-              {/* Drop Marker */}
-              <Marker position={dropCoords} icon={createDropMarkerIcon()} />
-
-              {/* Nearby Online Captains clustered around pickup location */}
-              {[
-                { id: 'bc1', lat: pickupCoords[0] + 0.0025, lng: pickupCoords[1] + 0.0022, heading: 45 },
-                { id: 'bc2', lat: pickupCoords[0] - 0.0021, lng: pickupCoords[1] + 0.0028, heading: 110 },
-                { id: 'bc3', lat: pickupCoords[0] + 0.0032, lng: pickupCoords[1] - 0.0024, heading: 220 },
-                { id: 'bc4', lat: pickupCoords[0] - 0.0028, lng: pickupCoords[1] - 0.0022, heading: 315 },
-                { id: 'bc5', lat: pickupCoords[0] + 0.0014, lng: pickupCoords[1] - 0.0032, heading: 80 },
-              ].map(c => (
-                <Marker 
-                  key={c.id} 
-                  position={[c.lat, c.lng]} 
-                  icon={createCaptainIcon(c.heading)} 
+                <Polyline
+                  positions={[pickupCoords, dropCoords]}
+                  color="#0052CC"
+                  weight={4}
+                  opacity={0.85}
+                  dashArray="6, 8"
                 />
-              ))}
-            </MapContainer>
 
-            {/* Top Nearby Captains Badge */}
-            <div className="absolute top-2.5 left-2.5 z-10">
-              <div className="flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-full shadow-md border border-white/20 text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="font-black text-[11px]">⚡ 5 Captains nearby pickup</span>
-                <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
-                  2-3 mins
-                </span>
+                <Marker position={pickupCoords} icon={createPickupMarkerIcon()} />
+                <Marker position={dropCoords} icon={createDropMarkerIcon()} />
+
+                {[
+                  { id: 'bc1', lat: pickupCoords[0] + 0.0025, lng: pickupCoords[1] + 0.0022, heading: 45 },
+                  { id: 'bc2', lat: pickupCoords[0] - 0.0021, lng: pickupCoords[1] + 0.0028, heading: 110 },
+                  { id: 'bc3', lat: pickupCoords[0] + 0.0032, lng: pickupCoords[1] - 0.0024, heading: 220 },
+                  { id: 'bc4', lat: pickupCoords[0] - 0.0028, lng: pickupCoords[1] - 0.0022, heading: 315 },
+                  { id: 'bc5', lat: pickupCoords[0] + 0.0014, lng: pickupCoords[1] - 0.0032, heading: 80 },
+                ].map((c) => (
+                  <Marker key={c.id} position={[c.lat, c.lng]} icon={createCaptainIcon(c.heading)} />
+                ))}
+              </MapContainer>
+
+              <div className="absolute top-2.5 left-2.5 z-10">
+                <div className="flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-full shadow-md border border-white/20 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="font-black text-[11px]">⚡ 5 Captains nearby pickup</span>
+                  <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                    2-3 mins
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Route Summary Pill */}
-            <div className="absolute bottom-2 left-2.5 right-2.5 z-10 flex items-center justify-between pointer-events-none">
-              <div className="bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md border border-slate-200/80 text-[10px] font-black text-slate-800 flex items-center gap-2 pointer-events-auto">
-                <span className="text-blue-700">📍 {formData.pickupAddress?.split(',')[0] || 'Pickup'}</span>
-                <span className="text-slate-400">→</span>
-                <span className="text-emerald-700">🏁 {formData.dropAddress?.split(',')[0] || 'Drop'}</span>
+            {/* Scrollable Body: Route Summary + Recommendation + 2-Column Vehicle Grid */}
+            <div className="p-3.5 flex-1 overflow-y-auto pb-28 space-y-3">
+              <div>
+                <h2 className="text-base font-black text-slate-900 tracking-tight">Choose Your Delivery Vehicle</h2>
+                <p className="text-[11px] font-medium text-slate-500">
+                  Select the best vehicle for your parcel. Price and delivery time shown below.
+                </p>
+              </div>
+
+              {/* Compact Route Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pickup</p>
+                    <p className="text-[11px] font-black text-slate-800 truncate">{(formData.pickupAddress || 'Pickup').split(',')[0]}</p>
+                  </div>
+                  <ArrowRight size={14} className="text-slate-400 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Drop</p>
+                    <p className="text-[11px] font-black text-slate-800 truncate">{(formData.dropAddress || 'Drop').split(',')[0]}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] font-black text-[#0052CC] shrink-0 cursor-pointer"
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Parcel Details + Recommended Banner */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                      <Package size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Parcel Details</p>
+                      <p className="text-xs font-black text-slate-800">
+                        {formData.weight || '5 kg'} • {formData.parcelType || 'General Parcel'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-[11px] font-bold text-[#0052CC] hover:underline cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                </div>
+
+                <div className="bg-emerald-50/90 border border-emerald-200 rounded-2xl p-3 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black text-emerald-800">Recommended for you</p>
+                    <p className="text-[10.5px] font-semibold text-emerald-700 leading-snug">
+                      Based on your parcel weight, <span className="font-black">{recommendedVehicle.displayName}</span> is the best option.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2-Vehicles-In-A-Row Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                {DELIVERY_VEHICLES.map((veh) => {
+                  const isSelected = selectedVehicle.id === veh.id;
+                  const isRecommended = recommendedVehicle.id === veh.id;
+                  const price = getVehicleEstimatedPrice(veh, distanceKm);
+
+                  return (
+                    <VehicleOption
+                      key={veh.id}
+                      vehicle={veh}
+                      price={price}
+                      isRecommended={isRecommended}
+                      selected={isSelected}
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, vehicle: veh.id }));
+                        setEstimatedFare(price);
+                      }}
+                      onViewDetails={(e) => {
+                        e.stopPropagation();
+                        setVehicleDetailModal({ ...veh, price, isRecommended });
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
-          </div>
 
-          {/* Vehicle Selection Bottom Sheet */}
-          <div className="p-3.5 flex-1 overflow-y-auto pb-24 space-y-2.5">
-             <div className="flex items-center justify-between mb-1">
-               <p className="text-xs font-black text-slate-900 uppercase tracking-wider">Available Vehicles</p>
-               <span className="text-[10px] font-bold text-slate-500">Fastest Match</span>
-             </div>
+            {/* Sticky Bottom Bar matching reference screenshot */}
+            <div className="p-3.5 border-t border-slate-200 bg-white shadow-[0_-6px_20px_rgba(15,23,42,0.06)] mt-auto flex items-center justify-between gap-2.5 z-20">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src={selectedVehicle.img}
+                  alt={selectedVehicle.displayName}
+                  className="w-11 h-9 object-contain shrink-0 bg-slate-50 rounded-lg p-1 border border-slate-100"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-900 truncate">{selectedVehicle.displayName}</span>
+                    {recommendedVehicle.id === selectedVehicle.id && (
+                      <span className="text-[8.5px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full shrink-0">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-500 truncate">
+                    {selectedVehicle.weightLabel} • ₹{selectedPrice.toLocaleString('en-IN')}
+                  </p>
+                </div>
+              </div>
 
-             <VehicleOption 
-                name="Scooter" weight="20 Kg" time="2 mins" 
-                icon={<img src="/images/bike.png" alt="Scooter" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === 'Scooter'} 
-                onClick={() => setFormData({...formData, vehicle: 'Scooter'})} 
-             />
-             <VehicleOption 
-                name="Mini 3W" weight="90 Kg" time="1 min" 
-                icon={<img src="/images/miniAuto.png" alt="Mini 3W" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === 'Mini 3W'} 
-                onClick={() => setFormData({...formData, vehicle: 'Mini 3W'})} 
-             />
-             <VehicleOption 
-                name="3 Wheeler" weight="500 kg" time="3 mins" 
-                icon={<img src="/images/3%20wheeler.png" alt="3 Wheeler" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === '3 Wheeler'} 
-                onClick={() => setFormData({...formData, vehicle: '3 Wheeler'})} 
-             />
-             <VehicleOption 
-                name="Tata Ace" weight="750 kg" time="8 mins" 
-                icon={<img src="/images/tataace.png" alt="Tata Ace" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === 'Tata Ace'} 
-                onClick={() => setFormData({...formData, vehicle: 'Tata Ace'})} 
-             />
-             <VehicleOption 
-                name="Pickup 8ft" weight="1200 kg" time="10 mins" 
-                icon={<img src="/images/pickup8ft.png" alt="Pickup 8ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === 'Pickup 8ft'} 
-                onClick={() => setFormData({...formData, vehicle: 'Pickup 8ft'})} 
-             />
-             <VehicleOption 
-                name="Pickup 9ft" weight="1700 Kg" time="9 mins" 
-                icon={<img src="/images/9ft.png" alt="Pickup 9ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === 'Pickup 9ft'} 
-                onClick={() => setFormData({...formData, vehicle: 'Pickup 9ft'})} 
-             />
-             <VehicleOption 
-                name="14ft" weight="3500 Kg" time="20 mins" 
-                icon={<img src="/images/14ft.png" alt="14ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === '14ft'} 
-                onClick={() => setFormData({...formData, vehicle: '14ft'})} 
-             />
-             <VehicleOption 
-                name="17ft" weight="6000 Kg" time="25 mins" 
-                icon={<img src="/images/17ft.png" alt="17ft" className="w-16 h-16 object-contain drop-shadow-sm" />}
-                selected={formData.vehicle === '17ft'} 
-                onClick={() => setFormData({...formData, vehicle: '17ft'})} 
-             />
-          </div>
-
-          {/* Sticky Bottom Actions */}
-          <div className="p-3.5 border-t border-slate-100 bg-white mt-auto flex gap-2">
-             <button 
+              <button
                 type="button"
-                onClick={() => setStep(3)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black py-3.5 rounded-xl text-xs transition-all cursor-pointer"
-             >
-               Schedule
-             </button>
-             <button 
-                type="button"
-                onClick={() => setStep(3)}
-                className="flex-[2] bg-[#0052CC] hover:bg-blue-700 text-white font-black py-3.5 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] active:scale-[0.98] transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-             >
-               <span>Book {formData.vehicle} • ₹{estimatedFare}</span>
-               <ArrowRight size={14} strokeWidth={2.5} />
-             </button>
+                onClick={() => {
+                  setEstimatedFare(selectedPrice);
+                  setStep(3);
+                }}
+                className="bg-[#0052CC] hover:bg-blue-700 text-white font-black px-4 py-3 rounded-xl shadow-[0_6px_16px_-4px_rgba(0,82,204,0.5)] active:scale-[0.98] transition-all text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <span>Continue</span>
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {step === 3 && (
         <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
-          <Header title="Schedule Pickup" />
+          <BookingHeader title="Schedule Pickup" onBack={handleHeaderBack} />
           
           <div className="p-4 flex-1 overflow-y-auto pb-24 space-y-5">
             <div>
@@ -962,7 +1180,21 @@ export default function BookingFlow() {
               <CheckCircle2 size={48} />
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Order Confirmed</h2>
-            <p className="text-slate-500 text-sm font-medium mb-8">Your tracking ID is <br/><span className="font-mono font-black tracking-widest text-[#0052CC] text-lg mt-2 inline-block bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">{bookingResult.trackingId}</span></p>
+            <p className="text-slate-500 text-sm font-medium mb-5">Your tracking ID is <br/><span className="font-mono font-black tracking-widest text-[#0052CC] text-lg mt-2 inline-block bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">{bookingResult.trackingId}</span></p>
+
+            {(bookingResult.pickupOtp || bookingResult.sender?.pickupOtp || bookingResult.proofOfDelivery?.otp || currentUser.pickupOtp) && (
+              <div className="w-full md:max-w-md bg-blue-50/80 border border-blue-200 rounded-2xl p-4 mb-6 mx-auto flex items-center justify-between gap-3 text-left">
+                <div>
+                  <p className="text-[10px] font-black text-[#0052CC] uppercase tracking-widest">Permanent Pickup OTP</p>
+                  <p className="text-[11px] font-semibold text-slate-600 mt-0.5">Share this same 4-digit PIN with your Captain for pickup</p>
+                </div>
+                <div className="bg-white border border-blue-200 rounded-xl px-4 py-2 shadow-xs shrink-0">
+                  <span className="font-mono font-black text-2xl text-[#0052CC] tracking-[0.2em]">
+                    {bookingResult.pickupOtp || bookingResult.sender?.pickupOtp || bookingResult.proofOfDelivery?.otp || currentUser.pickupOtp}
+                  </span>
+                </div>
+              </div>
+            )}
             
             <div className="w-full md:max-w-md bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-8 text-left mx-auto">
                <div className="flex justify-between items-center mb-3">
@@ -1146,6 +1378,76 @@ export default function BookingFlow() {
         </div>
       )}
 
+      {/* Vehicle Details Modal */}
+      {vehicleDetailModal && (
+        <div
+          onClick={() => setVehicleDetailModal(null)}
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/50 backdrop-blur-sm animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-t-3xl p-5 pb-8 shadow-2xl w-full max-w-lg mx-auto animate-in slide-in-from-bottom space-y-4"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-14 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-1.5">
+                  <img src={vehicleDetailModal.img} alt={vehicleDetailModal.displayName} className="w-full h-full object-contain" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900">{vehicleDetailModal.displayName}</h3>
+                    {vehicleDetailModal.isRecommended && (
+                      <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">Recommended</span>
+                    )}
+                  </div>
+                  <p className="text-xs font-bold text-slate-500">{vehicleDetailModal.weightLabel}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVehicleDetailModal(null)}
+                className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 bg-slate-50 rounded-2xl p-3 border border-slate-100 text-xs">
+              <div>
+                <p className="text-[9.5px] font-bold text-slate-400 uppercase">Cargo Dimensions</p>
+                <p className="font-black text-slate-800 mt-0.5">{vehicleDetailModal.dimensions}</p>
+              </div>
+              <div>
+                <p className="text-[9.5px] font-bold text-slate-400 uppercase">Estimated Pickup</p>
+                <p className="font-black text-emerald-700 mt-0.5">{vehicleDetailModal.eta}</p>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-slate-200/70">
+                <p className="text-[9.5px] font-bold text-slate-400 uppercase">Ideal For</p>
+                <p className="font-bold text-slate-700 mt-0.5">{vehicleDetailModal.bestFor}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Estimated Price</p>
+                <p className="text-2xl font-black text-[#0052CC]">₹{vehicleDetailModal.price.toLocaleString('en-IN')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, vehicle: vehicleDetailModal.id }));
+                  setEstimatedFare(vehicleDetailModal.price);
+                  setVehicleDetailModal(null);
+                }}
+                className="px-6 py-3 rounded-xl bg-[#0052CC] hover:bg-blue-700 text-white font-black text-xs shadow-md cursor-pointer"
+              >
+                Select {vehicleDetailModal.displayName}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Saved Addresses Modal */}
       {savedAddressModal.show && (
         <div className="fixed inset-0 z-40 flex flex-col bg-slate-900/40 backdrop-blur-sm animate-in fade-in justify-end">
@@ -1200,31 +1502,67 @@ export default function BookingFlow() {
             </div>
 
             <div className="space-y-3">
-              <label className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white shadow-sm cursor-pointer hover:border-[#0052CC]/30 transition-colors">
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 bg-blue-50 text-[#0052CC] rounded-full flex items-center justify-center font-bold text-xs">UPI</div>
-                   <span className="font-bold text-slate-800 text-sm">Pay via UPI</span>
-                </div>
-                <input type="radio" name="paymentMethod" defaultChecked className="w-5 h-5 accent-[#0052CC]" />
-              </label>
-              
-              <label className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white shadow-sm cursor-pointer hover:border-[#0052CC]/30 transition-colors">
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs">CC</div>
-                   <span className="font-bold text-slate-800 text-sm">Credit / Debit Card</span>
-                </div>
-                <input type="radio" name="paymentMethod" className="w-5 h-5 accent-[#0052CC]" />
-              </label>
+              {[
+                { id: 'UPI', badge: 'UPI', badgeClass: 'bg-blue-50 text-[#0052CC]', label: 'Pay via UPI (GPay / PhonePe / Paytm)' },
+                { id: 'Card', badge: 'CC', badgeClass: 'bg-blue-50 text-blue-600', label: 'Credit / Debit Card' },
+                { id: 'NetBanking', badge: 'NB', badgeClass: 'bg-emerald-50 text-emerald-700', label: 'NetBanking & Wallets (Razorpay)' }
+              ].map((opt) => (
+                <label
+                  key={opt.id}
+                  onClick={() => !isProcessingPayment && setPaymentMethod(opt.id)}
+                  className={`flex items-center justify-between p-4 border rounded-xl bg-white shadow-sm cursor-pointer transition-colors ${
+                    paymentMethod === opt.id ? 'border-[#0052CC] ring-1 ring-[#0052CC]/20' : 'border-slate-200 hover:border-[#0052CC]/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${opt.badgeClass}`}>{opt.badge}</div>
+                     <span className="font-bold text-slate-800 text-sm">{opt.label}</span>
+                  </div>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    checked={paymentMethod === opt.id}
+                    onChange={() => setPaymentMethod(opt.id)}
+                    className="w-5 h-5 accent-[#0052CC]"
+                  />
+                </label>
+              ))}
             </div>
 
+            {paymentError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs font-bold">
+                {paymentError}
+              </div>
+            )}
+
             <button 
-              onClick={() => {
+              onClick={async () => {
+                setPaymentError('');
                 setIsProcessingPayment(true);
-                setTimeout(() => {
-                  submitBooking();
-                  setIsProcessingPayment(false);
+                try {
+                  const verified = await openRazorpayCheckout({
+                    amount: estimatedFare,
+                    name: 'ZyperGo Logistics',
+                    description: `Parcel Booking (${formData.vehicle || 'Standard'})`,
+                    purpose: 'booking',
+                    userId: currentUser._id || currentUser.id,
+                    prefill: {
+                      name: currentUser.name,
+                      email: currentUser.email,
+                      contact: currentUser.phone
+                    },
+                    notes: {
+                      vehicle: formData.vehicle || 'Scooter',
+                      serviceType: formData.serviceType || 'Within City'
+                    }
+                  });
+                  await submitBooking({ ...verified, mode: paymentMethod });
                   setShowPayment(false);
-                }, 2000);
+                } catch (payErr) {
+                  setPaymentError(payErr.message || 'Payment could not be completed.');
+                } finally {
+                  setIsProcessingPayment(false);
+                }
               }}
               disabled={isProcessingPayment}
               className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] flex justify-center items-center gap-2 mt-4 transition-all active:scale-95 disabled:opacity-75 disabled:active:scale-100 cursor-pointer"
@@ -1261,26 +1599,71 @@ function ToggleRow({ icon, label, name, checked, onChange }) {
   );
 }
 
-function VehicleOption({ name, weight, time, icon, selected, onClick }) {
+function VehicleOption({ vehicle, price, isRecommended, selected, onClick, onViewDetails }) {
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`border rounded-3xl p-6 flex items-center justify-between cursor-pointer transition-all active:scale-[0.98] ${selected ? 'border-[#FFB703] bg-amber-50 shadow-md ring-4 ring-[#FFB703]/20' : 'border-slate-200 bg-white hover:border-[#FFB703]/50 hover:shadow-md'}`}
+      className={`relative rounded-2xl p-2.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] bg-white ${
+        selected
+          ? 'border-2 border-[#0052CC] ring-2 ring-[#0052CC]/15 shadow-md bg-blue-50/20'
+          : 'border border-slate-200 hover:border-blue-300 shadow-2xs'
+      }`}
     >
-      <div className="flex items-center gap-6">
-         <div className="w-24 h-24 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center p-2">
-            {icon}
-         </div>
-         <div>
-            <h4 className="font-black text-slate-900 text-lg mb-1">{name}</h4>
-            <p className="text-xs text-slate-500 font-bold mb-2">{weight}</p>
-            <p className="text-xs text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 inline-block px-2.5 py-1 rounded-md">{time}</p>
-         </div>
+      {/* Top Row: Recommended Tag + Selection Indicator */}
+      <div className="flex items-center justify-between gap-1 min-h-[20px]">
+        {isRecommended ? (
+          <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md tracking-tight">
+            Recommended
+          </span>
+        ) : (
+          <span />
+        )}
+        <div
+          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+            selected ? 'border-[#0052CC] bg-[#0052CC] text-white' : 'border-slate-300 bg-white'
+          }`}
+        >
+          {selected && <Check size={11} strokeWidth={3.5} />}
+        </div>
       </div>
-      <div className="text-right flex flex-col items-end gap-2">
-         <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${selected ? 'border-[#FFB703] bg-[#FFB703] text-white' : 'border-slate-300 bg-white'}`}>
-            {selected && <Check size={16} strokeWidth={3.5} />}
-         </div>
+
+      {/* Vehicle Photo */}
+      <div className="h-16 flex items-center justify-center my-1.5">
+        <img src={vehicle.img} alt={vehicle.displayName} className="max-h-full max-w-full object-contain drop-shadow-xs" />
+      </div>
+
+      {/* Vehicle Info */}
+      <div className="space-y-1">
+        <div>
+          <h4 className="font-black text-slate-900 text-xs sm:text-sm leading-tight truncate">{vehicle.displayName}</h4>
+          <p className="text-[10.5px] text-slate-500 font-bold">{vehicle.weightLabel}</p>
+        </div>
+
+        <div className="flex items-center gap-1 flex-wrap text-[9.5px] font-bold text-slate-500">
+          <span>⚡ Est.</span>
+          <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md font-black">
+            {vehicle.eta}
+          </span>
+        </div>
+
+        {/* Bottom Divider: Price + View Details */}
+        <div className="pt-2 mt-1 border-t border-slate-100 flex items-end justify-between gap-1">
+          <div>
+            <p className="text-[8.5px] font-bold text-slate-400 flex items-center gap-0.5">
+              Est. price <Info size={8} />
+            </p>
+            <p className="text-base font-black text-[#0052CC] leading-none mt-0.5">
+              ₹{price.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onViewDetails}
+            className="text-[9.5px] font-black text-slate-600 hover:text-[#0052CC] flex items-center shrink-0 cursor-pointer"
+          >
+            Details <ChevronRight size={11} />
+          </button>
+        </div>
       </div>
     </div>
   );

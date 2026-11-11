@@ -97,6 +97,9 @@ app.use('/api/blogs', blogRoutes);
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
 
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/payments', paymentRoutes);
+
 // Serve static files in production if SERVE_STATIC is true or client dist exists
 const path = require('path');
 const fs = require('fs');

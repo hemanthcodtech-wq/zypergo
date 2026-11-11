@@ -2,6 +2,9 @@ const Booking = require('../models/Booking');
 const RoutingRule = require('../models/RoutingRule');
 const VehicleConfig = require('../models/VehicleConfig');
 const Hub = require('../models/Hub');
+const Transaction = require('../models/Transaction');
+const razorpayService = require('../services/razorpayService');
+const { ensureUserPickupOtp, resolveCustomerForBooking, generateUniquePickupOtp } = require('../utils/pickupOtpHelper');
 
 // Calculate distance based on pincode difference (Mock implementation)
 const calculateMockDistance = (pin1, pin2) => {
@@ -132,9 +135,21 @@ exports.createBooking = async (req, res) => {
     bookingData.trackingId = trackingId;
     bookingData.status = 'Booking Confirmed';
 
-    // Generate Mock Delivery OTP
-    const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
-    bookingData.proofOfDelivery = { otp: deliveryOtp };
+    // Assign customer's permanent unique 4-digit Pickup OTP
+    const customerUser = await resolveCustomerForBooking({
+      authHeader: req.headers.authorization,
+      senderId: bookingData.sender,
+      phone: bookingData.senderDetails?.phone || bookingData.customerPhone,
+      email: bookingData.senderDetails?.email || bookingData.customerEmail
+    });
+    if (customerUser && !bookingData.sender) {
+      bookingData.sender = customerUser._id;
+    }
+    const permanentPickupOtp = customerUser
+      ? await ensureUserPickupOtp(customerUser)
+      : await generateUniquePickupOtp();
+    bookingData.pickupOtp = permanentPickupOtp;
+    bookingData.proofOfDelivery = { otp: permanentPickupOtp };
 
     // Mock ETA calculation
     const today = new Date();
@@ -152,8 +167,51 @@ exports.createBooking = async (req, res) => {
       { status: 'Booking Confirmed', location: 'System', description: 'Booking received and verified.' }
     ];
 
+    let verifiedPaymentRef = null;
+    let verifiedOrderRef = null;
+    if (bookingData.payment?.razorpayPaymentId && bookingData.payment?.razorpayOrderId && bookingData.payment?.razorpaySignature) {
+      const isValidPayment = razorpayService.verifyPaymentSignature({
+        orderId: bookingData.payment.razorpayOrderId,
+        paymentId: bookingData.payment.razorpayPaymentId,
+        signature: bookingData.payment.razorpaySignature
+      });
+      if (!isValidPayment) {
+        return res.status(400).json({ success: false, error: 'Invalid Razorpay payment signature.' });
+      }
+      verifiedPaymentRef = bookingData.payment.razorpayPaymentId;
+      verifiedOrderRef = bookingData.payment.razorpayOrderId;
+      bookingData.payment = {
+        mode: bookingData.payment.mode || 'UPI',
+        status: 'Completed',
+        payer: bookingData.payment.payer || 'Sender',
+        transactionId: verifiedPaymentRef,
+        razorpayOrderId: verifiedOrderRef
+      };
+    }
+
     const booking = new Booking(bookingData);
     await booking.save();
+
+    if (verifiedPaymentRef) {
+      try {
+        const existingTx = await Transaction.findOne({ referenceId: verifiedPaymentRef });
+        if (!existingTx) {
+          const paidAmount = booking.pricing?.total || bookingData.pricing?.total || 0;
+          await Transaction.create({
+            booking: booking._id,
+            type: 'Payment',
+            method: 'Online',
+            amount: paidAmount,
+            netAmount: paidAmount,
+            status: 'Completed',
+            referenceId: verifiedPaymentRef,
+            notes: `Razorpay Order ${verifiedOrderRef}`
+          });
+        }
+      } catch (txErr) {
+        console.error('Failed to log Razorpay booking transaction:', txErr.message);
+      }
+    }
 
     // Automated Notifications & Invoice Dispatch via NotificationService
     const NotificationService = require('../services/notificationService');
@@ -214,7 +272,7 @@ exports.getMyBookings = async (req, res) => {
   try {
     // In a real app, we'd filter by req.user._id (from auth middleware)
     // For now, since auth is mocked, we'll just return recent bookings
-    const bookings = await Booking.find().sort({ createdAt: -1 }).limit(20);
+    const bookings = await Booking.find().populate('sender', 'name phone email pickupOtp').sort({ createdAt: -1 }).limit(20);
     
     res.status(200).json({
       success: true,
@@ -233,9 +291,9 @@ exports.getBookingDetails = async (req, res) => {
     
     // Check if it's a tracking ID (ZYP... or ZGO...) or an ObjectId
     if (id.startsWith('ZYP') || id.startsWith('ZGO')) {
-      booking = await Booking.findOne({ trackingId: id }).populate('currentRider', 'name phone riderDetails');
+      booking = await Booking.findOne({ trackingId: id }).populate('currentRider', 'name phone riderDetails').populate('sender', 'name phone email pickupOtp');
     } else {
-      booking = await Booking.findById(id).populate('currentRider', 'name phone riderDetails');
+      booking = await Booking.findById(id).populate('currentRider', 'name phone riderDetails').populate('sender', 'name phone email pickupOtp');
     }
     
     if (!booking) {

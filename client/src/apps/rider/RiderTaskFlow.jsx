@@ -26,6 +26,25 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
   // UX State
   const [barcodeScanned, setBarcodeScanned] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
+
+  const handleOtpChange = (e) => {
+    const digitsOnly = String(e.target.value || '').replace(/\D/g, '').slice(0, 4);
+    setOtp(digitsOnly);
+    if (e.target.value !== digitsOnly) {
+      e.target.value = digitsOnly;
+    }
+  };
+
+  const handleOtpKeyDown = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key && e.key.length === 1) {
+      const isDigit = /^\d$/.test(e.key);
+      const hasSelection = e.target.selectionStart !== e.target.selectionEnd;
+      if (!isDigit || (otp.length >= 4 && !hasSelection)) {
+        e.preventDefault();
+      }
+    }
+  };
   
   const updateStatus = async (status, isComplete = false) => {
     setLoading(true);
@@ -78,7 +97,8 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
   const verifyOtp = async (nextStep) => {
     setLoading(true);
     try {
-      const res = await api.post(`/rider/jobs/${activeJob._id}/verify-otp`, { otp });
+      const type = nextStep === 3 ? 'pickup' : 'delivery';
+      const res = await api.post(`/rider/jobs/${activeJob._id}/verify-otp`, { otp, type });
       if (res.data.success) {
         setTaskStep(nextStep);
       }
@@ -248,9 +268,14 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                 <p className="text-slate-500 text-sm mb-8 font-medium">Ask the sender for the 4-digit OTP.</p>
                 
                 <input 
-                  type="number" 
+                  type="tel" 
+                  inputMode="numeric" 
+                  pattern="[0-9]*" 
+                  maxLength={4} 
+                  autoComplete="one-time-code" 
                   value={otp} 
-                  onChange={(e) => setOtp(e.target.value)} 
+                  onChange={handleOtpChange} 
+                  onKeyDown={handleOtpKeyDown} 
                   placeholder="----" 
                   className="w-full text-center text-4xl tracking-[1em] font-black py-6 px-4 bg-white/60 backdrop-blur-sm border border-white/60 shadow-inner rounded-2xl focus:border-[#006D77] focus:ring-4 focus:ring-[#006D77]/10 focus:bg-white outline-none mb-6 transition-all"
                 />
@@ -372,9 +397,14 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                 <p className="text-slate-500 text-sm mb-8 font-medium">Ask the {isHubDrop ? 'Hub Staff' : 'Receiver'} for the 4-digit OTP.</p>
                 
                 <input 
-                  type="number" 
+                  type="tel" 
+                  inputMode="numeric" 
+                  pattern="[0-9]*" 
+                  maxLength={4} 
+                  autoComplete="one-time-code" 
                   value={otp} 
-                  onChange={(e) => setOtp(e.target.value)} 
+                  onChange={handleOtpChange} 
+                  onKeyDown={handleOtpKeyDown} 
                   placeholder="----" 
                   className="w-full text-center text-4xl tracking-[1em] font-black py-6 px-4 bg-white/60 backdrop-blur-sm border border-white/60 shadow-inner rounded-2xl focus:border-[#006D77] focus:ring-4 focus:ring-[#006D77]/10 focus:bg-white outline-none mb-6 transition-all"
                 />

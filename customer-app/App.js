@@ -229,13 +229,15 @@ export default function App() {
             setCanGoBack(navState.canGoBack);
           }}
           onShouldStartLoadWithRequest={(request) => {
-            // When user clicks Google Sign In, open in default system browser so all Google accounts appear!
-            if (
-              request.url.includes('accounts.google.com') ||
-              request.url.includes('oauth2/v2/auth')
-            ) {
-              Linking.openURL(request.url);
-              return false; // Prevent loading inside WebView to avoid disallowed_useragent
+            const url = request?.url || '';
+            const externalSchemes = ['upi:', 'tez:', 'phonepe:', 'paytmmp:', 'bhim:', 'credpay:', 'intent:'];
+            const isPaymentDeepLink = externalSchemes.some((scheme) => url.toLowerCase().startsWith(scheme));
+            const isGoogleAuth = url.includes('accounts.google.com') || url.includes('oauth2/v2/auth');
+
+            // Open Google Sign In and external UPI / payment apps in native Android handlers
+            if (isGoogleAuth || isPaymentDeepLink) {
+              Linking.openURL(url).catch(() => {});
+              return false;
             }
             return true;
           }}
@@ -263,24 +265,6 @@ export default function App() {
                   resizeMode="contain" 
                 />
               </View>
-              <Text style={styles.splashBrand}>welcome to customer app</Text>
-            </View>
-
-            <View style={styles.splashFooter}>
-              <View style={styles.progressBarTrack}>
-                <Animated.View 
-                  style={[
-                    styles.progressBarFill, 
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%']
-                      })
-                    }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.splashLoadingText}>ZyperGo Logistics</Text>
             </View>
           </Animated.View>
         )}
@@ -386,23 +370,19 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 60,
+    justifyContent: 'center',
     paddingHorizontal: 24,
     zIndex: 999,
   },
   splashContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
-    marginBottom: 'auto',
   },
   splashLogoContainer: {
-    width: 260,
-    height: 150,
+    width: 280,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
   },
   splashLogo: {
     width: '100%',

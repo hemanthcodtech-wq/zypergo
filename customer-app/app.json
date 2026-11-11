@@ -55,11 +55,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "owner": "student222",
     "extra": {
       "eas": {
-        "projectId": "775740d5-150d-4024-8aaf-a9c2e460a79d"
+        "projectId": "935df792-8886-4b8c-bdd8-d19baa01d42c"
       }
-    },
-    "owner": "student14s-team"
+    }
   }
 }
