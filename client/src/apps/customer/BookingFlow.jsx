@@ -5,7 +5,7 @@ import {
   Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
   Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -280,6 +280,32 @@ export default function BookingFlow() {
   const [userLocation, setUserLocation] = useState([17.3850, 78.4867]);
   const [pickupCoords, setPickupCoords] = useState([17.3850, 78.4867]);
   const [dropCoords, setDropCoords] = useState([17.4120, 78.5040]);
+  const [realNearbyCaptains, setRealNearbyCaptains] = useState([]);
+
+  // Live polling of real-time online nearby captains from database
+  useEffect(() => {
+    if (!pickupCoords || !pickupCoords[0] || !pickupCoords[1]) return;
+    let isMounted = true;
+
+    const fetchRealCaptains = async () => {
+      try {
+        const res = await api.get(`/rider/nearby?lat=${pickupCoords[0]}&lng=${pickupCoords[1]}&radius=15`);
+        if (isMounted && res.data?.success) {
+          setRealNearbyCaptains(res.data.data || []);
+        }
+      } catch (err) {
+        // Silently handle network error
+      }
+    };
+
+    fetchRealCaptains();
+    const interval = setInterval(fetchRealCaptains, 12000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [pickupCoords[0], pickupCoords[1]]);
 
   const [showPayment, setShowPayment] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -935,25 +961,40 @@ export default function BookingFlow() {
                 <Marker position={pickupCoords} icon={createPickupMarkerIcon()} />
                 <Marker position={dropCoords} icon={createDropMarkerIcon()} />
 
-                {[
-                  { id: 'bc1', lat: pickupCoords[0] + 0.0025, lng: pickupCoords[1] + 0.0022, heading: 45 },
-                  { id: 'bc2', lat: pickupCoords[0] - 0.0021, lng: pickupCoords[1] + 0.0028, heading: 110 },
-                  { id: 'bc3', lat: pickupCoords[0] + 0.0032, lng: pickupCoords[1] - 0.0024, heading: 220 },
-                  { id: 'bc4', lat: pickupCoords[0] - 0.0028, lng: pickupCoords[1] - 0.0022, heading: 315 },
-                  { id: 'bc5', lat: pickupCoords[0] + 0.0014, lng: pickupCoords[1] - 0.0032, heading: 80 },
-                ].map((c) => (
-                  <Marker key={c.id} position={[c.lat, c.lng]} icon={createCaptainIcon(c.heading)} />
+                {realNearbyCaptains.map((c, idx) => (
+                  <Marker
+                    key={c.id || idx}
+                    position={[c.lat, c.lng]}
+                    icon={createCaptainIcon(45 + (idx * 60) % 360)}
+                  >
+                    <Popup>
+                      <div className="text-xs p-1">
+                        <p className="font-black text-slate-900">{c.name}</p>
+                        <p className="text-slate-500 text-[11px]">{c.vehicleType} &bull; {c.distanceKm} km away</p>
+                        <p className="text-emerald-600 font-bold text-[11px]">⚡ Est. arrival: {c.etaText}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
                 ))}
               </MapContainer>
 
               <div className="absolute top-2.5 left-2.5 z-10">
-                <div className="flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-full shadow-md border border-white/20 text-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="font-black text-[11px]">⚡ 5 Captains nearby pickup</span>
-                  <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
-                    2-3 mins
-                  </span>
-                </div>
+                {realNearbyCaptains.length > 0 ? (
+                  <div className="flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md text-white px-3 py-1 rounded-full shadow-md border border-white/20 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="font-black text-[11px]">
+                      ⚡ {realNearbyCaptains.length} Captain{realNearbyCaptains.length > 1 ? 's' : ''} online nearby
+                    </span>
+                    <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded-full">
+                      ~{realNearbyCaptains[0].etaText}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-md text-slate-300 px-3 py-1 rounded-full shadow-md border border-white/10 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span className="font-semibold text-[11px]">Captains broadcast upon booking</span>
+                  </div>
+                )}
               </div>
             </div>
 

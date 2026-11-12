@@ -586,3 +586,86 @@ exports.addHelper = async (req, res) => {
     res.status(status).json({ success: false, error: error.message || 'Failed to register helper.' });
   }
 };
+
+// ─── Utility: Haversine distance (km) ───────────────────────────────────────
+function haversineKm(lat1, lng1, lat2, lng2) {
+  if (!lat1 || !lng1 || !lat2 || !lng2) return 9999;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── Real-Time Nearby Captains for Customer Map ─────────────────────────────
+exports.getNearbyCaptains = async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radius = parseFloat(req.query.radius) || 15; // default 15 km
+    const { vehicleType } = req.query;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ success: false, error: 'Valid lat and lng query params are required' });
+    }
+
+    const query = {
+      role: 'Rider',
+      isActive: true,
+      'riderDetails.partnerMode': { $ne: 'Helper' },
+      'riderDetails.isOnline': true,
+      'riderDetails.isOnBreak': { $ne: true },
+      'riderDetails.currentLocation.lat': { $exists: true, $ne: null },
+      'riderDetails.currentLocation.lng': { $exists: true, $ne: null }
+    };
+
+    if (vehicleType) {
+      query['riderDetails.vehicleType'] = vehicleType;
+    }
+
+    const riders = await User.find(query)
+      .select('name phone avatar riderDetails.vehicleType riderDetails.vehicleRegistration riderDetails.currentLocation riderDetails.lastLocationUpdate')
+      .lean();
+
+    const nearby = [];
+    for (const r of riders) {
+      const cLat = r.riderDetails?.currentLocation?.lat;
+      const cLng = r.riderDetails?.currentLocation?.lng;
+      if (typeof cLat === 'number' && typeof cLng === 'number' && !isNaN(cLat) && !isNaN(cLng)) {
+        const dist = haversineKm(lat, lng, cLat, cLng);
+        if (dist <= radius) {
+          const etaMins = Math.max(1, Math.round(dist * 2.5)); // ~25 km/h avg city speed
+          nearby.push({
+            id: r._id.toString(),
+            name: r.name || 'Captain',
+            lat: cLat,
+            lng: cLng,
+            distanceKm: Number(dist.toFixed(2)),
+            etaMins,
+            etaText: `${etaMins} min${etaMins > 1 ? 's' : ''}`,
+            vehicleType: r.riderDetails?.vehicleType || 'Scooter',
+            vehicleRegistration: r.riderDetails?.vehicleRegistration || '',
+            lastUpdate: r.riderDetails?.currentLocation?.updatedAt || r.riderDetails?.lastLocationUpdate || null
+          });
+        }
+      }
+    }
+
+    // Sort nearest first
+    nearby.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return res.status(200).json({
+      success: true,
+      count: nearby.length,
+      data: nearby
+    });
+  } catch (error) {
+    console.error('Error fetching nearby captains:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch nearby captains.' });
+  }
+};
+

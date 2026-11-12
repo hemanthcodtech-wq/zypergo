@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const riderController = require('../controllers/riderController');
 
+router.get('/nearby', riderController.getNearbyCaptains);
 router.get('/jobs', riderController.getAvailableJobs);
 router.post('/jobs/:id/accept', riderController.acceptJob);
 router.post('/jobs/:id/update-status', riderController.updateJobStatus);

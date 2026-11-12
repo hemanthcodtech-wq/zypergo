@@ -4,7 +4,7 @@ import {
   MapPin, Bell, Package, Calendar, Map, FileText, ChevronRight, 
   CheckCircle2, Clock, Truck, ChevronDown, ArrowRight, X, Search, Sparkles, Navigation 
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import api from '../../api';
@@ -182,14 +182,32 @@ export default function CustomerDashboard() {
     fetchOrders();
   }, []);
 
-  // Compute 5 realistic nearby online captains surrounding user's live coordinates
-  const nearbyCaptains = [
-    { id: 'c1', lat: userCoords[0] + 0.0031, lng: userCoords[1] + 0.0024, heading: 45, eta: '2 mins' },
-    { id: 'c2', lat: userCoords[0] - 0.0028, lng: userCoords[1] + 0.0036, heading: 120, eta: '3 mins' },
-    { id: 'c3', lat: userCoords[0] + 0.0042, lng: userCoords[1] - 0.0029, heading: 215, eta: '4 mins' },
-    { id: 'c4', lat: userCoords[0] - 0.0035, lng: userCoords[1] - 0.0031, heading: 310, eta: '2 mins' },
-    { id: 'c5', lat: userCoords[0] + 0.0016, lng: userCoords[1] - 0.0042, heading: 85, eta: '3 mins' },
-  ];
+  // Real-time online nearby captains from database
+  const [realNearbyCaptains, setRealNearbyCaptains] = useState([]);
+
+  useEffect(() => {
+    if (!userCoords || !userCoords[0] || !userCoords[1]) return;
+    let isMounted = true;
+
+    const fetchCaptains = async () => {
+      try {
+        const res = await api.get(`/rider/nearby?lat=${userCoords[0]}&lng=${userCoords[1]}&radius=15`);
+        if (isMounted && res.data?.success) {
+          setRealNearbyCaptains(res.data.data || []);
+        }
+      } catch (e) {
+        // Silently ignore network errors
+      }
+    };
+
+    fetchCaptains();
+    const interval = setInterval(fetchCaptains, 15000); // 15s live refresh
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [userCoords[0], userCoords[1]]);
 
   const handleRecenter = () => {
     if (navigator.geolocation) {
@@ -324,7 +342,34 @@ export default function CustomerDashboard() {
 
             {/* User Current Location Marker */}
             <Marker position={userCoords} icon={createUserIcon()} />
+
+            {/* Real-time Online Nearby Captains */}
+            {realNearbyCaptains.map((c, idx) => (
+              <Marker
+                key={c.id || idx}
+                position={[c.lat, c.lng]}
+                icon={createRiderIcon(45 + (idx * 60) % 360)}
+              >
+                <Popup>
+                  <div className="text-xs p-1">
+                    <p className="font-bold text-slate-900">{c.name}</p>
+                    <p className="text-slate-500 text-[11px]">{c.vehicleType} &bull; {c.distanceKm} km</p>
+                    <p className="text-emerald-600 font-bold text-[11px]">⚡ ~{c.etaText} away</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
           </MapContainer>
+
+          {/* Real-Time Online Captains Floating Badge */}
+          {realNearbyCaptains.length > 0 && (
+            <div className="absolute bottom-3 left-3 z-10 pointer-events-none">
+              <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md text-white px-2.5 py-1 rounded-full shadow-lg border border-white/20 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-bold text-[11px]">⚡ {realNearbyCaptains.length} Captain{realNearbyCaptains.length > 1 ? 's' : ''} online nearby</span>
+              </div>
+            </div>
+          )}
 
           {/* Rapido-Style Pin Current Location Top Badge */}
           <div className="absolute top-3 left-3 z-10">
