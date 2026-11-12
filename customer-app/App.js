@@ -40,21 +40,29 @@ export default function App() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
 
-  // 1. Splash screen animation (runs every time the app opens)
+  const handleWebViewLoadEnd = () => {
+    Animated.timing(splashOpacity, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => setShowSplash(false));
+  };
+
+  // 1. Splash screen animation (auto-fades as soon as WebView loads, max 1.5s fallback)
   useEffect(() => {
     Animated.timing(progressAnim, {
       toValue: 1,
-      duration: 2200,
+      duration: 1500,
       useNativeDriver: false,
     }).start();
 
     const timer = setTimeout(() => {
       Animated.timing(splashOpacity, {
         toValue: 0,
-        duration: 350,
+        duration: 250,
         useNativeDriver: true,
       }).start(() => setShowSplash(false));
-    }, 2200);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -272,6 +280,7 @@ export default function App() {
             }
             return true;
           }}
+          onLoadEnd={handleWebViewLoadEnd}
           onError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
             if (nativeEvent.description && nativeEvent.description.includes('net::ERR_NAME_NOT_RESOLVED')) {

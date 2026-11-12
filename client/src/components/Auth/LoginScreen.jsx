@@ -285,8 +285,8 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (otp.length < 4) {
-      setError('Please enter the complete OTP');
+    if (otp.length !== 4) {
+      setError('Please enter the 4-digit OTP');
       return;
     }
     
@@ -651,9 +651,11 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
                   <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
                     type="text" 
-                    maxLength="6"
+                    maxLength="4"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="••••"
                     className={`w-full text-center py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white ${currentConfig.focusRingClass} outline-none font-mono font-bold text-xl tracking-widest text-slate-900 transition-all`}
                     required
@@ -700,7 +702,7 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
 
               <button 
                 type="submit" 
-                disabled={loading || otp.length < 4}
+                disabled={loading || otp.length !== 4}
                 className={`w-full font-black py-3 rounded-xl shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm transition-all ${currentConfig.btnClass}`}
               >
                 {loading ? 'Verifying...' : `Verify & Access ${currentConfig.portalName}`}

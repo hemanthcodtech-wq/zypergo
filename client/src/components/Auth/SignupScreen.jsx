@@ -19,12 +19,15 @@ import {
   Plus,
   Trash2,
   Users,
-  Package
+  Package,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import { getImageUrl } from '../../utils/imageUrl';
 import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
+import { VEHICLE_IMAGES } from '../../assets/vehicleImagesDataUri';
 
 export default function SignupScreen({ role = 'Customer', initialMode = null, onLoginSuccess }) {
   const navigate = useNavigate();
@@ -48,10 +51,11 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
   const [profilePhoto, setProfilePhoto] = useState('');
 
   // Rider Vehicle State
-  const [vehicleType, setVehicleType] = useState('Bike');
+  const [vehicleType, setVehicleType] = useState('Scooter');
   const [customVehicleType, setCustomVehicleType] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [vehicleImageUrl, setVehicleImageUrl] = useState('');
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
 
   // Rider Document State
   const [drivingLicenseUrl, setDrivingLicenseUrl] = useState('');
@@ -97,12 +101,14 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
   };
 
   const vehicleOptions = [
-    { id: 'Bike', label: 'Bike', icon: <Bike size={14} /> },
-    { id: 'Scooter', label: 'Scooter', icon: <Bike size={14} /> },
-    { id: 'Car', label: 'Car', icon: <Car size={14} /> },
-    { id: 'Auto / Heavy Vehicle', label: 'Auto / Heavy Vehicle', icon: <Truck size={14} /> },
-    { id: 'Trucks', label: 'Trucks', icon: <Truck size={14} /> },
-    { id: 'Other', label: 'Manual Entry...', icon: <Edit3 size={14} /> }
+    { id: 'Scooter', name: 'Scooter', capacity: 'Up to 20 kg', image: VEHICLE_IMAGES.scooter },
+    { id: 'Mini 3W', name: 'Mini 3W', capacity: 'Up to 90 kg', image: VEHICLE_IMAGES.mini3w },
+    { id: '3 Wheeler', name: '3 Wheeler', capacity: 'Up to 500 kg', image: VEHICLE_IMAGES.threeWheeler },
+    { id: 'Tata Ace', name: 'Tata Ace', capacity: 'Up to 750 kg', image: VEHICLE_IMAGES.tataAce },
+    { id: 'Pickup 8ft', name: 'Pickup 8ft', capacity: 'Up to 1200 kg', image: VEHICLE_IMAGES.pickup8ft },
+    { id: 'Pickup 9ft', name: 'Pickup 9ft', capacity: 'Up to 1700 kg', image: VEHICLE_IMAGES.pickup9ft },
+    { id: '14ft Truck', name: '14ft Truck', capacity: 'Up to 2500 kg', image: VEHICLE_IMAGES.truck14ft },
+    { id: '17ft Truck', name: '17ft Truck', capacity: 'Up to 4000 kg', image: VEHICLE_IMAGES.truck17ft }
   ];
 
   const handleFileUpload = async (e, field) => {
@@ -318,23 +324,59 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Select Mode Dropdown (Captain vs Helper) */}
+            {/* Select Mode In-Page Dropdown (Captain vs Helper) */}
             {role === 'Rider' && (
-              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl">
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl relative">
                 <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
                   Select Mode
                 </label>
-                <select
-                  value={partnerMode}
-                  onChange={(e) => {
-                    setPartnerMode(e.target.value);
-                    setError('');
-                  }}
-                  className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl focus:border-[#006D77] outline-none font-black text-xs text-slate-900 cursor-pointer shadow-2xs"
-                >
-                  <option value="Captain">Captain (Driver &amp; Vehicle Partner)</option>
-                  <option value="Helper">Helper (Load &amp; Unload Partner)</option>
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setModeDropdownOpen((prev) => !prev)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl font-black text-xs text-slate-900 cursor-pointer shadow-2xs active:scale-[0.99] transition-all"
+                  >
+                    <span>{partnerMode === 'Captain' ? 'Captain (Driver & Vehicle Partner)' : 'Helper (Load & Unload Partner)'}</span>
+                    <ChevronDown size={16} className={`text-slate-500 transition-transform duration-200 ${modeDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {modeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPartnerMode('Captain');
+                          setModeDropdownOpen(false);
+                          setError('');
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 text-xs flex items-center justify-between transition-colors ${
+                          partnerMode === 'Captain'
+                            ? 'bg-amber-50 text-amber-900 font-black'
+                            : 'text-slate-700 font-bold hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>Captain (Driver &amp; Vehicle Partner)</span>
+                        {partnerMode === 'Captain' && <Check size={14} className="text-amber-600 stroke-[3]" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPartnerMode('Helper');
+                          setModeDropdownOpen(false);
+                          setError('');
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 text-xs flex items-center justify-between transition-colors ${
+                          partnerMode === 'Helper'
+                            ? 'bg-amber-50 text-amber-900 font-black'
+                            : 'text-slate-700 font-bold hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>Helper (Load &amp; Unload Partner)</span>
+                        {partnerMode === 'Helper' && <Check size={14} className="text-amber-600 stroke-[3]" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <p className="text-[10px] text-slate-500 font-medium mt-1.5">
                   {partnerMode === 'Captain'
                     ? 'Register with your vehicle and optionally add Helpers under your account.'
@@ -538,42 +580,57 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
                   <span>Vehicle Information</span>
                 </div>
 
-                {/* Vehicle Type Selection */}
+                {/* Vehicle Type Selection (2-column visual grid with real vehicle images) */}
                 <div>
-                  <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1.5">
-                    Vehicle Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {vehicleOptions.map((opt) => (
-                      <button
-                        type="button"
-                        key={opt.id}
-                        onClick={() => setVehicleType(opt.id)}
-                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border flex items-center justify-center gap-1.5 transition-all ${
-                          vehicleType === opt.id
-                            ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        {opt.icon}
-                        <span className="truncate">{opt.label}</span>
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                      Select Your Delivery Vehicle
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                      Selected: {vehicleType}
+                    </span>
                   </div>
 
-                  {/* Manual Vehicle Entry if 'Other' chosen */}
-                  {vehicleType === 'Other' && (
-                    <div className="mt-2 animate-in fade-in">
-                      <input 
-                        type="text" 
-                        value={customVehicleType} 
-                        onChange={(e) => setCustomVehicleType(e.target.value)} 
-                        placeholder="Enter custom vehicle type (e.g. EV Van, Bolero, 3-Wheeler)" 
-                        className="w-full px-3.5 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:bg-white focus:border-amber-500 outline-none font-bold text-xs text-slate-900"
-                        required 
-                      />
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {vehicleOptions.map((v) => {
+                      const isSelected = vehicleType === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setVehicleType(v.id)}
+                          className={`relative p-2.5 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] ${
+                            isSelected
+                              ? 'bg-amber-50/90 border-amber-500 shadow-md ring-2 ring-amber-400/40'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-[10px] font-bold text-slate-500">{v.capacity}</span>
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300 bg-white'
+                            }`}>
+                              {isSelected && <Check size={10} strokeWidth={3} />}
+                            </div>
+                          </div>
+
+                          <div className="w-full h-16 flex items-center justify-center my-1">
+                            <img
+                              src={v.image}
+                              alt={v.name}
+                              className="max-h-full max-w-full object-contain"
+                              loading="eager"
+                              decoding="sync"
+                            />
+                          </div>
+
+                          <span className={`text-xs font-black block mt-1 ${isSelected ? 'text-amber-950 font-black' : 'text-slate-900'}`}>
+                            {v.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Vehicle Number Input */}

@@ -111,12 +111,11 @@ exports.updateProfile = async (req, res) => {
     if (photoUrl) {
       user.photoUrl = photoUrl;
     }
-    if (address !== undefined) {
-      if (typeof address === 'string') {
-        user.address = address;
-        if (user.role === 'Rider') {
-          user.riderDetails = { ...(user.riderDetails || {}), address };
-        }
+    if (address !== undefined && typeof address === 'string') {
+      user.address = address;
+      if (user.role === 'Rider') {
+        if (!user.riderDetails) user.riderDetails = {};
+        user.riderDetails.address = address;
       }
     }
 
@@ -130,23 +129,20 @@ exports.updateProfile = async (req, res) => {
     }
 
     if (user.role === 'Rider' || vehType || vehReg || vehImg || riderDetails) {
-      const preservedCaptain = user.riderDetails?.assignedCaptain;
-      user.riderDetails = {
-        ...(user.riderDetails || {}),
-        ...(riderDetails || {}),
-        ...(vehType ? { vehicleType: vehType } : {}),
-        ...(vehReg !== undefined ? { vehicleRegistration: vehReg, vehicleNumber: vehReg } : {}),
-        ...(vehImg !== undefined ? { vehicleImageUrl: vehImg } : {}),
-        ...(riderDetails?.helperWorkType ? { helperWorkType: riderDetails.helperWorkType } : {}),
-        ...(riderDetails?.partnerMode ? { partnerMode: riderDetails.partnerMode } : {}),
-        ...(preservedCaptain && !riderDetails?.assignedCaptain ? { assignedCaptain: preservedCaptain } : {}),
-        documents: {
-          ...(user.riderDetails?.documents || {}),
-          ...(riderDetails?.documents || {}),
-          ...(vehImg ? { vehiclePicUrl: vehImg } : {}),
-          profileImageUrl: photoUrl || riderDetails?.documents?.profileImageUrl || user.riderDetails?.documents?.profileImageUrl || user.photoUrl
-        }
-      };
+      if (!user.riderDetails) user.riderDetails = {};
+      if (vehType) user.riderDetails.vehicleType = vehType;
+      if (vehReg !== undefined) {
+        user.riderDetails.vehicleRegistration = vehReg;
+        user.riderDetails.vehicleNumber = vehReg;
+      }
+      if (vehImg !== undefined) user.riderDetails.vehicleImageUrl = vehImg;
+      if (riderDetails?.helperWorkType) user.riderDetails.helperWorkType = riderDetails.helperWorkType;
+      if (riderDetails?.partnerMode) user.riderDetails.partnerMode = riderDetails.partnerMode;
+      if (!user.riderDetails.documents) user.riderDetails.documents = {};
+      if (vehImg) user.riderDetails.documents.vehiclePicUrl = vehImg;
+      if (photoUrl) {
+        user.riderDetails.documents.profileImageUrl = photoUrl;
+      }
     }
 
     await user.save();

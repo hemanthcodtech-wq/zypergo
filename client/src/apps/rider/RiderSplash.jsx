@@ -6,8 +6,6 @@ import { SPLASH_LOGO_DATA_URI } from '../../assets/splashLogoDataUri';
 
 export default function RiderSplash() {
   const navigate = useNavigate();
-  // Splash screen with new logo and "welcome to rider app"
-  const [stage, setStage] = useState('splash');
 
   const isPrefix = window.location.pathname.startsWith('/rider');
   const loginPath = isPrefix ? '/rider/login' : '/login';
@@ -18,40 +16,10 @@ export default function RiderSplash() {
     // If user is already authenticated, bypass splash and go straight to dashboard
     if (localStorage.getItem('zypergo_token')) {
       navigate(dashboardPath, { replace: true });
-      return;
     }
+  }, [navigate, dashboardPath]);
 
-    if (stage === 'splash') {
-      const timer = setTimeout(() => {
-        setStage('welcome');
-      }, 1400);
-      return () => clearTimeout(timer);
-    }
-  }, [navigate, dashboardPath, stage]);
-
-  const handleSkipToWelcome = () => {
-    setStage('welcome');
-  };
-
-  // 1. Initial Logo Splash Screen (Clean & Simple Logo Only)
-  if (stage === 'splash') {
-    return (
-      <div 
-        onClick={handleSkipToWelcome}
-        className="flex-1 w-full h-full min-h-[620px] flex flex-col items-center justify-center p-8 bg-white font-sans relative overflow-hidden select-none cursor-pointer"
-      >
-        <img 
-          src="/images/captain-splash-logo.png" 
-          alt="ZyperGo Captain" 
-          className="w-64 max-w-[80%] h-auto object-contain animate-splash-logo"
-          loading="eager"
-          decoding="sync"
-        />
-      </div>
-    );
-  }
-
-  // 2. Welcome & Login Screen (Instant Zero-Latency Render)
+  // Welcome & Login Screen (Instant Zero-Latency Render, no 2nd splash logo)
   return (
     <div className="flex-1 w-full flex flex-col justify-between p-6 bg-gradient-to-b from-amber-50/50 via-white to-amber-50/30 text-slate-900 font-sans selection:bg-[#FFB703] selection:text-black">
       

@@ -120,10 +120,18 @@ export default function CustomerProfile({ defaultView = null }) {
               if (!serverUser) return;
               const nextUser = {
                 ...parsed,
+                ...(serverUser.photoUrl ? { photoUrl: serverUser.photoUrl } : {}),
+                ...(serverUser.name ? { name: serverUser.name } : {}),
+                ...(serverUser.phone ? { phone: serverUser.phone } : {}),
+                ...(serverUser.email ? { email: serverUser.email } : {}),
                 ...(serverUser.pickupOtp ? { pickupOtp: serverUser.pickupOtp } : {}),
                 ...(typeof serverUser.walletBalance === 'number' ? { walletBalance: serverUser.walletBalance } : {})
               };
+              if (serverUser.photoUrl && userId) {
+                localStorage.setItem('zypergo_profile_photo_' + userId, serverUser.photoUrl);
+              }
               setUser((prev) => ({ ...prev, ...nextUser }));
+              setImageError(false);
               localStorage.setItem('zypergo_user', JSON.stringify(nextUser));
 
               if (typeof serverUser.walletBalance === 'number') {
@@ -255,6 +263,7 @@ export default function CustomerProfile({ defaultView = null }) {
       // 2. Update user state and zypergo_user storage
       const updatedUser = { ...user, photoUrl: finalPhotoUrl };
       setUser(updatedUser);
+      setImageError(false);
       localStorage.setItem('zypergo_user', JSON.stringify(updatedUser));
 
       // 3. Attempt to save to backend API

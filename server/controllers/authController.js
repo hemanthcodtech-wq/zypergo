@@ -82,12 +82,12 @@ exports.sendOtp = async (req, res) => {
     }
 
     if (riderDetails && role === 'Rider') {
-      user.riderDetails = {
-         ...riderDetails,
-         approvalStatus: 'Pending',
-         isOnline: false,
-         isOnShift: false
-      };
+      if (!user.riderDetails) user.riderDetails = {};
+      if (riderDetails.vehicleType) user.riderDetails.vehicleType = riderDetails.vehicleType;
+      if (riderDetails.partnerMode) user.riderDetails.partnerMode = riderDetails.partnerMode;
+      user.riderDetails.approvalStatus = 'Pending';
+      user.riderDetails.isOnline = false;
+      user.riderDetails.isOnShift = false;
     }
     
     await user.save();
@@ -432,20 +432,19 @@ exports.riderApply = async (req, res) => {
         if (email) user.email = email;
         if (cleanPhone) user.phone = cleanPhone;
         if (profilePhoto) user.photoUrl = profilePhoto;
-        user.riderDetails = {
-          ...(user.riderDetails || {}),
-          ...(riderDetails || {}),
-          partnerMode: 'Helper',
-          helperWorkType: resolvedWorkType,
-          ...(linkedCaptain ? {
-            assignedCaptain: linkedCaptain._id,
-            captainName: linkedCaptain.name,
-            captainPhone: linkedCaptain.phone
-          } : {}),
-          documents: { ...(user.riderDetails?.documents || {}), ...docs },
-          approvalStatus: 'Approved',
-          isOnline: true
-        };
+        if (!user.riderDetails) user.riderDetails = {};
+        user.riderDetails.partnerMode = 'Helper';
+        user.riderDetails.helperWorkType = resolvedWorkType;
+        if (linkedCaptain) {
+          user.riderDetails.assignedCaptain = linkedCaptain._id;
+          user.riderDetails.captainName = linkedCaptain.name;
+          user.riderDetails.captainPhone = linkedCaptain.phone;
+        }
+        if (!user.riderDetails.documents) user.riderDetails.documents = {};
+        if (docs.aadhaarUrl) user.riderDetails.documents.aadhaarUrl = docs.aadhaarUrl;
+        if (docs.profileImageUrl) user.riderDetails.documents.profileImageUrl = docs.profileImageUrl;
+        user.riderDetails.approvalStatus = 'Approved';
+        user.riderDetails.isOnline = true;
       } else {
         user = new User({
           name,
@@ -455,7 +454,6 @@ exports.riderApply = async (req, res) => {
           photoUrl: profilePhoto || undefined,
           isActive: true,
           riderDetails: {
-            ...(riderDetails || {}),
             partnerMode: 'Helper',
             helperWorkType: resolvedWorkType,
             ...(linkedCaptain ? {
@@ -516,17 +514,18 @@ exports.riderApply = async (req, res) => {
       if (email) user.email = email;
       if (cleanPhone) user.phone = cleanPhone;
       if (profilePhoto) user.photoUrl = profilePhoto;
-      user.riderDetails = {
-        ...(user.riderDetails || {}),
-        ...(riderDetails || {}),
-        partnerMode: 'Captain',
-        vehicleType: vehType,
-        vehicleRegistration: vehReg,
-        vehicleImageUrl: vehImg,
-        documents: { ...(user.riderDetails?.documents || {}), ...docs },
-        approvalStatus: 'Approved',
-        isOnline: true
-      };
+      if (!user.riderDetails) user.riderDetails = {};
+      user.riderDetails.partnerMode = 'Captain';
+      user.riderDetails.vehicleType = vehType;
+      user.riderDetails.vehicleRegistration = vehReg;
+      user.riderDetails.vehicleImageUrl = vehImg;
+      if (!user.riderDetails.documents) user.riderDetails.documents = {};
+      if (docs.drivingLicenseUrl) user.riderDetails.documents.drivingLicenseUrl = docs.drivingLicenseUrl;
+      if (docs.aadhaarUrl) user.riderDetails.documents.aadhaarUrl = docs.aadhaarUrl;
+      if (docs.vehiclePicUrl) user.riderDetails.documents.vehiclePicUrl = docs.vehiclePicUrl;
+      if (docs.profileImageUrl) user.riderDetails.documents.profileImageUrl = docs.profileImageUrl;
+      user.riderDetails.approvalStatus = 'Approved';
+      user.riderDetails.isOnline = true;
     } else {
       user = new User({
         name,
@@ -536,7 +535,6 @@ exports.riderApply = async (req, res) => {
         photoUrl: profilePhoto || undefined,
         isActive: true,
         riderDetails: {
-          ...(riderDetails || {}),
           partnerMode: 'Captain',
           vehicleType: vehType,
           vehicleRegistration: vehReg,

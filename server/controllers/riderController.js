@@ -350,19 +350,17 @@ exports.onboardRider = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    user.riderDetails = {
-      ...user.riderDetails,
-      vehicleType,
-      vehicleRegistration,
-      roleFlexibility,
-      address,
-      bankDetails,
-      emergencyContact,
-      documents,
-      approvalStatus: 'Pending',
-      isOnline: false,
-      isOnShift: false
-    };
+    if (!user.riderDetails) user.riderDetails = {};
+    if (vehicleType) user.riderDetails.vehicleType = vehicleType;
+    if (vehicleRegistration) user.riderDetails.vehicleRegistration = vehicleRegistration;
+    if (roleFlexibility) user.riderDetails.roleFlexibility = roleFlexibility;
+    if (address) user.riderDetails.address = address;
+    if (bankDetails) user.riderDetails.bankDetails = bankDetails;
+    if (emergencyContact) user.riderDetails.emergencyContact = emergencyContact;
+    if (documents) user.riderDetails.documents = documents;
+    user.riderDetails.approvalStatus = 'Pending';
+    user.riderDetails.isOnline = false;
+    user.riderDetails.isOnShift = false;
 
     await user.save();
     res.status(200).json({ success: true, data: user });
