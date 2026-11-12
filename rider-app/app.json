@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Captain App",
-    "slug": "zypergo-rider",
+    "slug": "zypergo-captain",
     "scheme": "zypergorider",
     "version": "1.0.0",
     "sdkVersion": "52.0.0",
@@ -56,12 +56,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "owner": "student222",
-    "extra": {
-      "eas": {
-        "projectId": "81fbced7-89a6-4c09-a184-12b9c7ed8e52"
-      }
     }
   }
 }
