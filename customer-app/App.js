@@ -17,6 +17,9 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+
+const GOOGLE_WEB_CLIENT_ID = '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
 
 const DEFAULT_URL = 'https://zypergo.com/customer';
 const STORAGE_KEY = '@zypergo_customer_url';
@@ -73,48 +76,73 @@ export default function App() {
     })();
   }, []);
 
-  // 3. Deep link handler for Google Sign-In redirect from browser
+  // 3. Configure 100% Native In-App Google Sign-In (no browser redirection)
   useEffect(() => {
-    const handleDeepLink = (event) => {
-      const url = event?.url || event;
-      if (!url) return;
-
-      if (url.startsWith('zypergocustomer://')) {
-        try {
-          const fakeHttpUrl = url.replace('zypergocustomer://', 'https://zypergo.com/');
-          const parsed = new URL(fakeHttpUrl);
-          const token = parsed.searchParams.get('token');
-          const userStr = parsed.searchParams.get('user');
-
-          if (token && webViewRef.current) {
-            const jsInject = `
-              (function() {
-                try {
-                  localStorage.setItem('zypergo_token', ${JSON.stringify(token)});
-                  ${userStr ? `localStorage.setItem('zypergo_user', ${JSON.stringify(decodeURIComponent(userStr))});` : ''}
-                  sessionStorage.setItem('zypergo_portal', 'customer');
-                  window.location.href = '/customer/dashboard';
-                } catch(e) {
-                  window.location.reload();
-                }
-              })();
-              true;
-            `;
-            webViewRef.current.injectJavaScript(jsInject);
-          }
-        } catch (err) {
-          console.warn('Deep link parse notice:', err.message);
-        }
-      }
-    };
-
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink(url);
-    });
-
-    const sub = Linking.addEventListener('url', handleDeepLink);
-    return () => sub.remove();
+    try {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        offlineAccess: false,
+      });
+    } catch (e) {
+      console.warn('GoogleSignin configure notice:', e?.message);
+    }
   }, []);
+
+  const sendGoogleResultToWebView = (payload) => {
+    if (!webViewRef.current) return;
+    const js = `
+      (function() {
+        try {
+          if (window.__onNativeGoogleAuthResult) {
+            window.__onNativeGoogleAuthResult(${JSON.stringify(payload)});
+          }
+        } catch (e) {}
+      })();
+      true;
+    `;
+    webViewRef.current.injectJavaScript(js);
+  };
+
+  const handleNativeGoogleSignIn = async () => {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      // Sign out first so Android always shows all Google accounts on the device
+      try {
+        await GoogleSignin.signOut();
+      } catch (_) {}
+      const response = await GoogleSignin.signIn();
+      if (response?.type === 'cancelled') {
+        sendGoogleResultToWebView({ success: false, cancelled: true });
+        return;
+      }
+      const tokens = await GoogleSignin.getTokens().catch(() => ({}));
+      const idToken = response?.data?.idToken || response?.idToken || tokens?.idToken || '';
+      const accessToken = tokens?.accessToken || '';
+      if (!idToken && !accessToken) {
+        sendGoogleResultToWebView({
+          success: false,
+          error: 'Google Sign-In did not return a token. Verify Android OAuth Client ID and SHA-1 in Google Cloud Console.',
+        });
+        return;
+      }
+      sendGoogleResultToWebView({
+        success: true,
+        idToken,
+        accessToken,
+        user: response?.data?.user || response?.user || null,
+      });
+    } catch (error) {
+      if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
+        sendGoogleResultToWebView({ success: false, cancelled: true });
+        return;
+      }
+      const msg =
+        error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE
+          ? 'Google Play Services is not available or outdated on this device.'
+          : (error?.message || 'Native Google Sign-In failed.');
+      sendGoogleResultToWebView({ success: false, error: msg });
+    }
+  };
 
   // 4. Android hardware back button & edge swipe gesture with SPA route support
   const lastBackPressTime = useRef(0);
@@ -122,6 +150,10 @@ export default function App() {
   const handleMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      if (data?.type === 'GOOGLE_SIGN_IN') {
+        handleNativeGoogleSignIn();
+        return;
+      }
       if (data?.type === 'EXIT_APP') {
         const now = Date.now();
         if (now - lastBackPressTime.current < 2000) {
@@ -232,10 +264,9 @@ export default function App() {
             const url = request?.url || '';
             const externalSchemes = ['upi:', 'tez:', 'phonepe:', 'paytmmp:', 'bhim:', 'credpay:', 'intent:'];
             const isPaymentDeepLink = externalSchemes.some((scheme) => url.toLowerCase().startsWith(scheme));
-            const isGoogleAuth = url.includes('accounts.google.com') || url.includes('oauth2/v2/auth');
 
-            // Open Google Sign In and external UPI / payment apps in native Android handlers
-            if (isGoogleAuth || isPaymentDeepLink) {
+            // Open external UPI / payment apps in native Android handlers
+            if (isPaymentDeepLink) {
               Linking.openURL(url).catch(() => {});
               return false;
             }

@@ -366,46 +366,75 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
     }
   };
 
-    const handleGoogleSignIn = () => {
-    const clientId = '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
-    const redirectUri = 'https://zypergo.com/google-auth-bridge';
-    const stateObj = { role, isSignup: false };
-    const state = encodeURIComponent(JSON.stringify(stateObj));
-    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token%20id_token&scope=openid%20email%20profile&nonce=${Date.now()}&prompt=select_account&state=${state}`;
+  const submitGoogleToken = async ({ token, accessToken }) => {
+    setLoading(true);
+    setError('');
+    setNotRegisteredError(false);
+    try {
+      const res = await api.post('/auth/google', {
+        ...(token ? { token } : {}),
+        ...(accessToken ? { accessToken } : {}),
+        role,
+        isSignup: false,
+        ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {})
+      });
+      const data = res.data;
 
-    window.location.href = googleAuthUrl;
+      localStorage.setItem('zypergo_token', data.token);
+      localStorage.setItem('zypergo_user', JSON.stringify(data.data));
+      if (onLoginSuccess) {
+        onLoginSuccess(data.data);
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Google login failed';
+      setError(errorMsg);
+      if (err.response?.data?.notRegistered) {
+        setNotRegisteredError(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    window.__onNativeGoogleAuthResult = (result) => {
+      if (!result?.success) {
+        setLoading(false);
+        if (!result?.cancelled && result?.error) {
+          setError(result.error);
+        }
+        return;
+      }
+      submitGoogleToken({
+        token: result.idToken,
+        accessToken: result.accessToken
+      });
+    };
+    return () => {
+      delete window.__onNativeGoogleAuthResult;
+    };
+  });
+
+  const handleGoogleSignIn = () => {
+    setError('');
+    setNotRegisteredError(false);
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+      setLoading(true);
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'GOOGLE_SIGN_IN',
+        role,
+        loginMode: effectiveRiderLoginMode || ''
+      }));
+      return;
+    }
+    loginWithGoogle();
   };
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      setLoading(true);
-      setError('');
-      setNotRegisteredError(false);
-      try {
-        const res = await api.post('/auth/google', { 
-          accessToken: tokenResponse.access_token, 
-          role,
-          isSignup: false,
-          ...(effectiveRiderLoginMode ? { loginMode: effectiveRiderLoginMode } : {})
-        });
-        const data = res.data;
-        
-        localStorage.setItem('zypergo_token', data.token);
-        localStorage.setItem('zypergo_user', JSON.stringify(data.data));
-        if (onLoginSuccess) {
-          onLoginSuccess(data.data);
-        } else {
-          navigate('/dashboard');
-        }
-      } catch (err) {
-        const errorMsg = err.response?.data?.error || 'Google login failed';
-        setError(errorMsg);
-        if (err.response?.data?.notRegistered) {
-          setNotRegisteredError(true);
-        }
-      } finally {
-        setLoading(false);
-      }
+      await submitGoogleToken({ accessToken: tokenResponse.access_token });
     },
     onError: () => setError('Google Login was cancelled or failed')
   });

@@ -23,6 +23,7 @@ import api from '../../api';
 import { reverseGeocode, searchPlaces, forwardGeocode } from '../../utils/locationService';
 import { sanitizeDigits, handleNumericKeyDown } from '../../utils/inputValidation';
 import { openRazorpayCheckout } from '../../utils/razorpayCheckout';
+import { VEHICLE_IMAGES } from '../../assets/vehicleImagesDataUri';
 
 // Helper component for tracking map movements
 function MapCenterTracker({ onMoveEnd }) {
@@ -126,7 +127,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 20 kg',
     maxKg: 20,
     eta: '10 mins',
-    img: '/images/bike.png',
+    img: VEHICLE_IMAGES['bike.png'],
     dimensions: '45 × 35 × 35 cm',
     bestFor: 'Documents, food boxes & small urgent parcels',
     baseFare: 60,
@@ -138,7 +139,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 90 kg',
     maxKg: 90,
     eta: '1 min',
-    img: '/images/miniAuto.png',
+    img: VEHICLE_IMAGES['miniAuto.png'],
     dimensions: '110 × 90 × 90 cm',
     bestFor: 'Multiple cartons & medium home appliances',
     baseFare: 90,
@@ -150,7 +151,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 500 kg',
     maxKg: 500,
     eta: '3 mins',
-    img: '/images/3%20wheeler.png',
+    img: VEHICLE_IMAGES['3 wheeler.png'],
     dimensions: '170 × 125 × 125 cm',
     bestFor: 'Bulk retail stock & wholesale crates',
     baseFare: 180,
@@ -162,7 +163,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 750 kg',
     maxKg: 750,
     eta: '10 mins',
-    img: '/images/tataace.png',
+    img: VEHICLE_IMAGES['tataace.png'],
     dimensions: '215 × 145 × 140 cm',
     bestFor: 'Home shifting, furniture & commercial goods',
     baseFare: 280,
@@ -174,7 +175,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 1200 kg',
     maxKg: 1200,
     eta: '10 mins',
-    img: '/images/pickup8ft.png',
+    img: VEHICLE_IMAGES['pickup8ft.png'],
     dimensions: '245 × 150 × 150 cm',
     bestFor: 'Hardware, machinery & distributor dispatches',
     baseFare: 420,
@@ -186,7 +187,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 1700 kg',
     maxKg: 1700,
     eta: '9 mins',
-    img: '/images/9ft.png',
+    img: VEHICLE_IMAGES['9ft.png'],
     dimensions: '275 × 160 × 160 cm',
     bestFor: 'Heavy B2B cargo & warehouse transfers',
     baseFare: 520,
@@ -198,7 +199,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 3500 kg',
     maxKg: 3500,
     eta: '12 mins',
-    img: '/images/14ft.png',
+    img: VEHICLE_IMAGES['14ft.png'],
     dimensions: '425 × 200 × 200 cm',
     bestFor: 'Large industrial freight & full loads',
     baseFare: 780,
@@ -210,7 +211,7 @@ const DELIVERY_VEHICLES = [
     weightLabel: 'Up to 6000 kg',
     maxKg: 6000,
     eta: '15 mins',
-    img: '/images/17ft.png',
+    img: VEHICLE_IMAGES['17ft.png'],
     dimensions: '520 × 215 × 215 cm',
     bestFor: 'Heavy intercity/intracity truckloads',
     baseFare: 1200,
