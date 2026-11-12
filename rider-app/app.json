@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ZyperGo Captain",
+    "name": "Captain App",
     "slug": "zypergo-rider",
     "scheme": "zypergorider",
     "version": "1.0.0",
@@ -20,10 +20,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zypergo.rider"
+      "bundleIdentifier": "com.zypergo.captain"
     },
     "android": {
-      "package": "com.zypergo.rider",
+      "package": "com.zypergo.captain",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",

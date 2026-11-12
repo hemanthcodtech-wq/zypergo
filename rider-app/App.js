@@ -278,7 +278,7 @@ export default function App() {
               </View>
               <Text style={styles.errorTitle}>Connection Failed</Text>
               <Text style={styles.errorSubtitle}>
-                {errorMessage || 'Unable to reach ZyperGo rider partner portal.'}
+                {errorMessage || 'Unable to reach Captain App partner portal.'}
               </Text>
               <Text style={styles.errorUrl}>URL: {currentUrl}</Text>
 
@@ -311,7 +311,7 @@ export default function App() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Server Configuration</Text>
             <Text style={styles.modalDesc}>
-              Set the ZyperGo rider app endpoint. You can use production (https://zypergo.com/rider) or your local laptop IP (e.g. http://192.168.1.15:8082).
+              Set the Captain App endpoint. You can use production (https://zypergo.com/rider) or your local laptop IP (e.g. http://192.168.1.15:8082).
             </Text>
 
             <TextInput
