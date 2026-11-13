@@ -14,7 +14,8 @@ import {
   Image,
   Animated,
   ToastAndroid,
-  Platform
+  Platform,
+  AppState
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,6 +49,39 @@ export default function App() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const splashDismissedRef = useRef(false);
   const tokenRef = useRef(null);
+  const isCaptainOnlineRef = useRef(false);
+
+  // Monitor AppState (When captain is online and minimizes app, maintain sticky re-entry overlay)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (isCaptainOnlineRef.current) {
+          try {
+            await Notifications.scheduleNotificationAsync({
+              identifier: 'CAPTAIN_ONLINE_OVERLAY',
+              content: {
+                title: '🟢 ZyperGo Captain • ONLINE',
+                body: 'Radar searching for orders... Tap to open app',
+                sticky: true,
+                autoDismiss: false,
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                sound: false
+              },
+              trigger: null
+            });
+          } catch (e) {}
+        }
+      } else if (nextAppState === 'active') {
+        try {
+          await Notifications.dismissNotificationAsync('CAPTAIN_ONLINE_OVERLAY');
+        } catch (e) {}
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const sendTokenToWebView = (token) => {
     const pushToken = token || tokenRef.current;
@@ -239,6 +273,13 @@ export default function App() {
       const data = JSON.parse(event.nativeEvent.data);
       if (data?.type === 'APP_READY') {
         dismissSplash();
+        return;
+      }
+      if (data?.type === 'CAPTAIN_ONLINE_STATUS') {
+        isCaptainOnlineRef.current = !!data.isOnline;
+        if (!data.isOnline) {
+          Notifications.dismissNotificationAsync('CAPTAIN_ONLINE_OVERLAY').catch(() => {});
+        }
         return;
       }
       if (data?.type === 'GET_FCM_TOKEN') {

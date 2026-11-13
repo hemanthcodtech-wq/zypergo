@@ -30,6 +30,16 @@ export default function RiderDashboard({ user, onLogout }) {
     }
   }, [user]);
 
+  // Sync Captain Online Status with Native WebView for Floating Overlay / Background Re-entry
+  useEffect(() => {
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'CAPTAIN_ONLINE_STATUS',
+        isOnline: !!(riderDetails.isOnline && !riderDetails.isOnBreak)
+      }));
+    }
+  }, [riderDetails.isOnline, riderDetails.isOnBreak]);
+
   // Location State
   const [currentLocation, setCurrentLocation] = useState(null);
   const [currentAddress, setCurrentAddress] = useState('');
