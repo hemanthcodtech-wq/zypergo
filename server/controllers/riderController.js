@@ -667,3 +667,17 @@ exports.getNearbyCaptains = async (req, res) => {
   }
 };
 
+exports.updateFcmToken = async (req, res) => {
+  try {
+    const { userId, fcmToken } = req.body;
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ success: false, error: 'User ID and FCM token are required' });
+    }
+    await User.findByIdAndUpdate(userId, { fcmToken });
+    res.status(200).json({ success: true, message: 'FCM token updated successfully' });
+  } catch (error) {
+    console.error('Error updating FCM token:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+

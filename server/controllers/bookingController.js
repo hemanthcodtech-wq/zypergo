@@ -306,6 +306,25 @@ exports.createBooking = async (req, res) => {
       console.log('[Socket] Not initialized or failed to broadcast.');
     }
 
+    // High-Priority FCM Push Notification with Buzzer Sound to all Captains
+    try {
+      const fcmService = require('../services/fcmService');
+      const User = require('../models/User');
+      const activeCaptains = await User.find({
+        role: 'Rider',
+        isActive: true,
+        fcmToken: { $exists: true, $ne: null }
+      }).select('fcmToken');
+
+      const fcmTokens = activeCaptains.map(c => c.fcmToken).filter(Boolean);
+      if (fcmTokens.length > 0) {
+        fcmService.sendOrderBuzzerNotification(fcmTokens, booking);
+        console.log(`[FCM] Dispatched order buzzer alert to ${fcmTokens.length} captain devices.`);
+      }
+    } catch (fcmErr) {
+      console.error('[FCM] Error dispatching FCM buzzer notification:', fcmErr.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Booking created successfully',

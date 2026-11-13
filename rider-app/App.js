@@ -13,11 +13,22 @@ import {
   Linking,
   Image,
   Animated,
-  ToastAndroid
+  ToastAndroid,
+  Platform
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const GOOGLE_WEB_CLIENT_ID = '435325462650-2ormagrttrufcs8o7d87qqhcdub4n81t.apps.googleusercontent.com';
 
@@ -36,6 +47,66 @@ export default function App() {
   const splashOpacity = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const splashDismissedRef = useRef(false);
+  const tokenRef = useRef(null);
+
+  const sendTokenToWebView = (token) => {
+    const pushToken = token || tokenRef.current;
+    if (!webViewRef.current || !pushToken) return;
+    const js = `
+      (function() {
+        try {
+          if (window.__onNativeFcmToken) {
+            window.__onNativeFcmToken(${JSON.stringify(pushToken)});
+          }
+          window.postMessage(JSON.stringify({ type: 'FCM_TOKEN', token: ${JSON.stringify(pushToken)} }), '*');
+        } catch (e) {}
+      })();
+      true;
+    `;
+    webViewRef.current.injectJavaScript(js);
+  };
+
+  // Configure Android High-Priority Order Buzzer Notification Channel & Register FCM
+  useEffect(() => {
+    async function configureNotifications() {
+      try {
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('order_buzzer', {
+            name: 'Order Alerts (Buzzer)',
+            importance: Notifications.AndroidImportance.MAX,
+            sound: 'order_buzzer.wav',
+            vibrationPattern: [0, 800, 400, 800],
+            enableVibrate: true,
+            enableLights: true,
+            lightColor: '#FFB703',
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            bypassDnd: true,
+          });
+        }
+
+        if (Device.isDevice) {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+          if (finalStatus === 'granted') {
+            const tokenData = await Notifications.getDevicePushTokenAsync();
+            const token = tokenData?.data;
+            if (token) {
+              tokenRef.current = token;
+              sendTokenToWebView(token);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Notifications configuration notice:', err?.message);
+      }
+    }
+
+    configureNotifications();
+  }, []);
 
   // Dev URL modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -54,6 +125,9 @@ export default function App() {
   const handleWebViewLoadEnd = () => {
     setTimeout(() => {
       dismissSplash();
+      if (tokenRef.current) {
+        sendTokenToWebView(tokenRef.current);
+      }
     }, 400);
   };
 
@@ -165,6 +239,12 @@ export default function App() {
       const data = JSON.parse(event.nativeEvent.data);
       if (data?.type === 'APP_READY') {
         dismissSplash();
+        return;
+      }
+      if (data?.type === 'GET_FCM_TOKEN') {
+        if (tokenRef.current) {
+          sendTokenToWebView(tokenRef.current);
+        }
         return;
       }
       if (data?.type === 'GOOGLE_SIGN_IN') {

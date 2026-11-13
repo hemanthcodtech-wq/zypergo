@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema({
     required: true
   },
   photoUrl: String,
+  fcmToken: { type: String, default: null },
   vehicleImageUrl: String,
   preferredLanguage: {
     type: String,

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZyperGo Captain Buzzer Sound Audition</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0F172A; color: #F8FAFC; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: #1E293B; border: 1px solid #334155; border-radius: 24px; padding: 28px; width: 100%; max-width: 520px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .badge { display: inline-block; background: #FFB703; color: #0F172A; font-weight: 900; font-size: 11px; padding: 4px 12px; border-radius: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+    p.sub { font-size: 13px; color: #94A3B8; margin-bottom: 24px; }
+    .sound-item { background: #0F172A; border: 1px solid #334155; border-radius: 16px; padding: 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; transition: all 0.2s; }
+    .sound-item.active { border-color: #FFB703; box-shadow: 0 0 18px rgba(255,183,3,0.35); }
+    .sound-header { display: flex; justify-content: space-between; align-items: center; }
+    .sound-name { font-weight: 800; font-size: 15px; color: #FFF; display: flex; align-items: center; gap: 6px; }
+    .sound-tag { font-size: 11px; background: rgba(255,183,3,0.15); color: #FFB703; padding: 2px 8px; border-radius: 6px; font-weight: 800; }
+    .sound-tag.gold { background: #FFB703; color: #0F172A; }
+    .sound-desc { font-size: 12px; color: #94A3B8; line-height: 1.4; }
+    .sound-controls { display: flex; gap: 10px; align-items: center; }
+    button.play-btn { flex: 1; background: #FFB703; color: #0F172A; border: none; padding: 12px; border-radius: 12px; font-weight: 900; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.1s; }
+    button.play-btn:active { transform: scale(0.98); }
+    button.play-btn.playing { background: #EF4444; color: white; }
+    audio { display: none; }
+    .loop-toggle { display: flex; align-items: center; justify-content: space-between; background: #334155; padding: 12px 16px; border-radius: 12px; margin-top: 10px; font-size: 12px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Brand Sonic Identity</div>
+    <h1>"ZyperGo!" Order Buzzer Sounds</h1>
+    <p class="sub">These sounds uniquely pronounce and articulate <b>"ZyperGo!"</b> paired with high-energy Rapido-style captain buzzer beats:</p>
+
+    <!-- Sound A -->
+    <div class="sound-item" id="item-A">
+      <div class="sound-header">
+        <span class="sound-name">🔊 A. "ZyperGo! New Order!" + Radar Beat</span>
+        <span class="sound-tag gold">Brand Signature</span>
+      </div>
+      <div class="sound-desc">Starts with a clear voice announcement <i>"ZyperGo! New Order!"</i> synced with punchy high-energy radar buzzer beats. Super clear and impossible to miss.</div>
+      <div class="sound-controls">
+        <button class="play-btn" id="btn-A" onclick="togglePlay('A')">
+          <span id="label-A">▶ Play Option A</span>
+        </button>
+      </div>
+      <audio id="audio-A" src="/sounds/zypergo_voice_buzzer.wav"></audio>
+    </div>
+
+    <!-- Sound B -->
+    <div class="sound-item" id="item-B">
+      <div class="sound-header">
+        <span class="sound-name">🎵 B. "Zy-Per-Go!" Musical Chime + Siren</span>
+        <span class="sound-tag">Sonic Logo</span>
+      </div>
+      <div class="sound-desc">The musical notes literally sing the 3 syllables <b>"ZY-PER-GO!"</b> with vocal harmonic resonance, followed by rapid urgent delivery sirens.</div>
+      <div class="sound-controls">
+        <button class="play-btn" id="btn-B" onclick="togglePlay('B')">
+          <span id="label-B">▶ Play Option B</span>
+        </button>
+      </div>
+      <audio id="audio-B" src="/sounds/zypergo_sonic_chime.wav"></audio>
+    </div>
+
+    <!-- Sound 1 -->
+    <div class="sound-item" id="item-1">
+      <div class="sound-header">
+        <span class="sound-name">⚡ C. Radar Pulse (Electronic Sonar)</span>
+        <span class="sound-tag">Instrumental</span>
+      </div>
+      <div class="sound-desc">Pure modern electronic double-tap sonar radar chime with ascending harmonic pulse.</div>
+      <div class="sound-controls">
+        <button class="play-btn" id="btn-1" onclick="togglePlay('1')">
+          <span id="label-1">▶ Play Option C</span>
+        </button>
+      </div>
+      <audio id="audio-1" src="/sounds/buzzer_option1_radar.wav"></audio>
+    </div>
+
+    <!-- Loop Toggle -->
+    <div class="loop-toggle">
+      <span>Continuous Loop Mode (Simulate Order Ringing)</span>
+      <input type="checkbox" id="loop-mode" checked onchange="updateLoop()" style="width: 18px; height: 18px; accent-color: #FFB703;">
+    </div>
+  </div>
+
+  <script>
+    let currentActive = null;
+    const soundIds = ['A', 'B', '1'];
+
+    function updateLoop() {
+      const isLoop = document.getElementById('loop-mode').checked;
+      soundIds.forEach(id => {
+        const a = document.getElementById(`audio-${id}`);
+        if (a) a.loop = isLoop;
+      });
+    }
+
+    function togglePlay(id) {
+      const audio = document.getElementById(`audio-${id}`);
+      const btn = document.getElementById(`btn-${id}`);
+      const label = document.getElementById(`label-${id}`);
+      const item = document.getElementById(`item-${id}`);
+      const isLoop = document.getElementById('loop-mode').checked;
+
+      if (currentActive && currentActive !== id) {
+        const oldAudio = document.getElementById(`audio-${currentActive}`);
+        const oldBtn = document.getElementById(`btn-${currentActive}`);
+        const oldLabel = document.getElementById(`label-${currentActive}`);
+        const oldItem = document.getElementById(`item-${currentActive}`);
+        if (oldAudio) {
+          oldAudio.pause();
+          oldAudio.currentTime = 0;
+        }
+        if (oldBtn) oldBtn.classList.remove('playing');
+        if (oldLabel) oldLabel.textContent = `▶ Play Option ${currentActive}`;
+        if (oldItem) oldItem.classList.remove('active');
+      }
+
+      if (audio.paused) {
+        audio.loop = isLoop;
+        audio.currentTime = 0;
+        audio.play();
+        btn.classList.add('playing');
+        label.textContent = `⏹ Stop Option ${id}`;
+        item.classList.add('active');
+        currentActive = id;
+
+        audio.onended = () => {
+          if (!audio.loop) {
+            btn.classList.remove('playing');
+            label.textContent = `▶ Play Option ${id}`;
+            item.classList.remove('active');
+            currentActive = null;
+          }
+        };
+      } else {
+        audio.pause();
+        audio.currentTime = 0;
+        btn.classList.remove('playing');
+        label.textContent = `▶ Play Option ${id}`;
+        item.classList.remove('active');
+        currentActive = null;
+      }
+    }
+
+    updateLoop();
+  </script>
+</body>
+</html>

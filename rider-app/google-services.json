@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "482850993046",
+    "project_id": "zypergo-5b55c",
+    "storage_bucket": "zypergo-5b55c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:482850993046:android:457fa474e14a89535163b7",
+        "android_client_info": {
+          "package_name": "com.zypergo.captain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUY3HTVc_pwGCUTE-UDglznQezbcpa1zE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

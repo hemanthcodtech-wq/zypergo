@@ -20,6 +20,9 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+*firebase-adminsdk*.json
+firebase-service-account.json
+server/firebase-service-account.json
 
 # Vercel
 .vercel

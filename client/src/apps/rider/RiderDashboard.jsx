@@ -41,6 +41,53 @@ export default function RiderDashboard({ user, onLogout }) {
   const [helperActionNotice, setHelperActionNotice] = useState('');
   const [completedHelperTasks, setCompletedHelperTasks] = useState({});
 
+  // Rapido-Style Buzzer Sound & Vibration Refs
+  const buzzerAudioRef = useRef(null);
+  const vibrationIntervalRef = useRef(null);
+  const availableJobsRef = useRef(availableJobs);
+  const activeJobRef = useRef(activeJob);
+
+  useEffect(() => {
+    availableJobsRef.current = availableJobs;
+    activeJobRef.current = activeJob;
+  }, [availableJobs, activeJob]);
+
+  const stopBuzzer = () => {
+    if (buzzerAudioRef.current) {
+      buzzerAudioRef.current.pause();
+      buzzerAudioRef.current.currentTime = 0;
+    }
+    if (vibrationIntervalRef.current) {
+      clearInterval(vibrationIntervalRef.current);
+      vibrationIntervalRef.current = null;
+    }
+    if ('vibrate' in navigator) {
+      try { navigator.vibrate(0); } catch (e) {}
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const audio = new Audio('/sounds/order_buzzer.wav');
+      audio.loop = true;
+      audio.preload = 'auto';
+      audio.onended = () => {
+        if (buzzerAudioRef.current && availableJobsRef.current?.length > 0 && !activeJobRef.current) {
+          buzzerAudioRef.current.currentTime = 0;
+          buzzerAudioRef.current.play().catch(() => {});
+        }
+      };
+      buzzerAudioRef.current = audio;
+    } catch (e) {
+      console.warn('[Buzzer] Audio initialization notice:', e);
+    }
+
+    return () => {
+      stopBuzzer();
+      buzzerAudioRef.current = null;
+    };
+  }, []);
+
   const isHelper = user?.riderDetails?.partnerMode === 'Helper';
   const helperWorkType = user?.riderDetails?.helperWorkType || 'Load & Unload';
   const assignedCaptain = user?.riderDetails?.assignedCaptain;
@@ -157,6 +204,70 @@ export default function RiderDashboard({ user, onLogout }) {
     };
   }, [riderDetails.isOnline, riderDetails.isOnBreak]);
 
+  // Trigger Rapido-Style Buzzer Sound & Vibration on New Order (Continuous Loop until Accept/Reject)
+  useEffect(() => {
+    if (availableJobs.length > 0 && riderDetails.isOnline && !activeJob) {
+      if (buzzerAudioRef.current) {
+        buzzerAudioRef.current.loop = true;
+        buzzerAudioRef.current.play().catch(e => {
+          console.log('[Buzzer] Waiting for user gesture:', e);
+        });
+      }
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate([1000, 500, 1000, 500]); } catch (e) {}
+        if (!vibrationIntervalRef.current) {
+          vibrationIntervalRef.current = setInterval(() => {
+            if ('vibrate' in navigator && availableJobsRef.current?.length > 0 && !activeJobRef.current) {
+              try { navigator.vibrate([1000, 500, 1000, 500]); } catch (e) {}
+            }
+          }, 3000);
+        }
+      }
+    } else {
+      stopBuzzer();
+    }
+  }, [availableJobs.length, riderDetails.isOnline, !!activeJob]);
+
+  // Sync Native Device FCM Token with Server
+  useEffect(() => {
+    const handleRegisterToken = async (token) => {
+      if (!token) return;
+      const uid = user?._id || user?.id;
+      if (uid) {
+        try {
+          await api.post('/rider/fcm-token', { userId: uid, fcmToken: token });
+          console.log('[FCM] Captain registered FCM token with server.');
+        } catch (e) {
+          console.warn('[FCM] Token sync error:', e?.message);
+        }
+      }
+    };
+
+    window.__onNativeFcmToken = handleRegisterToken;
+
+    const handleNativeMessage = (event) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.type === 'FCM_TOKEN' && data?.token) {
+          handleRegisterToken(data.token);
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('message', handleNativeMessage);
+    document.addEventListener('message', handleNativeMessage);
+
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'GET_FCM_TOKEN' }));
+    }
+
+    return () => {
+      window.removeEventListener('message', handleNativeMessage);
+      document.removeEventListener('message', handleNativeMessage);
+      delete window.__onNativeFcmToken;
+    };
+  }, [user?._id]);
+
   const handleStatusUpdate = async (newStatus, payload = {}) => {
     if (!activeJob) return;
     setLoading(true);
@@ -177,6 +288,7 @@ export default function RiderDashboard({ user, onLogout }) {
   };
 
   const rejectJob = (job) => {
+    stopBuzzer();
     const userId = user?.id || user?._id || user?.phone;
     if (userId && job) {
       try {
@@ -197,6 +309,7 @@ export default function RiderDashboard({ user, onLogout }) {
   };
 
   const acceptJob = async (job) => {
+    stopBuzzer();
     if (job.status === 'Relay Handoff Pending' || job.status === 'Transhipment Pending') {
       const enteredOtp = window.prompt("Enter the 4-digit Handover OTP from the other Rider:");
       if (!enteredOtp) return;
