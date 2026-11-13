@@ -1,22 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation, Radio } from 'lucide-react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { io } from 'socket.io-client';
 import api from '../../api';
 
-// Fix for default leaflet icons not showing correctly in React
-import L from 'leaflet';
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
+// Custom Leaflet Icons for Rapido-like Live Tracking
+const createCustomPinIcon = (label, bgHex) => L.divIcon({
+  className: 'custom-pin-marker',
+  html: `
+    <div style="
+      background: ${bgHex};
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 13px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      border: 2.5px solid white;
+    ">
+      ${label}
+    </div>
+  `,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15]
 });
-L.Marker.prototype.options.icon = DefaultIcon;
+
+const pickupPinIcon = createCustomPinIcon('A', '#16A34A');
+const dropPinIcon = createCustomPinIcon('B', '#DC2626');
+
+// Rapido Captain Moving Vehicle (Bike/Scooter) Marker with Live Radar Ring
+const captainVehicleIcon = L.divIcon({
+  className: 'captain-moving-bike-marker',
+  html: `
+    <div style="position: relative; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;">
+      <!-- Pulsating Radar Ring -->
+      <div style="
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(0, 82, 204, 0.25);
+        animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+      "></div>
+
+      <!-- Vehicle Circle -->
+      <div style="
+        position: relative;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #0052CC;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.5);
+        border: 2.5px solid white;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18.5" cy="17.5" r="3.5"/>
+          <circle cx="5.5" cy="17.5" r="3.5"/>
+          <circle cx="15" cy="5" r="1"/>
+          <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+        </svg>
+
+        <!-- Live Online Dot -->
+        <span style="
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          width: 11px;
+          height: 11px;
+          background: #22C55E;
+          border-radius: 50%;
+          border: 2px solid white;
+        "></span>
+      </div>
+    </div>
+  `,
+  iconSize: [46, 46],
+  iconAnchor: [23, 23]
+});
+
+// Haversine formula to calculate accurate real-time distance in kilometers
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Dynamic Map View Bounds Controller (smoothly keeps vehicle and target in frame)
+function MapBoundsController({ riderPos, targetPos, defaultPos }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const points = [];
+    if (riderPos && riderPos[0] && riderPos[1]) points.push(riderPos);
+    if (targetPos && targetPos[0] && targetPos[1]) points.push(targetPos);
+    if (points.length >= 2) {
+      try {
+        const bounds = L.latLngBounds(points);
+        map.fitBounds(bounds, { padding: [45, 45], maxZoom: 16 });
+      } catch (e) {}
+    } else if (points.length === 1) {
+      map.setView(points[0], 15);
+    } else if (defaultPos) {
+      map.setView(defaultPos, 13);
+    }
+  }, [riderPos, targetPos, map]);
+  return null;
+}
 
 export default function TrackingTimeline() {
   const { id: paramId } = useParams();
@@ -27,71 +134,81 @@ export default function TrackingTimeline() {
   const [activeShipments, setActiveShipments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Real-Time Captain Live GPS Coordinates State
+  const [riderLocation, setRiderLocation] = useState(null);
+  const [liveStatusText, setLiveStatusText] = useState('');
+  const socketRef = useRef(null);
+
+  const fetchBooking = () => {
+    if (!trackingId) return;
+    api.get(`/bookings/${trackingId}`)
+      .then(res => {
+        if (res.data && res.data.data) {
+          const b = res.data.data;
+          setBooking(b);
+          // Seed rider location from populated booking if not already streaming
+          if (b.currentRider?.riderDetails?.currentLocation?.lat) {
+            setRiderLocation(prev => prev || {
+              lat: Number(b.currentRider.riderDetails.currentLocation.lat),
+              lng: Number(b.currentRider.riderDetails.currentLocation.lng)
+            });
+          }
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Fetch booking error:', err);
+        setLoading(false);
+      });
+  };
+
   useEffect(() => {
     if (trackingId) {
-      api.get(`/bookings/${trackingId}`)
-        .then(res => {
-          if (res.data && res.data.data) {
-            setBooking(res.data.data);
-          } else {
-            // Demo fallback booking for rich preview
-            setBooking(getDemoBooking(trackingId));
-          }
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setBooking(getDemoBooking(trackingId));
-          setLoading(false);
-        });
+      fetchBooking();
+
+      // Real-Time Socket Connection to track captain movement
+      const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+      const socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10
+      });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        socket.emit('join_tracking', { trackingId });
+      });
+
+      socket.on('rider_location', (data) => {
+        if (data && data.lat && data.lng) {
+          setRiderLocation({
+            lat: Number(data.lat),
+            lng: Number(data.lng)
+          });
+        }
+      });
+
+      // 5-second polling fallback to keep status synced
+      const pollTimer = setInterval(fetchBooking, 5000);
+
+      return () => {
+        clearInterval(pollTimer);
+        socket.disconnect();
+      };
     } else {
       api.get('/bookings/my-shipments')
         .then(res => {
           const shipments = res.data?.data || [];
-          setActiveShipments(shipments.length > 0 ? shipments : [
-            getDemoBooking('ZYP95589497'),
-            getDemoBooking('ZYP29317407'),
-            getDemoBooking('ZYP88123056')
-          ]);
+          setActiveShipments(shipments);
           setLoading(false);
         })
-        .catch(err => {
-          console.error(err);
-          setActiveShipments([
-            getDemoBooking('ZYP95589497'),
-            getDemoBooking('ZYP29317407'),
-            getDemoBooking('ZYP88123056')
-          ]);
-          setLoading(false);
-        });
+        .catch(() => setLoading(false));
     }
   }, [trackingId]);
 
-  function getDemoBooking(id) {
-    return {
-      _id: id || 'ZYP95589497',
-      trackingId: id || 'ZYP95589497',
-      status: 'In Transit',
-      eta: 'Today, by 4:30 PM',
-      pickupLocation: { city: 'Adoni', address: 'Main Road, Adoni, AP' },
-      dropLocation: { city: 'Sindhanur', address: 'Market Yard, Sindhanur, KA', lat: 15.7667, lng: 76.7667 },
-      packageDetails: { weight: 3.5, category: 'Documents & Parcel' },
-      currentRider: {
-        name: 'Ramesh Kumar',
-        phone: '+919876543210',
-        riderDetails: { performance: { rating: 4.9 } }
-      },
-      trackingHistory: [
-        { status: 'In Transit', location: 'En Route to Sindhanur Hub', timestamp: new Date(Date.now() - 1800000).toISOString(), description: 'Package is in transit via ZyperGo express fleet.' },
-        { status: 'Picked Up', location: 'Adoni Pickup Center', timestamp: new Date(Date.now() - 7200000).toISOString(), description: 'Package picked up from sender.' },
-        { status: 'Booking Confirmed', location: 'ZyperGo System', timestamp: new Date(Date.now() - 14400000).toISOString(), description: 'Order created and assigned.' }
-      ]
-    };
-  }
-
   const handleShare = () => {
     const url = window.location.href;
-    const text = `Track my ZyperGo parcel! Tracking ID: ${booking?.trackingId}. Link: ${url}`;
+    const text = `Track my ZyperGo parcel live! Tracking ID: ${booking?.trackingId}. Link: ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -99,6 +216,12 @@ export default function TrackingTimeline() {
     const s = status.toUpperCase();
     if (s.includes('CONFIRMED')) {
       return <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-blue-50 text-[#0052CC]">Booking Confirmed</span>;
+    }
+    if (s.includes('ON THE WAY')) {
+      return <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-amber-50 text-amber-700 animate-pulse">Captain On the Way</span>;
+    }
+    if (s.includes('ARRIVED')) {
+      return <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-purple-50 text-purple-700">Arrived at Pickup</span>;
     }
     if (s.includes('PICKED')) {
       return <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide bg-orange-50 text-[#FF6B00]">Picked Up</span>;
@@ -121,10 +244,9 @@ export default function TrackingTimeline() {
     );
   }
 
-  if (!trackingId) {
+  if (!trackingId || !booking) {
     return (
       <div className="bg-[#F8FAFC] min-h-full font-sans pb-24 px-4 pt-4 max-w-md md:max-w-4xl mx-auto space-y-4">
-        {/* Top bar */}
         <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs">
           <div className="flex items-center gap-2">
             <button 
@@ -165,7 +287,7 @@ export default function TrackingTimeline() {
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-slate-900">Order #{shipment.trackingId}</h3>
-                    <p className="text-[10px] text-slate-400 font-medium">Click to view live route & timeline</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Click to view live route &amp; timeline</p>
                   </div>
                 </div>
                 {getStatusBadge(shipment.status)}
@@ -183,7 +305,56 @@ export default function TrackingTimeline() {
     );
   }
 
-  const position = booking.dropLocation?.lat ? [booking.dropLocation.lat, booking.dropLocation.lng] : [15.4989, 77.2750];
+  // Target Location and Position Calculation
+  const pickupLat = booking.pickupLocation?.lat ? Number(booking.pickupLocation.lat) : null;
+  const pickupLng = booking.pickupLocation?.lng ? Number(booking.pickupLocation.lng) : null;
+  const dropLat = booking.dropLocation?.lat ? Number(booking.dropLocation.lat) : null;
+  const dropLng = booking.dropLocation?.lng ? Number(booking.dropLocation.lng) : null;
+
+  const isPickupStage = ['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status);
+  const targetCoords = isPickupStage ? [pickupLat, pickupLng] : [dropLat, dropLng];
+  const defaultCenter = (pickupLat && pickupLng) ? [pickupLat, pickupLng] : ((dropLat && dropLng) ? [dropLat, dropLng] : [17.3850, 78.4867]);
+
+  // Dynamic Rapido-Style Real-Time ETA Computation
+  let dynamicEta = '';
+  let distanceKm = null;
+
+  if (booking.status === 'Delivered') {
+    dynamicEta = 'Delivered Successfully';
+  } else if (riderLocation && riderLocation.lat && riderLocation.lng) {
+    if (isPickupStage && pickupLat && pickupLng) {
+      distanceKm = calculateHaversineKm(riderLocation.lat, riderLocation.lng, pickupLat, pickupLng);
+      if (distanceKm !== null) {
+        if (distanceKm <= 0.12 || booking.status === 'Arrived at Pickup') {
+          dynamicEta = '⚡ Captain has arrived at pickup!';
+        } else {
+          const mins = Math.max(2, Math.round((distanceKm / 24) * 60));
+          dynamicEta = `Arriving in ~${mins} mins (${distanceKm.toFixed(1)} km away)`;
+        }
+      }
+    } else if (!isPickupStage && dropLat && dropLng) {
+      distanceKm = calculateHaversineKm(riderLocation.lat, riderLocation.lng, dropLat, dropLng);
+      if (distanceKm !== null) {
+        if (distanceKm <= 0.15) {
+          dynamicEta = '⚡ Arrived at destination!';
+        } else {
+          const mins = Math.max(3, Math.round((distanceKm / 25) * 60));
+          dynamicEta = `Reaching destination in ~${mins} mins (${distanceKm.toFixed(1)} km away)`;
+        }
+      }
+    }
+  }
+
+  // Fallback if rider hasn't broadcasted yet
+  if (!dynamicEta) {
+    if (['Pending', 'Booking Confirmed'].includes(booking.status)) {
+      dynamicEta = 'Assigning Captain nearby (~5-10 mins)';
+    } else if (['Rider Assigned', 'Rider On the Way'].includes(booking.status)) {
+      dynamicEta = 'Captain on the way (~10-15 mins)';
+    } else {
+      dynamicEta = booking.eta || 'Express (~20-30 mins)';
+    }
+  }
 
   const steps = [
     { title: 'Booking Confirmed', done: true },
@@ -196,43 +367,86 @@ export default function TrackingTimeline() {
   return (
     <div className="min-h-full bg-[#F8FAFC] font-sans pb-28 text-slate-900 animate-in fade-in">
       
-      {/* Top Map View Area */}
-      <div className="relative h-[230px] md:h-[300px] w-full shrink-0">
-        <MapContainer center={position} zoom={12} scrollWheelZoom={false} className="w-full h-full z-0">
+      {/* Top Map View Area with Moving Rapido Captain Vehicle */}
+      <div className="relative h-[260px] md:h-[340px] w-full shrink-0">
+        <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={false} className="w-full h-full z-0">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <Marker position={position}>
-            <Popup>{booking.dropLocation?.address || 'Destination Hub'}</Popup>
-          </Marker>
+
+          {/* Controller to keep vehicle and destination in frame */}
+          <MapBoundsController 
+            riderPos={riderLocation ? [riderLocation.lat, riderLocation.lng] : null}
+            targetPos={(targetCoords[0] && targetCoords[1]) ? targetCoords : null}
+            defaultPos={defaultCenter}
+          />
+
+          {/* Pickup Marker (Pin A) */}
+          {pickupLat && pickupLng && (
+            <Marker position={[pickupLat, pickupLng]} icon={pickupPinIcon}>
+              <Popup>
+                <div className="text-xs font-sans">
+                  <p className="font-bold text-emerald-700">📍 Pickup Location (A)</p>
+                  <p className="text-slate-600 mt-0.5">{booking.pickupLocation?.address || 'Pickup Point'}</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* Drop Location Marker (Pin B) */}
+          {dropLat && dropLng && (
+            <Marker position={[dropLat, dropLng]} icon={dropPinIcon}>
+              <Popup>
+                <div className="text-xs font-sans">
+                  <p className="font-bold text-red-600">🎯 Drop Destination (B)</p>
+                  <p className="text-slate-600 mt-0.5">{booking.dropLocation?.address || 'Drop Point'}</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
+
+          {/* LIVE MOVING VEHICLE (Rapido Captain Bike/Scooter Marker) */}
+          {riderLocation && riderLocation.lat && riderLocation.lng && (
+            <Marker position={[riderLocation.lat, riderLocation.lng]} icon={captainVehicleIcon}>
+              <Popup>
+                <div className="text-xs font-sans">
+                  <p className="font-black text-[#0052CC] flex items-center gap-1">
+                    <span>🏍️ {booking.currentRider?.name || 'ZyperGo Captain'}</span>
+                  </p>
+                  <p className="text-slate-500 text-[10px] mt-0.5 font-bold">🟢 Moving Live on Route</p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
         </MapContainer>
 
         {/* Floating Top Controls */}
         <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-center pointer-events-none">
           <button 
             onClick={() => navigate(-1)} 
-            className="pointer-events-auto w-9 h-9 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-md text-slate-700 hover:scale-105 active:scale-95 transition-all border border-slate-100"
+            className="pointer-events-auto w-9 h-9 bg-white/95 backdrop-blur-md rounded-full flex items-center justify-center shadow-md text-slate-700 hover:scale-105 active:scale-95 transition-all border border-slate-100 cursor-pointer"
           >
             <ArrowLeft size={18} />
           </button>
           
           <div className="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-md flex items-center gap-1.5 pointer-events-auto border border-slate-100">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             <span className="font-black text-[#0052CC] text-xs tracking-tight">Live Tracking</span>
           </div>
 
           <button 
             onClick={handleShare} 
-            className="pointer-events-auto w-9 h-9 bg-[#0052CC] hover:bg-[#0047cc] rounded-full flex items-center justify-center shadow-md text-white hover:scale-105 active:scale-95 transition-all"
+            className="pointer-events-auto w-9 h-9 bg-[#0052CC] hover:bg-[#0047cc] rounded-full flex items-center justify-center shadow-md text-white hover:scale-105 active:scale-95 transition-all cursor-pointer"
           >
             <Share2 size={16} />
           </button>
         </div>
       </div>
 
-      <div className="max-w-md md:max-w-4xl mx-auto px-4 -mt-8 relative z-20 space-y-4">
+      <div className="max-w-md md:max-w-4xl mx-auto px-4 -mt-6 relative z-20 space-y-4">
         
-        {/* Status Card */}
+        {/* Status Card with Dynamic Real-Time Arrival Time (No Hardcoded 3 Days) */}
         <div className="bg-white rounded-3xl p-4.5 border border-slate-100 shadow-md">
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -242,16 +456,21 @@ export default function TrackingTimeline() {
             {getStatusBadge(booking.status)}
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-center justify-between">
+          {/* Dynamic Real-Time ETA Box */}
+          <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-2xl p-3.5 border border-blue-100/90 flex items-center justify-between shadow-2xs">
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estimated Arrival</p>
-              <p className="text-sm font-black text-[#0052CC] mt-0.5">{booking.eta || 'Today, Express'}</p>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p className="text-[10px] font-black text-[#0052CC] uppercase tracking-wider">Estimated Arrival</p>
+              </div>
+              <p className="text-sm font-black text-slate-900 mt-0.5 tracking-tight">{dynamicEta}</p>
             </div>
-            <div className="w-9 h-9 bg-blue-100/60 rounded-full flex items-center justify-center text-[#0052CC]">
-              <Clock size={18} />
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#0052CC] shadow-xs border border-blue-100">
+              <Clock size={19} />
             </div>
           </div>
 
+          {/* Permanent 4-Digit Pickup OTP Card */}
           {['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status || 'Booking Confirmed') && (() => {
             let cachedOtp = null;
             try { cachedOtp = JSON.parse(localStorage.getItem('zypergo_user') || 'null')?.pickupOtp; } catch {}
@@ -298,25 +517,27 @@ export default function TrackingTimeline() {
           </div>
         </div>
 
-        {/* Assigned Rider Card (If Available) */}
+        {/* Assigned Captain Card with Call Action */}
         {booking.currentRider && (
           <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#0052CC] font-black text-sm">
-                {booking.currentRider.name.charAt(0)}
+                {booking.currentRider.name?.charAt(0) || 'C'}
               </div>
               <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Delivery Executive</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">ZyperGo Captain</p>
                 <p className="text-xs font-black text-slate-900">{booking.currentRider.name}</p>
-                <p className="text-[10px] font-bold text-amber-500">★ 4.9 Verified Rider</p>
+                <p className="text-[10px] font-bold text-amber-500">★ 4.9 Verified Partner</p>
               </div>
             </div>
-            <a 
-              href={`tel:${booking.currentRider.phone}`}
-              className="w-9 h-9 rounded-full bg-blue-50 text-[#0052CC] flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
-            >
-              <Phone size={16} />
-            </a>
+            {booking.currentRider.phone && (
+              <a 
+                href={`tel:${booking.currentRider.phone}`}
+                className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 active:scale-95 transition-all shadow-xs"
+              >
+                <Phone size={17} />
+              </a>
+            )}
           </div>
         )}
 
@@ -354,11 +575,11 @@ export default function TrackingTimeline() {
 
         {/* Route Details Card */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs space-y-3">
-          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Route & Shipment</h3>
+          <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Route &amp; Shipment</h3>
           
           <div className="space-y-2.5">
             <div className="flex items-start gap-2.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#0052CC] mt-1 shrink-0"></div>
+              <div className="w-3 h-3 rounded-full bg-emerald-600 mt-0.5 shrink-0 flex items-center justify-center text-[7px] text-white font-black">A</div>
               <div>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pickup Location</p>
                 <p className="text-xs font-bold text-slate-800">{booking.pickupLocation?.address || booking.pickupLocation?.city}</p>
@@ -366,7 +587,7 @@ export default function TrackingTimeline() {
             </div>
             
             <div className="flex items-start gap-2.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#FF6B00] mt-1 shrink-0"></div>
+              <div className="w-3 h-3 rounded-full bg-red-600 mt-0.5 shrink-0 flex items-center justify-center text-[7px] text-white font-black">B</div>
               <div>
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Delivery Location</p>
                 <p className="text-xs font-bold text-slate-800">{booking.dropLocation?.address || booking.dropLocation?.city}</p>

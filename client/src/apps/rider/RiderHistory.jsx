@@ -26,6 +26,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../../api';
 import { getImageUrl } from '../../utils/imageUrl';
+import { openTurnByTurnNavigation } from '../../utils/navigationHelper';
 
 export default function RiderHistory({ user }) {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ export default function RiderHistory({ user }) {
   const [otpInputs, setOtpInputs] = useState({});
   const [otpError, setOtpError] = useState('');
   const [actionSuccessNotice, setActionSuccessNotice] = useState('');
+  const [completeModalRide, setCompleteModalRide] = useState(null);
 
   const getResolvedPhoto = () => {
     const userId = user?.id || user?._id || user?.phone;
@@ -121,10 +123,11 @@ export default function RiderHistory({ user }) {
     fetchRiderHistory();
   }, []);
 
-  // 1. Start Ride to Pickup -> Open Google Maps & Update Status to Rider On the Way
+  // 1. Start Ride to Pickup -> Open Turn-by-Turn GPS Navigation & Update Status to Rider On the Way
   const handleStartRideToPickup = async (ride) => {
     const pickupAddr = ride.pickupLocation?.address || '';
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(pickupAddr)}`;
+    const lat = ride.pickupLocation?.lat;
+    const lng = ride.pickupLocation?.lng;
 
     setActionLoading(true);
     try {
@@ -136,13 +139,11 @@ export default function RiderHistory({ user }) {
         });
         await fetchRiderHistory();
       }
-      // Open Google Maps App navigation
-      window.open(mapsUrl, '_system');
-      setActionSuccessNotice('Opened Google Maps Navigation to Pickup!');
+      openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
+      setActionSuccessNotice('Starting Turn-by-Turn Navigation to Pickup!');
       setTimeout(() => setActionSuccessNotice(''), 3500);
     } catch (err) {
-      // Still open Google Maps even if status ping times out
-      window.open(mapsUrl, '_system');
+      openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
     } finally {
       setActionLoading(false);
     }
@@ -182,10 +183,11 @@ export default function RiderHistory({ user }) {
     }
   };
 
-  // 3. Start Ride to Drop Location -> Open Google Maps & Update Status to In Transit
+  // 3. Start Ride to Drop Location -> Open Turn-by-Turn GPS Navigation & Update Status to In Transit
   const handleStartRideToDrop = async (ride) => {
     const dropAddr = ride.dropLocation?.address || '';
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropAddr)}`;
+    const lat = ride.dropLocation?.lat;
+    const lng = ride.dropLocation?.lng;
 
     setActionLoading(true);
     try {
@@ -197,21 +199,24 @@ export default function RiderHistory({ user }) {
         });
         await fetchRiderHistory();
       }
-      window.open(mapsUrl, '_system');
-      setActionSuccessNotice('Opened Google Maps Navigation to Drop Location!');
+      openTurnByTurnNavigation({ lat, lng, address: dropAddr });
+      setActionSuccessNotice('Starting Turn-by-Turn Navigation to Drop Location!');
       setTimeout(() => setActionSuccessNotice(''), 3500);
     } catch (err) {
-      window.open(mapsUrl, '_system');
+      openTurnByTurnNavigation({ lat, lng, address: dropAddr });
     } finally {
       setActionLoading(false);
     }
   };
 
-  // 4. Complete Delivery
-  const handleCompleteDelivery = async (ride) => {
-    const confirm = window.confirm('Are you sure you want to mark this delivery as complete?');
-    if (!confirm) return;
+  // 4. Complete Delivery - Clean Native In-App Modal Dialog (Zero Browser URL Popup)
+  const promptCompleteDelivery = (ride) => {
+    setCompleteModalRide(ride);
+  };
 
+  const executeCompleteDelivery = async () => {
+    if (!completeModalRide) return;
+    const ride = completeModalRide;
     setActionLoading(true);
     try {
       const res = await api.post(`/rider/jobs/${ride._id}/update-status`, {
@@ -221,13 +226,16 @@ export default function RiderHistory({ user }) {
       });
 
       if (res.data?.success) {
+        setCompleteModalRide(null);
         setActionSuccessNotice('Delivery Completed! Payout credited to your wallet.');
         setTimeout(() => setActionSuccessNotice(''), 4000);
         await fetchRiderHistory();
         setActiveTab('completed');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to complete delivery');
+      setCompleteModalRide(null);
+      setActionSuccessNotice(err.response?.data?.error || 'Failed to complete delivery');
+      setTimeout(() => setActionSuccessNotice(''), 4000);
     } finally {
       setActionLoading(false);
     }
@@ -608,7 +616,7 @@ export default function RiderHistory({ user }) {
                           <button 
                             type="button"
                             disabled={actionLoading}
-                            onClick={() => handleCompleteDelivery(ride)}
+                            onClick={() => promptCompleteDelivery(ride)}
                             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
                           >
                             <CheckCircle2 size={14} />
@@ -713,6 +721,73 @@ export default function RiderHistory({ user }) {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sleek Custom Native In-App Delivery Completion Confirmation Modal (Zero Browser Popup) */}
+      {completeModalRide && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-6 duration-200">
+            <div className="flex flex-col items-center text-center pt-2">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-3 ring-8 ring-emerald-50/50">
+                <CheckCircle2 size={32} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">Complete Delivery?</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1 px-2">
+                Are you sure you want to mark this delivery as complete?
+              </p>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Order ID:</span>
+                <span className="font-mono font-black text-slate-800">
+                  #{completeModalRide.orderId || completeModalRide.trackingId || completeModalRide._id.slice(-8)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Payout:</span>
+                <span className="font-black text-emerald-600 text-sm">
+                  ₹{completeModalRide.estimatedPrice || completeModalRide.riderPayout || 60}
+                </span>
+              </div>
+              <div className="flex justify-between items-start pt-1 border-t border-slate-200/60">
+                <span className="text-slate-500 font-bold shrink-0">Drop:</span>
+                <span className="font-semibold text-slate-700 text-right truncate max-w-[200px] ml-2">
+                  {completeModalRide.dropLocation?.address}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setCompleteModalRide(null)}
+                className="py-3 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-black text-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={executeCompleteDelivery}
+                className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Completing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    <span>Yes, Complete</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

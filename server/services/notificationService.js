@@ -283,7 +283,9 @@ class NotificationService {
   }
 
   static notifyPickupOTP(customerPhone, customerEmail, otp, trackingId) {
-    this.sendSMS(customerPhone, `Your pickup OTP for ZyperGo shipment is ${otp}. Do not share this with anyone except the Rider.`, 'Critical');
+    if (customerPhone) {
+      this.sendSMS(customerPhone, `Your pickup OTP for ZyperGo shipment is ${otp}. Do not share this with anyone except the Rider.`, otp);
+    }
     if (customerEmail) {
       const htmlBody = this.generateEmailTemplate({
         title: 'Pickup Verification Code',

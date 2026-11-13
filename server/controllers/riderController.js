@@ -54,6 +54,31 @@ exports.updateLocation = async (req, res) => {
       'riderDetails.lastLocationUpdate': new Date()
     });
 
+    // Real-Time Captain Tracking: Broadcast rider's live GPS coordinates to active customer tracking room
+    try {
+      if (lat && lng) {
+        const activeBooking = await Booking.findOne({
+          currentRider: userId,
+          status: { $in: ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'] }
+        }).select('trackingId status pickupLocation dropLocation');
+
+        if (activeBooking) {
+          const socketService = require('../socket');
+          const io = socketService.getIO();
+          io.to(`track_${activeBooking.trackingId}`).emit('rider_location', {
+            riderId: userId,
+            trackingId: activeBooking.trackingId,
+            lat: Number(lat),
+            lng: Number(lng),
+            status: activeBooking.status,
+            timestamp: new Date()
+          });
+        }
+      }
+    } catch (sockErr) {
+      // Non-blocking socket broadcast
+    }
+
     res.status(200).json({ success: true, message: 'Location updated', address: resolvedAddress });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to update location' });
@@ -102,12 +127,14 @@ exports.updateJobStatus = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Job not found' });
     }
 
-    // Notify when Rider Arrives at Pickup
+    // Notify when Rider Arrives at Pickup (Customer app already displays the permanent 4-digit OTP prominently)
     if (status === 'Arrived at Pickup') {
       const expectedOtp = booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234';
-      const customerPhone = booking.sender?.phone || booking.senderDetails?.phone || '9999999999';
       const customerEmail = booking.sender?.email || booking.senderDetails?.email;
-      NotificationService.notifyPickupOTP(customerPhone, customerEmail, expectedOtp, booking.trackingId);
+      // Send email notification with the exact 4-digit OTP if email is present; suppress confusing 6-digit third-party SMS
+      if (customerEmail) {
+        NotificationService.notifyPickupOTP(null, customerEmail, expectedOtp, booking.trackingId);
+      }
     }
 
     // Generate and notify OTP when Rider is Out for Delivery

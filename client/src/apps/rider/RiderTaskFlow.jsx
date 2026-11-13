@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigation, MapPin, Camera, Key, CheckCircle, Package, ArrowRight, Upload, XCircle, ScanBarcode, Banknote, Phone, CreditCard, FileText } from 'lucide-react';
 import api from '../../api';
+import { openTurnByTurnNavigation } from '../../utils/navigationHelper';
 
 export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
   const [taskStep, setTaskStep] = useState(() => {
@@ -205,7 +206,11 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                   <p className="text-slate-500 flex items-center gap-1 mt-1 mb-2"><Phone size={14}/> {activeJob.sender?.phone || 'Customer Phone'}</p>
                   {taskStep <= 2 && (
                     <button 
-                      onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activeJob.pickupLocation?.address || '')}`, '_blank')}
+                      onClick={() => openTurnByTurnNavigation({
+                        lat: activeJob.pickupLocation?.lat,
+                        lng: activeJob.pickupLocation?.lng,
+                        address: activeJob.pickupLocation?.address || ''
+                      })}
                       className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-black flex items-center gap-1 w-fit transition-colors"
                     >
                       <Navigation size={14}/> Get Directions
@@ -227,7 +232,11 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                   <p className="text-slate-500 flex items-center gap-1 mt-1 mb-2 text-xs font-bold"><CreditCard size={14}/> Pay Mode: {activeJob.payment?.mode}</p>
                   {taskStep >= 4 && (
                     <button 
-                      onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(isHubDrop ? (activeJob.metadata?.sourceHub?.lat ? `${activeJob.metadata.sourceHub.lat},${activeJob.metadata.sourceHub.lng}` : activeJob.metadata?.sourceHub?.addressLine1 || 'ZyperGo Hub') : activeJob.dropLocation?.address || '')}`, '_blank')}
+                      onClick={() => openTurnByTurnNavigation({
+                        lat: isHubDrop ? activeJob.metadata?.sourceHub?.lat : activeJob.dropLocation?.lat,
+                        lng: isHubDrop ? activeJob.metadata?.sourceHub?.lng : activeJob.dropLocation?.lng,
+                        address: isHubDrop ? (activeJob.metadata?.sourceHub?.addressLine1 || activeJob.metadata?.sourceHub?.name || 'ZyperGo Hub') : (activeJob.dropLocation?.address || '')
+                      })}
                       className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-black flex items-center gap-1 w-fit transition-colors"
                     >
                       <Navigation size={14}/> Get Directions

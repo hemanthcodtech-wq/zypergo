@@ -201,16 +201,12 @@ exports.createBooking = async (req, res) => {
     bookingData.pickupOtp = permanentPickupOtp;
     bookingData.proofOfDelivery = { otp: permanentPickupOtp };
 
-    // Mock ETA calculation
-    const today = new Date();
-    if (isIntracity) {
-      if (bookingData.preferences?.speed === 'Express') {
-        bookingData.eta = 'Expected Today by 8 PM';
-      } else {
-        bookingData.eta = 'Expected Tomorrow';
-      }
+    // Dynamic Rapido-style Instant ETA calculation (No hardcoded multi-day delays for city deliveries)
+    const estMinutes = Math.max(12, Math.min(75, Math.round((distance || 5) * 3 + 8)));
+    if (isIntracity || distance <= 60) {
+      bookingData.eta = `Arriving in ~${estMinutes} mins`;
     } else {
-      bookingData.eta = `Expected in ${Math.ceil(distance / 500)} days`;
+      bookingData.eta = `Intercity Delivery (~${Math.max(2, Math.ceil(distance / 50))} hrs)`;
     }
 
     bookingData.trackingHistory = [

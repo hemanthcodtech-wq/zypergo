@@ -288,6 +288,27 @@ export default function App() {
         }
         return;
       }
+      if (data?.type === 'OPEN_NAVIGATION') {
+        const { lat, lng, address } = data;
+        let navTarget = '';
+        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+          navTarget = `${Number(lat)},${Number(lng)}`;
+        } else if (address) {
+          navTarget = encodeURIComponent(address);
+        }
+        if (navTarget) {
+          const navUrl = `google.navigation:q=${navTarget}&mode=d`;
+          Linking.canOpenURL(navUrl).then((supported) => {
+            if (supported) {
+              return Linking.openURL(navUrl);
+            }
+            return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${navTarget}&travelmode=driving`);
+          }).catch(() => {
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${navTarget}&travelmode=driving`).catch(() => {});
+          });
+        }
+        return;
+      }
       if (data?.type === 'GOOGLE_SIGN_IN') {
         handleNativeGoogleSignIn();
         return;
@@ -400,10 +421,30 @@ export default function App() {
           }}
           onShouldStartLoadWithRequest={(request) => {
             const url = request?.url || '';
-            const externalSchemes = ['upi:', 'tez:', 'phonepe:', 'paytmmp:', 'bhim:', 'credpay:', 'intent:'];
-            const isPaymentDeepLink = externalSchemes.some((scheme) => url.toLowerCase().startsWith(scheme));
+            const lowerUrl = url.toLowerCase();
 
-            // Open external UPI / payment apps in native Android handlers
+            // 1. Google Maps & Turn-by-Turn GPS Navigation
+            if (lowerUrl.startsWith('google.navigation:') || lowerUrl.startsWith('geo:')) {
+              Linking.openURL(url).catch(() => {});
+              return false;
+            }
+            if (lowerUrl.includes('google.com/maps') || lowerUrl.includes('maps.google.com') || lowerUrl.includes('goo.gl/maps')) {
+              try {
+                const urlObj = new URL(url);
+                const dest = urlObj.searchParams.get('destination') || urlObj.searchParams.get('q');
+                if (dest) {
+                  const navUrl = `google.navigation:q=${encodeURIComponent(dest)}&mode=d`;
+                  Linking.openURL(navUrl).catch(() => Linking.openURL(url).catch(() => {}));
+                  return false;
+                }
+              } catch (e) {}
+              Linking.openURL(url).catch(() => {});
+              return false;
+            }
+
+            // 2. Open external UPI / payment apps in native Android handlers
+            const externalSchemes = ['upi:', 'tez:', 'phonepe:', 'paytmmp:', 'bhim:', 'credpay:', 'intent:'];
+            const isPaymentDeepLink = externalSchemes.some((scheme) => lowerUrl.startsWith(scheme));
             if (isPaymentDeepLink) {
               Linking.openURL(url).catch(() => {});
               return false;
