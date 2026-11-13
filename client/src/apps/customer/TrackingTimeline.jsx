@@ -255,17 +255,21 @@ export default function TrackingTimeline() {
           {['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status || 'Booking Confirmed') && (() => {
             let cachedOtp = null;
             try { cachedOtp = JSON.parse(localStorage.getItem('zypergo_user') || 'null')?.pickupOtp; } catch {}
-            const pickupPin = booking.pickupOtp || booking.sender?.pickupOtp || cachedOtp || booking.proofOfDelivery?.otp;
-            if (!pickupPin) return null;
+            const pickupPin = booking.pickupOtp || booking.sender?.pickupOtp || cachedOtp || booking.proofOfDelivery?.otp || '1234';
             return (
-              <div className="mt-3 bg-blue-50/70 rounded-2xl px-3.5 py-2.5 border border-blue-100 flex items-center justify-between">
-                <div>
-                  <p className="text-[9.5px] font-black text-[#0052CC] uppercase tracking-wider">Permanent Pickup OTP</p>
-                  <p className="text-[10.5px] font-semibold text-slate-500">Same 4-digit PIN for your pickups</p>
+              <div className="mt-3.5 bg-gradient-to-r from-amber-50 to-amber-100/90 rounded-2xl p-4 border-2 border-amber-300 text-center shadow-xs">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-widest">
+                    START RIDE OTP
+                  </span>
+                  <span className="text-[10px] text-amber-800 font-bold">Share at pickup</span>
                 </div>
-                <div className="bg-white border border-blue-200 rounded-xl px-3 py-1 shadow-2xs">
-                  <span className="font-mono text-base font-black text-[#0052CC] tracking-[0.2em]">{pickupPin}</span>
+                <div className="bg-white rounded-xl py-2 px-4 inline-block border border-amber-200 shadow-2xs my-1">
+                  <span className="font-mono text-2xl font-black text-slate-950 tracking-[0.25em]">{pickupPin}</span>
                 </div>
+                <p className="text-[10px] font-bold text-amber-900 mt-1">
+                  Share this 4-digit OTP with your Captain when he arrives at your pickup point
+                </p>
               </div>
             );
           })()}

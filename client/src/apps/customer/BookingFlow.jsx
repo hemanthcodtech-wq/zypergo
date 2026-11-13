@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, MapPin, Package, CheckCircle2, ChevronDown, ChevronRight, Check, Truck, Zap, 
   Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
   Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock,
-  Users, Minus, Plus
+  Users, Minus, Plus, Phone
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -268,6 +268,40 @@ export default function BookingFlow() {
   const [estimatedFare, setEstimatedFare] = useState(60);
   const [fareBreakdown, setFareBreakdown] = useState(null);
   const [vehicleDetailModal, setVehicleDetailModal] = useState(null);
+  const [assignCountdown, setAssignCountdown] = useState(120);
+  const [liveBookingState, setLiveBookingState] = useState(null);
+
+  // Rapido-Style Captain Assignment Timer & Auto Polling
+  useEffect(() => {
+    if (step !== 4 || !bookingResult?._id) return;
+    setAssignCountdown(120);
+
+    const timer = setInterval(() => {
+      setAssignCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await api.get(`/bookings/${bookingResult._id}`);
+        if (res.data?.success && res.data?.data) {
+          const fresh = res.data.data;
+          setLiveBookingState(fresh);
+          const isAssigned = 
+            ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'].includes(fresh.status) ||
+            (Array.isArray(fresh.assignedRiders) && fresh.assignedRiders.length > 0) ||
+            fresh.currentRider;
+          if (isAssigned) {
+            setBookingResult(fresh);
+          }
+        }
+      } catch (e) {}
+    }, 3000);
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(pollInterval);
+    };
+  }, [step, bookingResult?._id]);
   
   // Rapido-Style Map Picker Modal State
   const [mapModal, setMapModal] = useState({ show: false, targetField: '' });
@@ -1434,68 +1468,210 @@ export default function BookingFlow() {
         </div>
       )}
 
-      {step === 4 && bookingResult && (
-        <div className="flex flex-col h-full animate-in zoom-in-95 duration-500 bg-white">
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center pt-20">
-            <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-inner border-[4px] border-white ring-1 ring-emerald-50">
-              <CheckCircle2 size={48} />
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Order Confirmed</h2>
-            <p className="text-slate-500 text-sm font-medium mb-5">Your tracking ID is <br/><span className="font-mono font-black tracking-widest text-[#0052CC] text-lg mt-2 inline-block bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">{bookingResult.trackingId}</span></p>
+      {step === 4 && bookingResult && (() => {
+        const activeBooking = liveBookingState || bookingResult;
+        const isCaptainAssigned = 
+          ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'].includes(activeBooking?.status) ||
+          (Array.isArray(activeBooking?.assignedRiders) && activeBooking.assignedRiders.length > 0) ||
+          activeBooking?.currentRider ||
+          activeBooking?.riderId;
 
-            {(bookingResult.pickupOtp || bookingResult.sender?.pickupOtp || bookingResult.proofOfDelivery?.otp || currentUser.pickupOtp) && (
-              <div className="w-full md:max-w-md bg-blue-50/80 border border-blue-200 rounded-2xl p-4 mb-6 mx-auto flex items-center justify-between gap-3 text-left">
-                <div>
-                  <p className="text-[10px] font-black text-[#0052CC] uppercase tracking-widest">Permanent Pickup OTP</p>
-                  <p className="text-[11px] font-semibold text-slate-600 mt-0.5">Share this same 4-digit PIN with your Captain for pickup</p>
+        const assignedCaptain = activeBooking?.currentRider || 
+          (activeBooking?.assignedRiders && activeBooking.assignedRiders[0]?.riderId) || 
+          null;
+        
+        const pickupOtp = activeBooking?.pickupOtp || activeBooking?.sender?.pickupOtp || activeBooking?.proofOfDelivery?.otp || currentUser?.pickupOtp || '1234';
+        const captainName = assignedCaptain?.name || activeBooking?.riderName || 'Assigned Captain';
+        const captainPhone = assignedCaptain?.phone || activeBooking?.riderPhone || '';
+        const vehiclePlate = assignedCaptain?.riderDetails?.vehicleRegistration || assignedCaptain?.riderDetails?.vehicleNumber || 'IND TS07WJ2099';
+        const vehicleType = assignedCaptain?.riderDetails?.vehicleType || activeBooking?.metadata?.vehicleType || 'Bike';
+
+        return (
+          <div className="flex flex-col min-h-full animate-in zoom-in-95 duration-500 bg-[#F8FAFC]">
+            
+            {/* Header */}
+            <div className="bg-white px-5 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-20 shadow-xs">
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-400">WAYBILL TRACKING</p>
+                <h3 className="text-base font-black text-slate-900 font-mono">#{activeBooking.trackingId}</h3>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                isCaptainAssigned 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-amber-50 text-amber-800 border-amber-200'
+              }`}>
+                {isCaptainAssigned ? 'Captain Assigned' : 'Finding Captain'}
+              </span>
+            </div>
+
+            <div className="flex-1 max-w-md mx-auto w-full p-4 space-y-4">
+              
+              {!isCaptainAssigned ? (
+                /* STATE A: Looking for nearby Captain with Rapido-Style Radar & Countdown Timer */
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-md text-center relative overflow-hidden">
+                  
+                  {/* Pulsing Radar Animation */}
+                  <div className="relative w-44 h-44 mx-auto my-4 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-2 border-amber-400 animate-ping opacity-25"></div>
+                    <div className="absolute inset-4 rounded-full border-2 border-amber-400 animate-ping opacity-45" style={{ animationDelay: '400ms' }}></div>
+                    <div className="absolute inset-8 rounded-full border-2 border-amber-400 animate-ping opacity-65" style={{ animationDelay: '800ms' }}></div>
+                    
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-amber-400 to-[#FFB703] flex items-center justify-center shadow-[0_0_35px_rgba(255,183,3,0.5)] border-4 border-white relative z-10">
+                      <Truck size={38} className="text-slate-950 animate-bounce" />
+                    </div>
+                  </div>
+
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Looking for nearby Captain...</h2>
+                  <p className="text-xs text-slate-500 font-semibold mt-1">Connecting with nearest verified ZyperGo drivers</p>
+
+                  {/* Rapido-Style Assignment Timer Card */}
+                  <div className="mt-5 p-4 rounded-2xl bg-amber-50/80 border border-amber-200">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Captain will be assigned in</p>
+                    <div className="text-3xl font-mono font-black text-slate-900 my-1 tracking-wider">
+                      {Math.floor(assignCountdown / 60).toString().padStart(2, '0')}:{(assignCountdown % 60).toString().padStart(2, '0')}
+                    </div>
+                    <p className="text-[10px] text-amber-700 font-bold">Please wait while a driver accepts your trip request</p>
+                  </div>
+
+                  {/* Fare Summary Strip */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-500">Total Booking Fare:</span>
+                    <span className="text-base font-black text-slate-900">₹{activeBooking?.pricing?.total || estimatedFare}</span>
+                  </div>
                 </div>
-                <div className="bg-white border border-blue-200 rounded-xl px-4 py-2 shadow-xs shrink-0">
-                  <span className="font-mono font-black text-2xl text-[#0052CC] tracking-[0.2em]">
-                    {bookingResult.pickupOtp || bookingResult.sender?.pickupOtp || bookingResult.proofOfDelivery?.otp || currentUser.pickupOtp}
-                  </span>
+              ) : (
+                /* STATE B: Captain Assigned! Show Captain Details & RAPIDO-STYLE PROMINENT OTP */
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  
+                  {/* Captain Assigned Banner */}
+                  <div className="bg-emerald-500 text-white p-3.5 rounded-2xl flex items-center gap-2.5 shadow-md">
+                    <CheckCircle2 size={20} className="shrink-0" />
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider">Captain Assigned &amp; On the Way</h4>
+                      <p className="text-[10px] text-emerald-100 font-medium">Your ZyperGo Captain is arriving at your pickup point</p>
+                    </div>
+                  </div>
+
+                  {/* RAPIDO-STYLE PROMINENT 4-DIGIT PICKUP OTP CARD */}
+                  <div className="bg-gradient-to-br from-amber-400 via-[#FFB703] to-amber-500 rounded-3xl p-6 text-center text-slate-950 shadow-xl border-2 border-amber-300 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
+                    
+                    <span className="inline-block px-3 py-1 rounded-full bg-slate-950 text-[#FFB703] text-[10px] font-black uppercase tracking-widest mb-2 shadow-xs">
+                      START RIDE OTP
+                    </span>
+                    
+                    <div className="my-2 bg-white/90 backdrop-blur-md rounded-2xl py-3 px-6 inline-block shadow-inner border border-white">
+                      <span className="font-mono font-black text-4xl text-slate-950 tracking-[0.3em]">
+                        {pickupOtp}
+                      </span>
+                    </div>
+
+                    <p className="text-xs font-black text-slate-950 max-w-xs mx-auto mt-2 leading-relaxed">
+                      Share this 4-digit OTP with your Captain when he arrives for pickup
+                    </p>
+                  </div>
+
+                  {/* Captain Card with Contact & Vehicle */}
+                  <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-md space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-base shadow-inner">
+                          {captainName.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 capitalize">{captainName}</h3>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              ★ 5.0
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 capitalize">{vehicleType} Captain</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {captainPhone && (
+                        <a 
+                          href={`tel:${captainPhone}`}
+                          className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md hover:bg-emerald-600 transition-colors"
+                          title="Call Captain"
+                        >
+                          <Phone size={18} />
+                        </a>
+                      )}
+                    </div>
+
+                    {/* License Plate Strip */}
+                    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Vehicle Plate</p>
+                        <div className="mt-1 inline-flex items-center bg-white border border-slate-300 rounded-md shadow-2xs overflow-hidden">
+                          <span className="bg-blue-700 text-white text-[8px] font-black px-1.5 py-0.5 tracking-tighter">IND</span>
+                          <span className="px-2 py-0.5 font-black text-xs tracking-wider text-slate-900 uppercase font-mono">{vehiclePlate}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Trip Fare</p>
+                        <span className="text-base font-black text-slate-900 mt-0.5 block">₹{activeBooking?.pricing?.total || estimatedFare}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* Order Route Strip */}
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs space-y-2 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-4 h-4 rounded-full bg-blue-100 text-[#0052CC] flex items-center justify-center shrink-0 mt-0.5 font-black text-[9px]">A</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Pickup</p>
+                    <p className="font-bold text-slate-800 text-[11px] truncate">{activeBooking.pickupLocation?.address || formData.pickupAddress}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <div className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 font-black text-[9px]">B</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Drop</p>
+                    <p className="font-bold text-slate-800 text-[11px] truncate">{activeBooking.dropLocation?.address || formData.dropAddress}</p>
+                  </div>
                 </div>
               </div>
-            )}
-            
-            <div className="w-full md:max-w-md bg-slate-50 border border-slate-100 rounded-2xl p-5 mb-8 text-left mx-auto">
-               <div className="flex justify-between items-center mb-3">
-                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Date</span>
-                 <span className="text-sm font-bold text-slate-800">{formData.pickupDate}</span>
-               </div>
-               <div className="flex justify-between items-center mb-3">
-                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Time</span>
-                 <span className="text-sm font-bold text-slate-800">{formData.pickupTimeSlot}</span>
-               </div>
-               {(bookingResult?.helpers?.needed || formData.helpersNeeded) && (
-                 <div className="flex justify-between items-center mb-3">
-                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Helpers</span>
-                   <span className="text-sm font-bold text-amber-800">
-                     {bookingResult?.helpers?.count || formData.helperCount} Helper(s) ({bookingResult?.helpers?.workType || formData.helperWorkType})
-                   </span>
-                 </div>
-               )}
-               <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Amount</span>
-                 <span className="text-lg font-black text-slate-900">
-                   ₹{bookingResult?.pricing?.total || (estimatedFare + (formData.helpersNeeded ? ((formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) * (formData.helperCount || 1)) : 0))}
-                 </span>
-               </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2.5 pt-2">
+                <button 
+                  onClick={() => navigate(`/track/${activeBooking.trackingId}`)} 
+                  className="w-full py-3.5 bg-[#0052CC] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Navigation size={15} />
+                  <span>LIVE TRACK ON MAP</span>
+                  <ArrowRight size={15} />
+                </button>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => navigate('/')} 
+                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    Back to Home
+                  </button>
+                  {!isCaptainAssigned && (
+                    <button 
+                      onClick={cancelBooking} 
+                      disabled={loading} 
+                      className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-colors cursor-pointer"
+                    >
+                      {loading ? 'Cancelling...' : 'Cancel Order'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
+
           </div>
-          
-          <div className="p-4 flex flex-col md:flex-row md:justify-center gap-3 mt-auto mb-10 md:mb-16">
-            <button onClick={() => navigate(`/track/${bookingResult.trackingId}`)} className="w-full md:w-48 bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] hover:bg-blue-700 transition-all">
-              Track Order
-            </button>
-            <button onClick={() => navigate('/')} className="w-full md:w-48 bg-slate-100 text-slate-700 font-black py-4 rounded-xl hover:bg-slate-200 transition-colors">
-              Back to Home
-            </button>
-            <button onClick={cancelBooking} disabled={loading} className="w-full md:w-48 bg-red-50 text-red-600 font-black py-4 rounded-xl hover:bg-red-100 transition-colors border border-red-200">
-              {loading ? 'Cancelling...' : 'Cancel Order'}
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Rapido-Style Full Interactive Map Modal with Top Search */}
       {mapModal.show && (
