@@ -38,3 +38,4 @@ export const openTurnByTurnNavigation = ({ lat, lng, address }) => {
   // 3. Desktop / iOS fallback
   window.open(`https://www.google.com/maps/dir/?api=1&destination=${target}&travelmode=driving`, '_blank');
 };
+
