@@ -21,44 +21,14 @@ function RiderLayout({ children, onLogout, user }) {
 
   const isPrefix = currentPath.startsWith('/rider');
   const base = isPrefix ? '/rider' : '';
-  const getProfilePhoto = () => {
-    const userId = user?.id || user?._id || user?.phone;
-    let photo = user?.photoUrl || user?.riderDetails?.documents?.profileImageUrl;
-    if (!photo && userId) {
-      photo = localStorage.getItem('zypergo_profile_photo_' + userId);
-    }
-    if (!photo) {
-      const stored = localStorage.getItem('zypergo_user');
-      if (stored) {
-        try {
-          const u = JSON.parse(stored);
-          const uId = u.id || u._id || u.phone;
-          photo = u.photoUrl || u.riderDetails?.documents?.profileImageUrl || (uId ? localStorage.getItem('zypergo_profile_photo_' + uId) : null);
-        } catch (e) {}
-      }
-    }
-    return photo;
-  };
-
-  const navProfilePhoto = getProfilePhoto();
 
   const isHelper = user?.riderDetails?.partnerMode === 'Helper';
 
   const navItems = [
     { name: isHelper ? 'Tasks' : 'Dashboard', path: `${base}/dashboard`, icon: <LayoutDashboard size={20} /> },
     { name: 'Earnings', path: `${base}/earnings`, icon: <Wallet size={20} /> },
-    { name: 'History', path: `${base}/history`, icon: <Clock size={20} /> },
-    { 
-      name: 'Profile', 
-      path: `${base}/profile`, 
-      icon: navProfilePhoto ? (
-        <div className={`w-5 h-5 rounded-full overflow-hidden border shadow-2xs ${isHelper ? 'border-teal-500' : 'border-amber-400'}`}>
-          <img src={getImageUrl(navProfilePhoto)} alt="Profile" className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <UserIcon size={20} />
-      ) 
-    }
+    { name: 'Orders', path: `${base}/history`, icon: <Clock size={20} /> },
+    { name: 'Profile', path: `${base}/profile`, icon: <UserIcon size={20} /> }
   ];
 
   return (

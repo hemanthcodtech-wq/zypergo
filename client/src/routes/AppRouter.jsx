@@ -54,6 +54,11 @@ function AppRouter() {
         }
       }
       setAuthChecked(true);
+      try {
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'APP_READY' }));
+        }
+      } catch (e) {}
     };
     
     verifyAuth();

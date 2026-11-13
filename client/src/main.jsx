@@ -18,4 +18,11 @@ createRoot(document.getElementById('root')).render(
       </BrowserRouter>
     </GoogleOAuthProvider>
   </StrictMode>,
-)
+);
+
+// Notify Native React Native WebView container that React is fully mounted
+try {
+  if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'APP_READY' }));
+  }
+} catch (e) {}

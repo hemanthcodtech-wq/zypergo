@@ -35,34 +35,39 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const splashOpacity = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const splashDismissedRef = useRef(false);
 
   // Dev URL modal state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [customUrlInput, setCustomUrlInput] = useState('');
 
-  const handleWebViewLoadEnd = () => {
+  const dismissSplash = () => {
+    if (splashDismissedRef.current) return;
+    splashDismissedRef.current = true;
     Animated.timing(splashOpacity, {
       toValue: 0,
-      duration: 250,
+      duration: 200,
       useNativeDriver: true,
     }).start(() => setShowSplash(false));
   };
 
-  // 1. Splash screen animation (auto-fades as soon as WebView loads, max 1.5s fallback)
+  const handleWebViewLoadEnd = () => {
+    setTimeout(() => {
+      dismissSplash();
+    }, 400);
+  };
+
+  // 1. Splash screen animation with safety fallback timer (zero white screen)
   useEffect(() => {
     Animated.timing(progressAnim, {
       toValue: 1,
-      duration: 1500,
+      duration: 2500,
       useNativeDriver: false,
     }).start();
 
     const timer = setTimeout(() => {
-      Animated.timing(splashOpacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => setShowSplash(false));
-    }, 1500);
+      dismissSplash();
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -158,6 +163,10 @@ export default function App() {
   const handleMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
+      if (data?.type === 'APP_READY') {
+        dismissSplash();
+        return;
+      }
       if (data?.type === 'GOOGLE_SIGN_IN') {
         handleNativeGoogleSignIn();
         return;

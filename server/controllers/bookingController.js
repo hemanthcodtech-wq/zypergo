@@ -102,6 +102,9 @@ exports.createBooking = async (req, res) => {
     }
     bookingData.deliveryMode = deliveryMode;
 
+    let sourceHubId = null;
+    let destHubId = null;
+
     if (deliveryMode === 'DIRECT_DEDICATED') {
       deliveryType = 'Direct Dedicated Intercity';
       sourceHubId = null;

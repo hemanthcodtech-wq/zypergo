@@ -53,12 +53,23 @@ export default function RiderDashboard({ user, onLogout }) {
       // 1. Fetch Active/My Jobs from generic endpoint
       const resAll = await api.get('/admin/bookings');
       if (resAll.data.success) {
-        const allBookings = resAll.data.data;
-        const active = allBookings.filter(b => ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'].includes(b.status) && b.assignedRiders?.some(r => r.riderId === user?._id || true));
+        const allBookings = resAll.data.data || [];
+        const currentRiderId = String(user?._id || user?.id || '');
+        const active = allBookings.filter(b => {
+          if (!['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'].includes(b.status)) {
+            return false;
+          }
+          if (!currentRiderId) return false;
+          const inAssignedList = Array.isArray(b.assignedRiders) && b.assignedRiders.some(r => String(r.riderId || r._id || r) === currentRiderId);
+          const isDirectRider = String(b.riderId || b.assignedRider || '') === currentRiderId;
+          return inAssignedList || isDirectRider;
+        });
         setMyJobs(active);
         
-        if (active.length > 0 && !activeJob) {
+        if (active.length > 0) {
           setActiveJob(active[0]);
+        } else {
+          setActiveJob(null);
         }
       }
 
@@ -165,6 +176,26 @@ export default function RiderDashboard({ user, onLogout }) {
     }
   };
 
+  const rejectJob = (job) => {
+    const userId = user?.id || user?._id || user?.phone;
+    if (userId && job) {
+      try {
+        const key = 'zypergo_rejected_orders_' + userId;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        if (!existing.some(j => j._id === job._id)) {
+          existing.unshift({
+            ...job,
+            rejectedAt: new Date().toISOString(),
+            status: 'Rejected'
+          });
+          localStorage.setItem(key, JSON.stringify(existing.slice(0, 50)));
+        }
+      } catch (e) {}
+    }
+    setAvailableJobs(prev => prev.filter(j => j._id !== job._id));
+    navigate('/rider/history', { state: { activeTab: 'rejected' } });
+  };
+
   const acceptJob = async (job) => {
     if (job.status === 'Relay Handoff Pending' || job.status === 'Transhipment Pending') {
       const enteredOtp = window.prompt("Enter the 4-digit Handover OTP from the other Rider:");
@@ -175,7 +206,7 @@ export default function RiderDashboard({ user, onLogout }) {
         const res = await api.post(`/rider/jobs/${job._id}/accept-handover`, { newRiderId: user?._id, otp: enteredOtp });
         if (res.data.success) {
           fetchJobs();
-          setActiveJob(res.data.data);
+          navigate('/rider/history', { state: { activeTab: 'ongoing' } });
         }
       } catch (err) {
         alert(err.response?.data?.error || 'Failed to accept handover');
@@ -191,7 +222,7 @@ export default function RiderDashboard({ user, onLogout }) {
       const res = await api.put(`/admin/bookings/${job._id}/assign-rider`, { riderId: user?._id });
       if (res.data.success) {
         fetchJobs();
-        setActiveJob(res.data.data);
+        navigate('/rider/history', { state: { activeTab: 'ongoing' } });
       }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to accept job');
@@ -501,27 +532,29 @@ export default function RiderDashboard({ user, onLogout }) {
                      </div>
                  ) : (
                    // Online / Radar State
-                   <div className="flex flex-col items-center relative">
-                     {/* Pulsing Radar Rings */}
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-[#FFB703] rounded-full animate-ping opacity-30"></div>
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 border-[#FFB703] rounded-full animate-ping opacity-50" style={{ animationDelay: '500ms' }}></div>
-                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-[#FFB703] rounded-full animate-ping opacity-70" style={{ animationDelay: '1000ms' }}></div>
-                     
-                     <div className="w-28 h-28 bg-white/80 backdrop-blur-md rounded-full mx-auto mb-8 flex items-center justify-center relative z-10 shadow-[0_0_40px_rgba(255,183,3,0.3)] border-4 border-[#FFB703]">
-                       <div className="w-20 h-20 bg-[#FFB703] rounded-full flex items-center justify-center shadow-inner">
-                         <Activity size={40} className="text-black" />
-                       </div>
-                     </div>
-                     
-                     <h2 className="text-3xl font-black uppercase tracking-widest text-slate-900 mb-3 drop-shadow-sm">Searching...</h2>
-                     <p className="text-sm text-slate-700 font-bold tracking-wide uppercase bg-white/60 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white/80 shadow-sm">Scanning for nearby missions</p>
-                     
-                     {currentLocation && (
-                       <p className="text-xs text-slate-500 mt-6 font-mono bg-white/60 backdrop-blur-md border border-white/60 shadow-sm px-3 py-1 rounded-md">
-                         LAT: {currentLocation.lat.toFixed(4)} • LNG: {currentLocation.lng.toFixed(4)}
-                       </p>
-                     )}
-                   </div>
+                    <div className="flex flex-col items-center relative py-6">
+                      {/* Pulsing Radar Rings in Yellow */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 border-2 border-[#FFB703] rounded-full animate-ping opacity-25"></div>
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 border-2 border-[#FFB703] rounded-full animate-ping opacity-45" style={{ animationDelay: '400ms' }}></div>
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-[#FFB703] rounded-full animate-ping opacity-65" style={{ animationDelay: '800ms' }}></div>
+                      
+                      <div className="w-24 h-24 bg-white/90 backdrop-blur-md rounded-full mx-auto mb-6 flex items-center justify-center relative z-10 shadow-[0_0_35px_rgba(255,183,3,0.45)] border-4 border-[#FFB703]">
+                        <div className="w-16 h-16 bg-[#FFB703] rounded-full flex items-center justify-center shadow-inner">
+                          <Activity size={32} className="text-slate-950 animate-pulse" />
+                        </div>
+                      </div>
+                      
+                      <h2 className="text-2xl font-black uppercase tracking-widest text-slate-900 mb-2 drop-shadow-sm">Searching for Orders...</h2>
+                      <p className="text-xs text-amber-900 font-black tracking-wider uppercase bg-amber-100/90 backdrop-blur-xl px-4 py-2 rounded-full border border-amber-300 shadow-xs">
+                        Radar Active • Searching nearby trips
+                      </p>
+                      
+                      {currentLocation && (
+                        <p className="text-[10px] text-slate-500 mt-4 font-mono bg-white/70 backdrop-blur-md border border-slate-200 px-3 py-1 rounded-full shadow-2xs">
+                          GPS: {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+                        </p>
+                      )}
+                    </div>
                 )}
              </div>
            )}
@@ -592,15 +625,18 @@ export default function RiderDashboard({ user, onLogout }) {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setAvailableJobs(availableJobs.slice(1))} className="w-16 h-14 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center font-bold transition-colors">
-                  Skip
+                <button 
+                  onClick={() => rejectJob(job)} 
+                  className="w-1/3 h-14 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-black uppercase tracking-wider text-sm rounded-2xl flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-xs"
+                >
+                  REJECT
                 </button>
                 <button 
                   onClick={() => acceptJob(job)} 
                   disabled={loading} 
-                  className="flex-1 h-14 bg-black text-[#FFB703] font-black uppercase tracking-widest text-lg rounded-xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2"
+                  className="flex-1 h-14 bg-black text-[#FFB703] font-black uppercase tracking-wider text-base rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-70 disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer border border-[#FFB703]/30"
                 >
-                  {loading ? 'Accepting...' : 'ACCEPT MISSION'}
+                  {loading ? 'ACCEPTING...' : 'ACCEPT MISSION'}
                 </button>
               </div>
             </div>

@@ -34,6 +34,12 @@ exports.getProfile = async (req, res) => {
         ] 
       }).select('-password');
     }
+    if (!user && req.query.email) {
+      user = await User.findOne({ email: req.query.email }).select('-password');
+    }
+    if (!user && req.query.role) {
+      user = await User.findOne({ role: req.query.role }).select('-password');
+    }
     if (!user) {
       user = await User.findOne({ role: 'Customer' });
     }

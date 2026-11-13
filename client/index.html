@@ -31,7 +31,19 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="pre-react-splash" style="position:fixed;inset:0;background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;z-index:999999;">
+        <div style="width:72px;height:72px;border-radius:22px;background:#FFB703;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px rgba(255,183,3,0.35);margin-bottom:16px;">
+          <span style="font-size:38px;font-weight:900;color:#0f172a;letter-spacing:-1px;">Z</span>
+        </div>
+        <div style="font-size:24px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Zyper<span style="color:#FFB703;">Go</span></div>
+        <div style="font-size:11px;font-weight:800;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-top:6px;">Fast &amp; Reliable Cargo</div>
+        <div style="margin-top:28px;width:30px;height:30px;border:3px solid #f1f5f9;border-top:3px solid #FFB703;border-radius:50%;animation:zyperSpin 0.75s linear infinite;"></div>
+      </div>
+      <style>
+        @keyframes zyperSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      </style>
+    </div>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

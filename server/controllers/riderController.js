@@ -125,24 +125,19 @@ exports.updateJobStatus = async (req, res) => {
     if (status === 'Picked Up') {
       const expectedOtp = booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234';
       if (!otp || String(otp).trim() !== String(expectedOtp).trim()) { 
-        return res.status(400).json({ success: false, error: `Invalid OTP. Please check and try again.` });
+        return res.status(400).json({ success: false, error: `Invalid Pickup OTP. Please check with customer and try again.` });
       }
-      if (!photoUrl) {
-        return res.status(400).json({ success: false, error: 'Pickup Photo upload is mandatory.' });
-      }
-      booking.photos.senderUrl = photoUrl;
+      booking.photos = booking.photos || {};
+      booking.photos.senderUrl = photoUrl || 'https://zypergo.com/images/default-parcel.png';
     }
 
     if (status === 'Delivered') {
       const expectedOtp = booking.proofOfDelivery?.otp || '1234';
-      if (!otp || String(otp) !== String(expectedOtp)) {
-        return res.status(400).json({ success: false, error: `Invalid OTP. Please check and try again.` });
-      }
-      if (!photoUrl) {
-        return res.status(400).json({ success: false, error: 'Delivery Photo upload is mandatory.' });
+      if (otp && String(otp) !== String(expectedOtp)) {
+        return res.status(400).json({ success: false, error: `Invalid Delivery OTP. Please check and try again.` });
       }
       booking.proofOfDelivery = {
-        signatureUrl: photoUrl,
+        signatureUrl: photoUrl || 'https://zypergo.com/images/default-delivery.png',
         timestamp: new Date(),
         gpsLocation: gpsLocation
       };
@@ -512,7 +507,9 @@ exports.getHistory = async (req, res) => {
     const allRiderBookings = await Booking.find({
       $or: [
         { currentRider: userId },
-        { 'assignedRiders.riderId': userId }
+        { 'assignedRiders.riderId': userId },
+        { riderId: userId },
+        { assignedRider: userId }
       ]
     })
     .populate('metadata.sourceHub')
