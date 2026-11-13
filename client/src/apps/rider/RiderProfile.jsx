@@ -549,8 +549,9 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
     sessionStorage.removeItem('zypergo_portal');
     if (onLogout) {
       onLogout();
+    } else {
+      navigate(`/rider/login?mode=${isHelper ? 'helper' : 'captain'}`, { replace: true });
     }
-    window.location.href = `/rider/login?mode=${isHelper ? 'helper' : 'captain'}`;
   };
 
   if (isEditing) {

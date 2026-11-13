@@ -39,7 +39,8 @@ function CustomerLayout() {
     localStorage.removeItem('zypergo_token');
     localStorage.removeItem('zypergo_user');
     sessionStorage.removeItem('zypergo_portal');
-    window.location.href = '/customer/login';
+    setIsAuthenticated(false);
+    navigate('/customer/login', { replace: true });
   };
 
   return (
@@ -98,7 +99,7 @@ export default function CustomerApp() {
     localStorage.removeItem('zypergo_user');
     sessionStorage.removeItem('zypergo_portal');
     setIsAuthenticated(false);
-    window.location.href = '/customer/login';
+    navigate('/customer/login', { replace: true });
   };
 
   const handleLoginSuccess = () => {
@@ -132,25 +133,25 @@ export default function CustomerApp() {
 
   const routesContent = (
     <Routes>
-      {/* Splash & Welcome Screens (Splash only on standalone app) */}
+      {/* Customer Login & Welcome Routes */}
       <Route path="/customer/splash" element={
         <PublicRoute requiredRole="Customer">
-          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/splash" element={
         <PublicRoute requiredRole="Customer">
-          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/customer" element={
         <PublicRoute requiredRole="Customer">
-          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/" element={
         <PublicRoute requiredRole="Customer">
-          {isStandaloneApp ? <CustomerSplash /> : <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Customer" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
 

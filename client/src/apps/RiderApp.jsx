@@ -74,7 +74,7 @@ export default function RiderApp() {
     sessionStorage.removeItem('zypergo_portal');
     setIsAuthenticated(false);
     setUser(null);
-    window.location.href = '/rider/login';
+    navigate(isPrefix ? '/rider/login' : '/login', { replace: true });
   };
 
   useEffect(() => {
@@ -172,25 +172,25 @@ export default function RiderApp() {
 
   const routesContent = (
     <Routes>
-      {/* Splash & Welcome screens (Splash only on standalone app) */}
+      {/* Login & Welcome routes */}
       <Route path="/rider/splash" element={
         <PublicRoute requiredRole="Rider">
-          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/splash" element={
         <PublicRoute requiredRole="Rider">
-          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/rider" element={
         <PublicRoute requiredRole="Rider">
-          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
       <Route path="/" element={
         <PublicRoute requiredRole="Rider">
-          {isStandaloneApp ? <RiderSplash /> : <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />}
+          <LoginScreen role="Rider" hideSwitchRole={true} onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
 
