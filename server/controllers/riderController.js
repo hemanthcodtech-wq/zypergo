@@ -18,8 +18,11 @@ exports.getAvailableJobs = async (req, res) => {
         return res.status(200).json({ success: true, data: [] });
       }
       
-      // Filter by the rider's specific vehicle type
-      if (user.riderDetails?.vehicleType) {
+      // Filter by the partner's mode & specific vehicle type
+      if (user.riderDetails?.partnerMode === 'Helper') {
+        // Independent Helpers see all jobs where loading/unloading assistance is requested
+        query['helpers.needed'] = true;
+      } else if (user.riderDetails?.vehicleType) {
         query['metadata.vehicleType'] = user.riderDetails.vehicleType;
       }
     }

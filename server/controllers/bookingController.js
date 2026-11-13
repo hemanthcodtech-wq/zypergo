@@ -80,11 +80,33 @@ exports.createBooking = async (req, res) => {
       else vehicleType = '17ft';
     }
 
-    // Hub Assignment (Mock: Pick first available hubs for source/destination if Intercity)
-    let sourceHubId = null;
-    let destHubId = null;
-    
-    if (deliveryType === 'Intercity Hub-and-Spoke') {
+    // Check client requested vehicle
+    const clientVehicle = bookingData.metadata?.vehicleType || bookingData.vehicleType;
+    if (clientVehicle) {
+      vehicleType = clientVehicle;
+    }
+
+    // Check deliveryMode & Direct Dedicated Intercity vs Hub Relay
+    const largeTruckList = ['tata ace', 'pickup 8ft', 'pickup 9ft', '14ft', '17ft', '14ft truck', '17ft truck'];
+    const isLargeTruck = largeTruckList.some(t => (vehicleType || '').toLowerCase().includes(t));
+
+    let deliveryMode = bookingData.deliveryMode;
+    if (!deliveryMode) {
+      if (isIntracity) {
+        deliveryMode = 'DIRECT_INTRACITY';
+      } else if (isLargeTruck) {
+        deliveryMode = 'DIRECT_DEDICATED';
+      } else {
+        deliveryMode = 'HUB_RELAY';
+      }
+    }
+    bookingData.deliveryMode = deliveryMode;
+
+    if (deliveryMode === 'DIRECT_DEDICATED') {
+      deliveryType = 'Direct Dedicated Intercity';
+      sourceHubId = null;
+      destHubId = null;
+    } else if (deliveryType === 'Intercity Hub-and-Spoke') {
       const hubs = await Hub.find({ isActive: true });
       if (hubs.length > 0) {
         sourceHubId = hubs[0]._id;
@@ -99,6 +121,30 @@ exports.createBooking = async (req, res) => {
       sourceHub: sourceHubId,
       destinationHub: destHubId
     };
+
+    // Helper Fee Calculation
+    let helperFee = 0;
+    if (bookingData.helpers?.needed) {
+      const count = Number(bookingData.helpers.count) || 1;
+      const workType = bookingData.helpers.workType || 'Both Load & Unload';
+      const ratePerHelper = (workType === 'Both Load & Unload' || workType === 'Load & Unload') ? 350 : 200;
+      helperFee = count * ratePerHelper;
+      bookingData.helpers = {
+        needed: true,
+        count,
+        workType,
+        ratePerHelper,
+        totalFee: helperFee
+      };
+    } else {
+      bookingData.helpers = {
+        needed: false,
+        count: 0,
+        workType: 'None',
+        ratePerHelper: 0,
+        totalFee: 0
+      };
+    }
 
     // Pricing Calculation (Mock logic)
     let baseCharge = isIntracity ? 50 : 200;
@@ -119,13 +165,14 @@ exports.createBooking = async (req, res) => {
     }
 
     const totalBeforeSpeed = baseCharge + distanceCharge + weightCharge;
-    const total = bookingData.pricing?.total || Math.round(totalBeforeSpeed * speedModifier);
+    const total = bookingData.pricing?.total ? bookingData.pricing.total : (Math.round(totalBeforeSpeed * speedModifier) + helperFee);
 
     bookingData.pricing = {
       base: baseCharge,
       distance: distanceCharge,
       weight: weightCharge,
       volumetric: volumetricWeight,
+      helperFee: helperFee,
       total: total
     };
 

@@ -535,7 +535,8 @@ export default function RiderDashboard({ user, onLogout }) {
           const ignoreList = ['india', 'andhra pradesh', 'telangana', 'karnataka', 'tamil nadu', 'maharashtra'];
           const commonLocalities = pickupParts.filter(part => dropParts.includes(part) && part.length > 3 && isNaN(part) && !ignoreList.includes(part));
           const isSameRegion = (job.pickupLocation?.pincode && job.dropLocation?.pincode && job.pickupLocation?.pincode === job.dropLocation?.pincode) || commonLocalities.length > 0;
-          const isHubDrop = job.metadata?.deliveryType === 'Intercity Hub-and-Spoke' && !isSameRegion;
+          const isDirectDedicated = job.deliveryMode === 'DIRECT_DEDICATED';
+          const isHubDrop = !isDirectDedicated && job.metadata?.deliveryType === 'Intercity Hub-and-Spoke' && !isSameRegion;
 
           return (
             <div className="fixed bottom-[70px] md:bottom-0 left-0 right-0 z-40 bg-white text-slate-900 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] border-t border-slate-200 p-6 pb-6 md:pb-10 max-w-lg mx-auto animate-in slide-in-from-bottom duration-300 ease-out">
@@ -543,11 +544,27 @@ export default function RiderDashboard({ user, onLogout }) {
               
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <span className="bg-[#FFB703] text-black px-3 py-1 rounded-md text-[10px] font-black tracking-widest uppercase shadow-sm animate-pulse">New Mission</span>
-                  <h3 className="text-2xl font-black mt-2 tracking-tight">Mission Assigned</h3>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="bg-[#FFB703] text-black px-2.5 py-0.5 rounded-md text-[10px] font-black tracking-widest uppercase shadow-sm animate-pulse">
+                      New Mission
+                    </span>
+                    {isDirectDedicated && (
+                      <span className="bg-blue-600 text-white px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase">
+                        🚚 Direct Highway
+                      </span>
+                    )}
+                    {job.helpers?.needed && (
+                      <span className="bg-amber-500 text-slate-950 px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase">
+                        🛠️ {job.helpers.count} Helper(s)
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-black mt-2 tracking-tight">
+                    {job.metadata?.vehicleType || 'Cargo'} Mission
+                  </h3>
                 </div>
                 <div className="text-right">
-                  <span className="text-3xl font-black text-slate-900 drop-shadow-sm">₹{job.estimatedPrice || 120}</span>
+                  <span className="text-3xl font-black text-slate-900 drop-shadow-sm">₹{job.pricing?.total || job.estimatedPrice || 120}</span>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Est. Payout</p>
                 </div>
               </div>
@@ -565,7 +582,9 @@ export default function RiderDashboard({ user, onLogout }) {
                       <p className="font-bold text-sm leading-tight text-slate-800 line-clamp-2">{job.pickupLocation?.address}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">{isHubDrop ? 'Drop-off (Hub)' : 'Drop-off'}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                        {isDirectDedicated ? 'Direct Destination Drop (No Hubs)' : (isHubDrop ? 'Drop-off (Hub)' : 'Drop-off')}
+                      </p>
                       <p className="font-bold text-sm leading-tight text-slate-800 line-clamp-2">{isHubDrop ? (job.metadata?.sourceHub?.name || job.metadata?.sourceHub?.city || 'Nearest ZyperGo Hub') : job.dropLocation?.address}</p>
                     </div>
                   </div>

@@ -69,8 +69,29 @@ const bookingSchema = new mongoose.Schema({
     distance: { type: Number, default: 0 },
     weight: { type: Number, default: 0 },
     volumetric: { type: Number, default: 0 },
+    helperFee: { type: Number, default: 0 },
     total: { type: Number, default: 0 }
   },
+  helpers: {
+    needed: { type: Boolean, default: false },
+    count: { type: Number, default: 0 },
+    workType: { type: String, enum: ['Load Only', 'Unload Only', 'Load & Unload', 'None'], default: 'None' },
+    ratePerHelper: { type: Number, default: 0 },
+    totalFee: { type: Number, default: 0 }
+  },
+  deliveryMode: {
+    type: String,
+    enum: ['DIRECT_INTRACITY', 'DIRECT_DEDICATED', 'HUB_RELAY'],
+    default: 'DIRECT_INTRACITY'
+  },
+  assignedHelpers: [{
+    helperId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: String,
+    phone: String,
+    roleType: { type: String, enum: ['Loader', 'Unloader', 'Both'], default: 'Both' },
+    status: { type: String, enum: ['Assigned', 'Arrived', 'Completed'], default: 'Assigned' },
+    fee: { type: Number, default: 0 }
+  }],
   metadata: {
     intracity: { type: Boolean, default: true },
     vehicleType: { type: String },

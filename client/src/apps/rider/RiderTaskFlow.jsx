@@ -149,7 +149,8 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
   // Routing Algorithm: 
   // Deliver directly to the customer if they are in the same region (isSameRegion = true)
   // Drop at the Hub ONLY if they are different regions AND it's an Intercity delivery.
-  const isHubDrop = activeJob.metadata?.deliveryType === 'Intercity Hub-and-Spoke' && !isSameRegion;
+  const isDirectDedicated = activeJob.deliveryMode === 'DIRECT_DEDICATED';
+  const isHubDrop = !isDirectDedicated && activeJob.metadata?.deliveryType === 'Intercity Hub-and-Spoke' && !isSameRegion;
 
   return (
     <div className="h-full bg-transparent font-sans flex flex-col relative rounded-[2rem]">
@@ -174,7 +175,24 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
           {/* Job Details Card (Always visible) */}
           <div className="bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] p-5 border border-white/60 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#006D77]/5 to-transparent rounded-bl-full -z-10"></div>
-            <h3 className="font-black text-slate-900 border-b border-white/60 pb-3 mb-4 text-lg">Job Details</h3>
+            <div className="flex items-center justify-between border-b border-white/60 pb-3 mb-4">
+              <h3 className="font-black text-slate-900 text-lg">Job Details</h3>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                {activeJob.metadata?.vehicleType || 'Cargo'}
+              </span>
+            </div>
+
+            {isDirectDedicated && (
+              <div className="mb-3 px-3.5 py-2 rounded-xl bg-blue-50 border border-blue-200 text-[#0052CC] text-xs font-black flex items-center gap-2">
+                <span>🚚 Non-Stop Direct Highway Delivery (No Hub stops required)</span>
+              </div>
+            )}
+
+            {activeJob.helpers?.needed && (
+              <div className="mb-3 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-black flex items-center gap-2">
+                <span>🛠️ Labour Assistance: {activeJob.helpers.count} Helper(s) ({activeJob.helpers.workType})</span>
+              </div>
+            )}
             <div className="space-y-4 text-sm">
               <div className="flex gap-3">
                 <div className="w-6 flex flex-col items-center">

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, MapPin, Package, CheckCircle2, ChevronDown, ChevronRight, Check, Truck, Zap, 
   Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
-  Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock 
+  Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock,
+  Users, Minus, Plus
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -330,8 +331,11 @@ export default function BookingFlow() {
     fragile: false,
     cashOnDelivery: false,
     
-    // Step 2: Vehicle
+    // Step 2: Vehicle & Helpers
     vehicle: 'Scooter',
+    helpersNeeded: false,
+    helperWorkType: 'Both Load & Unload', // 'Load Only', 'Unload Only', 'Both Load & Unload'
+    helperCount: 1,
     
     // Step 3: Schedule
     pickupDate: 'Today',
@@ -442,6 +446,13 @@ export default function BookingFlow() {
     setLoading(true);
 
     try {
+      const isOutstation = formData.serviceType === 'Outstation';
+      const largeTruckList = ['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'];
+      const isOutstationLargeTruck = isOutstation && largeTruckList.includes(formData.vehicle);
+      const helperRate = (formData.helperWorkType === 'Both Load & Unload' || formData.helperWorkType === 'Load & Unload') ? 350 : 200;
+      const calculatedHelperFee = formData.helpersNeeded ? (Number(formData.helperCount) || 1) * helperRate : 0;
+      const totalBookingAmount = estimatedFare + calculatedHelperFee;
+
       const payload = {
         pickupLocation: { 
           address: formData.pickupAddress, 
@@ -480,10 +491,19 @@ export default function BookingFlow() {
         },
         metadata: {
           vehicleType: formData.vehicle,
-          deliveryType: formData.serviceType === 'Outstation' ? 'Intercity Hub-and-Spoke' : 'Within City'
+          deliveryType: isOutstationLargeTruck ? 'Direct Dedicated Intercity' : (formData.serviceType === 'Outstation' ? 'Intercity Hub-and-Spoke' : 'Within City')
+        },
+        deliveryMode: isOutstationLargeTruck ? 'DIRECT_DEDICATED' : (formData.serviceType === 'Outstation' ? 'HUB_RELAY' : 'DIRECT_INTRACITY'),
+        helpers: {
+          needed: Boolean(formData.helpersNeeded),
+          count: formData.helpersNeeded ? (Number(formData.helperCount) || 1) : 0,
+          workType: formData.helpersNeeded ? formData.helperWorkType : 'None',
+          ratePerHelper: formData.helpersNeeded ? (formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) : 0,
+          totalFee: calculatedHelperFee
         },
         pricing: {
-          total: estimatedFare
+          total: totalBookingAmount,
+          helperFee: calculatedHelperFee
         },
         payment: { 
           mode: formData.cashOnDelivery ? 'Cash' : (paymentDetails?.mode || paymentMethod || 'UPI'), 
@@ -1091,6 +1111,140 @@ export default function BookingFlow() {
                   );
                 })}
               </div>
+
+              {/* Outstation Delivery Mode Indicator */}
+              {formData.serviceType === 'Outstation' && (
+                <div className={`rounded-2xl p-3 border flex items-center gap-3 ${
+                  ['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(selectedVehicle.displayName)
+                    ? 'bg-blue-50/90 border-blue-200 text-blue-950'
+                    : 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+                }`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    ['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(selectedVehicle.displayName)
+                      ? 'bg-blue-100 text-[#0052CC]'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(selectedVehicle.displayName) ? (
+                      <Truck size={18} />
+                    ) : (
+                      <Package size={18} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black">
+                        {['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(selectedVehicle.displayName)
+                          ? '🚚 Direct Dedicated Highway Delivery'
+                          : '📦 Hub-and-Spoke Relay Transit'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-medium text-slate-600 leading-tight mt-0.5">
+                      {['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(selectedVehicle.displayName)
+                        ? 'Direct non-stop door-to-door transit to your destination. No intermediate hub unloading, 0% damage.'
+                        : 'Cost-effective shared parcel transit via regional ZyperGo sorting hubs.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Helpers / Labour Selection Card (For Cargo / Trucks) */}
+              {selectedVehicle.id !== 'Scooter' && (
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                        <Users size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 leading-tight">Need Helpers / Labour?</h3>
+                        <p className="text-[10px] font-semibold text-slate-500">For loading &amp; unloading heavy items</p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={formData.helpersNeeded} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, helpersNeeded: e.target.checked }))} 
+                        className="sr-only peer" 
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0052CC]"></div>
+                    </label>
+                  </div>
+
+                  {formData.helpersNeeded && (
+                    <div className="pt-2 border-t border-slate-100 space-y-3 animate-in fade-in duration-200">
+                      <div>
+                        <p className="text-[10.5px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                          Select Labour Work Type
+                        </p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'Load Only', label: 'Load Only', sub: 'At Pickup', rate: 200 },
+                            { id: 'Unload Only', label: 'Unload Only', sub: 'At Drop', rate: 200 },
+                            { id: 'Both Load & Unload', label: 'Both', sub: 'Load & Unload', rate: 350 }
+                          ].map((wt) => {
+                            const active = formData.helperWorkType === wt.id;
+                            return (
+                              <button
+                                key={wt.id}
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, helperWorkType: wt.id }))}
+                                className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                                  active 
+                                    ? 'bg-amber-50 border-amber-500 text-amber-950 font-black shadow-xs ring-1 ring-amber-400' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 font-bold hover:bg-slate-100'
+                                }`}
+                              >
+                                <span className="text-[11px] block">{wt.label}</span>
+                                <span className="text-[9px] text-slate-400 block font-medium">{wt.sub}</span>
+                                <span className="text-[10px] font-black text-amber-700 block mt-0.5">₹{wt.rate}/person</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                        <div>
+                          <span className="text-[11px] font-black text-slate-800 block">Number of Helpers</span>
+                          <span className="text-[9.5px] font-medium text-slate-500">
+                            ₹{formData.helperWorkType === 'Both Load & Unload' ? 350 : 200} per helper
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, helperCount: Math.max(1, (prev.helperCount || 1) - 1) }))}
+                            disabled={formData.helperCount <= 1}
+                            className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center font-black text-slate-700 cursor-pointer"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className="text-xs font-black text-slate-900 w-4 text-center">
+                            {formData.helperCount || 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, helperCount: Math.min(4, (prev.helperCount || 1) + 1) }))}
+                            disabled={formData.helperCount >= 4}
+                            className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center font-black text-slate-700 cursor-pointer"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-slate-600 font-bold text-[11px]">Total Labour Charge:</span>
+                        <span className="font-black text-amber-800 text-xs bg-amber-100/70 px-2 py-0.5 rounded-full">
+                          +₹{((formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) * (formData.helperCount || 1)).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Sticky Bottom Bar matching reference screenshot */}
@@ -1111,7 +1265,12 @@ export default function BookingFlow() {
                     )}
                   </div>
                   <p className="text-[10px] font-bold text-slate-500 truncate">
-                    {selectedVehicle.weightLabel} • ₹{selectedPrice.toLocaleString('en-IN')}
+                    {selectedVehicle.weightLabel}
+                    {formData.helpersNeeded ? ` • ${formData.helperCount} Helper(s)` : ''}
+                    {' • '}
+                    <span className="font-black text-slate-900">
+                      ₹{(selectedPrice + (formData.helpersNeeded ? ((formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) * (formData.helperCount || 1)) : 0)).toLocaleString('en-IN')}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -1194,23 +1353,83 @@ export default function BookingFlow() {
                  placeholder="Gate number, landmark, etc."
                  className="w-full border border-slate-200 rounded-xl p-3.5 bg-slate-50 text-sm font-medium outline-none focus:border-[#0052CC] focus:ring-1 focus:ring-[#0052CC] min-h-[90px]"
                />
+
+               {/* Fare Summary & Routing Breakdown Card */}
+               {(() => {
+                 const isOutstation = formData.serviceType === 'Outstation';
+                 const largeTruckList = ['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'];
+                 const isOutstationLargeTruck = isOutstation && largeTruckList.includes(formData.vehicle);
+                 const helperRate = (formData.helperWorkType === 'Both Load & Unload' || formData.helperWorkType === 'Load & Unload') ? 350 : 200;
+                 const calculatedHelperFee = formData.helpersNeeded ? (Number(formData.helperCount) || 1) * helperRate : 0;
+                 const totalBookingAmount = estimatedFare + calculatedHelperFee;
+
+                 return (
+                   <div className="mt-5 bg-slate-50 border border-slate-200/90 rounded-2xl p-4 space-y-3">
+                     <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                       <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Fare Summary</span>
+                       <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                         isOutstationLargeTruck 
+                           ? 'bg-blue-100 text-[#0052CC]' 
+                           : (isOutstation ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700')
+                       }`}>
+                         {isOutstationLargeTruck ? '🚚 Direct Dedicated Transit' : (isOutstation ? '🏢 Hub Relay Delivery' : '⚡ Intracity Express')}
+                       </span>
+                     </div>
+
+                     <div className="space-y-2 text-xs">
+                       <div className="flex justify-between items-center text-slate-600">
+                         <span className="font-medium">Vehicle ({formData.vehicle || 'Standard'}):</span>
+                         <span className="font-bold text-slate-900">₹{estimatedFare}</span>
+                       </div>
+
+                       {formData.helpersNeeded && (
+                         <div className="flex justify-between items-center text-amber-900 bg-amber-50/70 p-2 rounded-xl border border-amber-200/60">
+                           <span className="font-semibold text-[11px]">
+                             Labour / Helpers ({formData.helperCount} × {formData.helperWorkType}):
+                           </span>
+                           <span className="font-black text-amber-800">+₹{calculatedHelperFee}</span>
+                         </div>
+                       )}
+
+                       <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                         <div>
+                           <span className="text-xs font-black text-slate-900 block">Total Amount</span>
+                           <span className="text-[10px] text-slate-500 font-medium">Inclusive of all taxes & charges</span>
+                         </div>
+                         <span className="text-xl font-black text-[#0052CC]">₹{totalBookingAmount}</span>
+                       </div>
+                     </div>
+                   </div>
+                 );
+               })()}
             </div>
           </div>
 
           <div className="p-4 border-t border-slate-100 bg-white mt-auto">
-             <button 
-                onClick={() => {
-                  if (formData.cashOnDelivery) {
-                    submitBooking();
-                  } else {
-                    setShowPayment(true);
-                  }
-                }}
-                disabled={loading}
-                className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-blue-700 active:scale-[0.98] transition-all cursor-pointer"
-              >
-               {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (formData.cashOnDelivery ? 'Confirm Booking' : 'Proceed to Payment')}
-             </button>
+             {(() => {
+               const helperRate = (formData.helperWorkType === 'Both Load & Unload' || formData.helperWorkType === 'Load & Unload') ? 350 : 200;
+               const calculatedHelperFee = formData.helpersNeeded ? (Number(formData.helperCount) || 1) * helperRate : 0;
+               const totalBookingAmount = estimatedFare + calculatedHelperFee;
+               return (
+                 <button 
+                    onClick={() => {
+                      if (formData.cashOnDelivery) {
+                        submitBooking();
+                      } else {
+                        setShowPayment(true);
+                      }
+                    }}
+                    disabled={loading}
+                    className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] disabled:opacity-50 flex justify-center items-center hover:bg-blue-700 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                   {loading ? (
+                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                   ) : (
+                     formData.cashOnDelivery ? `Confirm Booking (₹${totalBookingAmount})` : `Proceed to Pay ₹${totalBookingAmount}`
+                   )}
+                 </button>
+               );
+             })()}
           </div>
         </div>
       )}
@@ -1247,9 +1466,19 @@ export default function BookingFlow() {
                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Time</span>
                  <span className="text-sm font-bold text-slate-800">{formData.pickupTimeSlot}</span>
                </div>
+               {(bookingResult?.helpers?.needed || formData.helpersNeeded) && (
+                 <div className="flex justify-between items-center mb-3">
+                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Helpers</span>
+                   <span className="text-sm font-bold text-amber-800">
+                     {bookingResult?.helpers?.count || formData.helperCount} Helper(s) ({bookingResult?.helpers?.workType || formData.helperWorkType})
+                   </span>
+                 </div>
+               )}
                <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Amount</span>
-                 <span className="text-lg font-black text-slate-900">₹{estimatedFare}</span>
+                 <span className="text-lg font-black text-slate-900">
+                   ₹{bookingResult?.pricing?.total || (estimatedFare + (formData.helpersNeeded ? ((formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) * (formData.helperCount || 1)) : 0))}
+                 </span>
                </div>
             </div>
           </div>
@@ -1530,94 +1759,109 @@ export default function BookingFlow() {
       )}
 
       {/* Payment Modal */}
-      {showPayment && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-slate-900/40 backdrop-blur-sm animate-in fade-in justify-end">
-          <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-6 animate-in slide-in-from-bottom max-h-[90vh] overflow-y-auto w-full">
-            <div className="flex justify-between items-center">
-              <h2 className="font-black text-xl text-slate-900">Payment Gateway</h2>
-              <button onClick={() => !isProcessingPayment && setShowPayment(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><X size={20}/></button>
-            </div>
+      {showPayment && (() => {
+        const helperRate = (formData.helperWorkType === 'Both Load & Unload' || formData.helperWorkType === 'Load & Unload') ? 350 : 200;
+        const calculatedHelperFee = formData.helpersNeeded ? (Number(formData.helperCount) || 1) * helperRate : 0;
+        const totalBookingAmount = estimatedFare + calculatedHelperFee;
 
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-center">
-               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Payable</p>
-               <h3 className="text-3xl font-black text-[#0052CC]">₹{estimatedFare}</h3>
-            </div>
-
-            <div className="space-y-3">
-              {[
-                { id: 'UPI', badge: 'UPI', badgeClass: 'bg-blue-50 text-[#0052CC]', label: 'Pay via UPI (GPay / PhonePe / Paytm)' },
-                { id: 'Card', badge: 'CC', badgeClass: 'bg-blue-50 text-blue-600', label: 'Credit / Debit Card' },
-                { id: 'NetBanking', badge: 'NB', badgeClass: 'bg-emerald-50 text-emerald-700', label: 'NetBanking & Wallets (Razorpay)' }
-              ].map((opt) => (
-                <label
-                  key={opt.id}
-                  onClick={() => !isProcessingPayment && setPaymentMethod(opt.id)}
-                  className={`flex items-center justify-between p-4 border rounded-xl bg-white shadow-sm cursor-pointer transition-colors ${
-                    paymentMethod === opt.id ? 'border-[#0052CC] ring-1 ring-[#0052CC]/20' : 'border-slate-200 hover:border-[#0052CC]/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${opt.badgeClass}`}>{opt.badge}</div>
-                     <span className="font-bold text-slate-800 text-sm">{opt.label}</span>
-                  </div>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    checked={paymentMethod === opt.id}
-                    onChange={() => setPaymentMethod(opt.id)}
-                    className="w-5 h-5 accent-[#0052CC]"
-                  />
-                </label>
-              ))}
-            </div>
-
-            {paymentError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs font-bold">
-                {paymentError}
+        return (
+          <div className="fixed inset-0 z-40 flex flex-col bg-slate-900/40 backdrop-blur-sm animate-in fade-in justify-end">
+            <div className="bg-white rounded-t-3xl p-6 pb-24 shadow-2xl flex flex-col gap-6 animate-in slide-in-from-bottom max-h-[90vh] overflow-y-auto w-full">
+              <div className="flex justify-between items-center">
+                <h2 className="font-black text-xl text-slate-900">Payment Gateway</h2>
+                <button onClick={() => !isProcessingPayment && setShowPayment(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors cursor-pointer"><X size={20}/></button>
               </div>
-            )}
 
-            <button 
-              onClick={async () => {
-                setPaymentError('');
-                setIsProcessingPayment(true);
-                try {
-                  const verified = await openRazorpayCheckout({
-                    amount: estimatedFare,
-                    name: 'ZyperGo Logistics',
-                    description: `Parcel Booking (${formData.vehicle || 'Standard'})`,
-                    purpose: 'booking',
-                    userId: currentUser._id || currentUser.id,
-                    prefill: {
-                      name: currentUser.name,
-                      email: currentUser.email,
-                      contact: currentUser.phone
-                    },
-                    notes: {
-                      vehicle: formData.vehicle || 'Scooter',
-                      serviceType: formData.serviceType || 'Within City'
-                    }
-                  });
-                  await submitBooking({ ...verified, mode: paymentMethod });
-                  setShowPayment(false);
-                } catch (payErr) {
-                  setPaymentError(payErr.message || 'Payment could not be completed.');
-                } finally {
-                  setIsProcessingPayment(false);
-                }
-              }}
-              disabled={isProcessingPayment}
-              className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] flex justify-center items-center gap-2 mt-4 transition-all active:scale-95 disabled:opacity-75 disabled:active:scale-100 cursor-pointer"
-            >
-              {isProcessingPayment ? (
-                <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Processing Securely...</>
-              ) : (
-                <>Pay ₹{estimatedFare} Securely</>
+              <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-center">
+                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Payable</p>
+                 <h3 className="text-3xl font-black text-[#0052CC]">₹{totalBookingAmount}</h3>
+                 {formData.helpersNeeded && (
+                   <p className="text-[11px] font-bold text-amber-800 mt-1 bg-amber-100/70 inline-block px-3 py-0.5 rounded-full">
+                     Vehicle: ₹{estimatedFare} • Labour: +₹{calculatedHelperFee} ({formData.helperCount} {formData.helperWorkType})
+                   </p>
+                 )}
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { id: 'UPI', badge: 'UPI', badgeClass: 'bg-blue-50 text-[#0052CC]', label: 'Pay via UPI (GPay / PhonePe / Paytm)' },
+                  { id: 'Card', badge: 'CC', badgeClass: 'bg-blue-50 text-blue-600', label: 'Credit / Debit Card' },
+                  { id: 'NetBanking', badge: 'NB', badgeClass: 'bg-emerald-50 text-emerald-700', label: 'NetBanking & Wallets (Razorpay)' }
+                ].map((opt) => (
+                  <label
+                    key={opt.id}
+                    onClick={() => !isProcessingPayment && setPaymentMethod(opt.id)}
+                    className={`flex items-center justify-between p-4 border rounded-xl bg-white shadow-sm cursor-pointer transition-colors ${
+                      paymentMethod === opt.id ? 'border-[#0052CC] ring-1 ring-[#0052CC]/20' : 'border-slate-200 hover:border-[#0052CC]/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${opt.badgeClass}`}>{opt.badge}</div>
+                       <span className="font-bold text-slate-800 text-sm">{opt.label}</span>
+                    </div>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === opt.id}
+                      onChange={() => setPaymentMethod(opt.id)}
+                      className="w-5 h-5 accent-[#0052CC]"
+                    />
+                  </label>
+                ))}
+              </div>
+
+              {paymentError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs font-bold">
+                  {paymentError}
+                </div>
               )}
-            </button>
+
+              <button 
+                onClick={async () => {
+                  setPaymentError('');
+                  setIsProcessingPayment(true);
+                  try {
+                    const verified = await openRazorpayCheckout({
+                      amount: totalBookingAmount,
+                      name: 'ZyperGo Logistics',
+                      description: `Parcel Booking (${formData.vehicle || 'Standard'})${formData.helpersNeeded ? ` + ${formData.helperCount} Helpers` : ''}`,
+                      purpose: 'booking',
+                      userId: currentUser._id || currentUser.id,
+                      prefill: {
+                        name: currentUser.name,
+                        email: currentUser.email,
+                        contact: currentUser.phone
+                      },
+                      notes: {
+                        vehicle: formData.vehicle || 'Scooter',
+                        serviceType: formData.serviceType || 'Within City',
+                        deliveryMode: formData.serviceType === 'Outstation' ? (['Tata Ace', 'Pickup 8ft', 'Pickup 9ft', '14ft Truck', '17ft Truck'].includes(formData.vehicle) ? 'DIRECT_DEDICATED' : 'HUB_RELAY') : 'DIRECT_INTRACITY',
+                        helpersNeeded: String(Boolean(formData.helpersNeeded)),
+                        helperCount: String(formData.helpersNeeded ? (Number(formData.helperCount) || 1) : 0),
+                        helperWorkType: formData.helpersNeeded ? formData.helperWorkType : 'None'
+                      }
+                    });
+                    await submitBooking({ ...verified, mode: paymentMethod });
+                    setShowPayment(false);
+                  } catch (payErr) {
+                    setPaymentError(payErr.message || 'Payment could not be completed.');
+                  } finally {
+                    setIsProcessingPayment(false);
+                  }
+                }}
+                disabled={isProcessingPayment}
+                className="w-full bg-[#0052CC] text-white font-black py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(0,82,204,0.5)] flex justify-center items-center gap-2 mt-4 transition-all active:scale-95 disabled:opacity-75 disabled:active:scale-100 cursor-pointer"
+              >
+                {isProcessingPayment ? (
+                  <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Processing Securely...</>
+                ) : (
+                  <>Pay ₹{totalBookingAmount} Securely</>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       </div>
     </div>
