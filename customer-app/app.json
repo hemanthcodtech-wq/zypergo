@@ -63,11 +63,11 @@
         }
       ]
     ],
+    "owner": "student17",
     "extra": {
       "eas": {
-        "projectId": "fe01e027-c34b-4656-b414-779e4959502d"
+        "projectId": "209e3177-232e-4231-965d-b2d86e5a4922"
       }
-    },
-    "owner": "neelaakhil12"
+    }
   }
 }

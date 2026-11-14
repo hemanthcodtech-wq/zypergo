@@ -49,28 +49,26 @@ export default function App() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const splashDismissedRef = useRef(false);
   const tokenRef = useRef(null);
-  const isCaptainOnlineRef = useRef(false);
+  const isCaptainOnlineRef = useRef(true);
 
-  // Monitor AppState (When captain is online and minimizes app, maintain sticky re-entry overlay)
+  // Monitor AppState (When captain minimizes app, maintain sticky re-entry overlay & floating presence)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        if (isCaptainOnlineRef.current) {
-          try {
-            await Notifications.scheduleNotificationAsync({
-              identifier: 'CAPTAIN_ONLINE_OVERLAY',
-              content: {
-                title: '🟢 ZyperGo Captain • ONLINE',
-                body: 'Radar searching for orders... Tap to open app',
-                sticky: true,
-                autoDismiss: false,
-                priority: Notifications.AndroidNotificationPriority.MAX,
-                sound: false
-              },
-              trigger: null
-            });
-          } catch (e) {}
-        }
+        try {
+          await Notifications.scheduleNotificationAsync({
+            identifier: 'CAPTAIN_ONLINE_OVERLAY',
+            content: {
+              title: '🟢 ZyperGo Captain • ACTIVE',
+              body: 'Running in background • Tap to return to app',
+              sticky: true,
+              autoDismiss: false,
+              priority: Notifications.AndroidNotificationPriority.MAX,
+              sound: false
+            },
+            trigger: null
+          });
+        } catch (e) {}
       } else if (nextAppState === 'active') {
         try {
           await Notifications.dismissNotificationAsync('CAPTAIN_ONLINE_OVERLAY');
