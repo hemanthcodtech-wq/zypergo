@@ -13,7 +13,8 @@ import {
   Linking,
   Image,
   Animated,
-  ToastAndroid
+  ToastAndroid,
+  Vibration
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -170,6 +171,21 @@ export default function App() {
       }
       if (data?.type === 'GOOGLE_SIGN_IN') {
         handleNativeGoogleSignIn();
+        return;
+      }
+      if (data?.type === 'CAPTAIN_ARRIVED_NOTIFICATION') {
+        try {
+          if (Vibration && Vibration.vibrate) {
+            Vibration.vibrate([0, 400, 200, 400]);
+          }
+          if (ToastAndroid && ToastAndroid.showWithGravity) {
+            ToastAndroid.showWithGravity(
+              '🔔 Captain Arrived! Your ZyperGo Captain is at your pickup location.',
+              ToastAndroid.LONG,
+              ToastAndroid.TOP
+            );
+          }
+        } catch (err) {}
         return;
       }
       if (data?.type === 'EXIT_APP') {

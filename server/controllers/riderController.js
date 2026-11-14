@@ -110,6 +110,29 @@ exports.acceptJob = async (req, res) => {
     // Trigger Notification
     NotificationService.notifyRiderAssigned(booking, booking.sender?.phone || '9999999999');
 
+    // Real-Time Socket Broadcast to Customer Tracking Room
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      const fullBooking = await Booking.findById(booking._id)
+        .populate('currentRider', 'name phone riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
+
+      io.to(`track_${booking.trackingId}`).emit('rider_assigned', {
+        trackingId: booking.trackingId,
+        status: 'Rider Assigned',
+        currentRider: fullBooking?.currentRider,
+        booking: fullBooking
+      });
+      io.to(`track_${booking.trackingId}`).emit('order_status_update', {
+        trackingId: booking.trackingId,
+        status: 'Rider Assigned',
+        booking: fullBooking
+      });
+    } catch (sockErr) {
+      console.warn('Socket broadcast error on acceptJob:', sockErr.message);
+    }
+
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
     console.error('Error accepting job:', error);
@@ -231,6 +254,22 @@ exports.updateJobStatus = async (req, res) => {
 
     await booking.save();
 
+    // Real-Time Socket Broadcast to Customer Tracking Room on every status transition
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      const updatedBooking = await Booking.findById(booking._id)
+        .populate('currentRider', 'name phone riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
+      io.to(`track_${booking.trackingId}`).emit('order_status_update', {
+        trackingId: booking.trackingId,
+        status: status,
+        booking: updatedBooking
+      });
+    } catch (sockErr) {
+      console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
+    }
+
     // Trigger Notifications based on status
     const customerPhone = booking.sender?.phone || '9999999999';
     const receiverPhone = booking.receiver?.phone || '8888888888';
@@ -293,6 +332,22 @@ exports.handleTranshipment = async (req, res) => {
     });
 
     await booking.save();
+
+    // Real-Time Socket Broadcast to Customer Tracking Room on every status transition
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      const updatedBooking = await Booking.findById(booking._id)
+        .populate('currentRider', 'name phone riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
+      io.to(`track_${booking.trackingId}`).emit('order_status_update', {
+        trackingId: booking.trackingId,
+        status: status,
+        booking: updatedBooking
+      });
+    } catch (sockErr) {
+      console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
+    }
     // Return OTP to the initiating rider so they can display it
     res.status(200).json({ success: true, data: booking, handoverOtp: generatedOtp });
   } catch (error) {
@@ -344,6 +399,22 @@ exports.acceptHandover = async (req, res) => {
     });
     
     await booking.save();
+
+    // Real-Time Socket Broadcast to Customer Tracking Room on every status transition
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      const updatedBooking = await Booking.findById(booking._id)
+        .populate('currentRider', 'name phone riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
+      io.to(`track_${booking.trackingId}`).emit('order_status_update', {
+        trackingId: booking.trackingId,
+        status: status,
+        booking: updatedBooking
+      });
+    } catch (sockErr) {
+      console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
+    }
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to accept handover' });

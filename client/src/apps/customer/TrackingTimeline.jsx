@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation, Radio } from 'lucide-react';
+import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation, Radio, Bell } from 'lucide-react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { io } from 'socket.io-client';
@@ -103,11 +103,18 @@ function calculateHaversineKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Dynamic Map View Bounds Controller (smoothly keeps vehicle and target in frame)
-function MapBoundsController({ riderPos, targetPos, defaultPos }) {
+// Dynamic Map View Bounds Controller (smoothly fits the blue road route, vehicle and destination)
+function MapBoundsController({ routeCoords, riderPos, targetPos, defaultPos }) {
   const map = useMap();
   useEffect(() => {
     if (!map) return;
+    if (routeCoords && routeCoords.length > 1) {
+      try {
+        const bounds = L.latLngBounds(routeCoords);
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+        return;
+      } catch (e) {}
+    }
     const points = [];
     if (riderPos && riderPos[0] && riderPos[1]) points.push(riderPos);
     if (targetPos && targetPos[0] && targetPos[1]) points.push(targetPos);
@@ -121,7 +128,7 @@ function MapBoundsController({ riderPos, targetPos, defaultPos }) {
     } else if (defaultPos) {
       map.setView(defaultPos, 13);
     }
-  }, [riderPos, targetPos, map]);
+  }, [routeCoords, riderPos, targetPos, map]);
   return null;
 }
 
@@ -134,10 +141,21 @@ export default function TrackingTimeline() {
   const [activeShipments, setActiveShipments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Real-Time Captain Live GPS Coordinates State
+  // Real-Time Captain Live GPS Coordinates & Route State
   const [riderLocation, setRiderLocation] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [showArrivalBanner, setShowArrivalBanner] = useState(false);
   const [liveStatusText, setLiveStatusText] = useState('');
   const socketRef = useRef(null);
+  const hasNotifiedArrivalRef = useRef(false);
+  const lastFetchedPosRef = useRef(null);
+
+  // Request browser Notification permission on mount for instant arrival alerts
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
 
   const fetchBooking = () => {
     if (!trackingId) return;
@@ -162,11 +180,77 @@ export default function TrackingTimeline() {
       });
   };
 
+  // 100-Meter Geofence Arrival Alert Trigger
+  const triggerCaptainArrivedNotification = () => {
+    // A. Audio chime using Web Audio API (cross-platform, zero asset dependency)
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {}
+
+    // B. Physical device vibration
+    if (navigator.vibrate) {
+      try { navigator.vibrate([200, 100, 200, 100, 300]); } catch (e) {}
+    }
+
+    // C. Post message to native React Native WebView app wrapper
+    if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'CAPTAIN_ARRIVED_NOTIFICATION',
+          title: '🔔 Captain Arrived!',
+          body: 'Your ZyperGo Captain is at your pickup location. Share OTP to start trip.',
+          trackingId
+        }));
+      } catch (e) {}
+    }
+
+    // D. Android / Browser Notification Bar Alert
+    if ('Notification' in window) {
+      const targetUrl = window.location.pathname.startsWith('/customer') ? '/customer/notifications' : '/notifications';
+      const showSystemNotification = () => {
+        try {
+          const notif = new Notification('🔔 Captain Arrived!', {
+            body: 'Your ZyperGo Captain is at your pickup location. Share OTP to start trip.',
+            icon: '/favicon.ico',
+            tag: 'captain-arrived',
+            requireInteraction: true
+          });
+          notif.onclick = () => {
+            window.focus();
+            navigate(targetUrl);
+          };
+        } catch (e) {}
+      };
+
+      if (Notification.permission === 'granted') {
+        showSystemNotification();
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') showSystemNotification();
+        }).catch(() => {});
+      }
+    }
+
+    // E. Prominent In-App Heads-up Alert Banner
+    setShowArrivalBanner(true);
+  };
+
   useEffect(() => {
     if (trackingId) {
       fetchBooking();
 
-      // Real-Time Socket Connection to track captain movement
+      // Real-Time Socket Connection to track captain movement & acceptance
       const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
       const socket = io(socketUrl, {
         transports: ['websocket', 'polling'],
@@ -179,6 +263,29 @@ export default function TrackingTimeline() {
         socket.emit('join_tracking', { trackingId });
       });
 
+      // INSTANT ACCEPTANCE UPDATE: When captain accepts, update map & route immediately without reload
+      socket.on('rider_assigned', (data) => {
+        if (data?.booking) {
+          setBooking(data.booking);
+        }
+        if (data?.rider?.riderDetails?.currentLocation?.lat) {
+          setRiderLocation({
+            lat: Number(data.rider.riderDetails.currentLocation.lat),
+            lng: Number(data.rider.riderDetails.currentLocation.lng)
+          });
+        }
+        fetchBooking();
+      });
+
+      // Real-Time Order Status Transitions
+      socket.on('order_status_update', (data) => {
+        if (data?.status) {
+          setBooking(prev => prev ? { ...prev, status: data.status } : prev);
+        }
+        fetchBooking();
+      });
+
+      // Real-Time Live Moving Vehicle GPS Stream
       socket.on('rider_location', (data) => {
         if (data && data.lat && data.lng) {
           setRiderLocation({
@@ -205,6 +312,79 @@ export default function TrackingTimeline() {
         .catch(() => setLoading(false));
     }
   }, [trackingId]);
+
+  // Fetch Swiggy/Rapido-Style Turn-by-Turn Road Route via OSRM
+  useEffect(() => {
+    if (!booking) return;
+
+    const pLat = booking.pickupLocation?.lat ? Number(booking.pickupLocation.lat) : null;
+    const pLng = booking.pickupLocation?.lng ? Number(booking.pickupLocation.lng) : null;
+    const dLat = booking.dropLocation?.lat ? Number(booking.dropLocation.lat) : null;
+    const dLng = booking.dropLocation?.lng ? Number(booking.dropLocation.lng) : null;
+
+    const isPickupStageActive = ['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status);
+
+    let start = null;
+    let end = null;
+
+    if (riderLocation && riderLocation.lat && riderLocation.lng) {
+      start = [riderLocation.lng, riderLocation.lat];
+      end = isPickupStageActive ? [pLng, pLat] : [dLng, dLat];
+    } else if (pLat && pLng && dLat && dLng) {
+      start = [pLng, pLat];
+      end = [dLng, dLat];
+    }
+
+    if (!start || !end || !start[0] || !start[1] || !end[0] || !end[1]) return;
+
+    // Throttle OSRM calls: only refetch if start position moved > 25 meters
+    if (lastFetchedPosRef.current) {
+      const dist = calculateHaversineKm(lastFetchedPosRef.current.lat, lastFetchedPosRef.current.lng, start[1], start[0]);
+      if (dist !== null && dist < 0.025 && routeCoordinates.length > 0) {
+        return;
+      }
+    }
+
+    lastFetchedPosRef.current = { lat: start[1], lng: start[0] };
+
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;
+
+    fetch(osrmUrl)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.routes?.[0]?.geometry?.coordinates?.length) {
+          // OSRM coordinates are [lng, lat], Leaflet Polyline needs [lat, lng]
+          const latLngs = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          setRouteCoordinates(latLngs);
+        } else {
+          setRouteCoordinates([[start[1], start[0]], [end[1], end[0]]]);
+        }
+      })
+      .catch(() => {
+        // Fallback straight line if OSRM is unreachable
+        setRouteCoordinates([[start[1], start[0]], [end[1], end[0]]]);
+      });
+  }, [riderLocation?.lat, riderLocation?.lng, booking?.status, booking?.pickupLocation?.lat, booking?.dropLocation?.lat]);
+
+  // Monitor 100-Meter Geofence Distance for Captain Arrival
+  useEffect(() => {
+    if (!booking || hasNotifiedArrivalRef.current) return;
+
+    const isPickupStageActive = ['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status);
+    if (!isPickupStageActive) return;
+
+    const pLat = booking.pickupLocation?.lat ? Number(booking.pickupLocation.lat) : null;
+    const pLng = booking.pickupLocation?.lng ? Number(booking.pickupLocation.lng) : null;
+
+    if (riderLocation?.lat && riderLocation?.lng && pLat && pLng) {
+      const distance = calculateHaversineKm(riderLocation.lat, riderLocation.lng, pLat, pLng);
+      // Trigger notification when captain is within 100 meters (0.10 km) or marked Arrived
+      if (distance !== null && (distance <= 0.10 || booking.status === 'Arrived at Pickup')) {
+        hasNotifiedArrivalRef.current = true;
+        triggerCaptainArrivedNotification();
+      }
+    }
+  }, [riderLocation?.lat, riderLocation?.lng, booking?.status]);
 
   const handleShare = () => {
     const url = window.location.href;
@@ -367,6 +547,38 @@ export default function TrackingTimeline() {
   return (
     <div className="min-h-full bg-[#F8FAFC] font-sans pb-28 text-slate-900 animate-in fade-in">
       
+      {/* Prominent 100-Meter Geofence Arrival Heads-Up Banner */}
+      {showArrivalBanner && (
+        <div className="fixed top-4 left-3 right-3 z-50 max-w-md mx-auto bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-800 text-white p-3.5 rounded-2xl shadow-2xl border-2 border-emerald-300 animate-in slide-in-from-top duration-300 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 animate-bounce">
+              <Bell size={18} className="text-white" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black tracking-wide">🔔 Captain Arrived!</h4>
+              <p className="text-[10px] text-emerald-100 font-semibold leading-tight">Within 100m at your pickup location. Share OTP to start trip.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button 
+              onClick={() => {
+                const target = window.location.pathname.startsWith('/customer') ? '/customer/notifications' : '/notifications';
+                navigate(target);
+              }}
+              className="px-2.5 py-1.5 bg-white text-emerald-800 text-[10px] font-black rounded-xl shadow-xs hover:bg-emerald-50 active:scale-95 transition-all cursor-pointer"
+            >
+              View
+            </button>
+            <button 
+              onClick={() => setShowArrivalBanner(false)}
+              className="w-6 h-6 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-xs font-bold cursor-pointer transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Top Map View Area with Moving Rapido Captain Vehicle */}
       <div className="relative h-[260px] md:h-[340px] w-full shrink-0">
         <MapContainer center={defaultCenter} zoom={13} scrollWheelZoom={false} className="w-full h-full z-0">
@@ -377,10 +589,27 @@ export default function TrackingTimeline() {
 
           {/* Controller to keep vehicle and destination in frame */}
           <MapBoundsController 
+            routeCoords={routeCoordinates}
             riderPos={riderLocation ? [riderLocation.lat, riderLocation.lng] : null}
             targetPos={(targetCoords[0] && targetCoords[1]) ? targetCoords : null}
             defaultPos={defaultCenter}
           />
+
+          {/* Swiggy/Rapido-Style Turn-by-Turn Blue Road Polyline with Navigation Depth */}
+          {routeCoordinates && routeCoordinates.length > 1 && (
+            <>
+              {/* Dark Navy Casing Border */}
+              <Polyline 
+                positions={routeCoordinates} 
+                pathOptions={{ color: '#0F2942', weight: 6, opacity: 0.6, lineCap: 'round', lineJoin: 'round' }} 
+              />
+              {/* High-Visibility Vibrant Navigation Blue Core */}
+              <Polyline 
+                positions={routeCoordinates} 
+                pathOptions={{ color: '#0052CC', weight: 4.5, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }} 
+              />
+            </>
+          )}
 
           {/* Pickup Marker (Pin A) */}
           {pickupLat && pickupLng && (
