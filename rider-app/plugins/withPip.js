@@ -23,36 +23,26 @@ function withPipMainActivity(config) {
       return config;
     }
 
-    // 3. Inject Android Picture-in-Picture Imports
-    const imports = `
-import android.app.PictureInPictureParams
-import android.os.Build
-import android.util.Rational
-`;
-    if (!contents.includes('android.app.PictureInPictureParams')) {
-      contents = contents.replace(/package\s+[\w.]+/, (match) => `${match}\n${imports}`);
-    }
-
-    // 4. Inject automatic PiP trigger on user leave hint (when captain presses Home or switches apps)
+    // 3. Inject automatic PiP trigger using fully-qualified Android classes (avoids import conflicts)
     const pipTrigger = `
   override fun onUserLeaveHint() {
     super.onUserLeaveHint()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
       try {
-        val aspectRatio = Rational(9, 16)
-        val params = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          PictureInPictureParams.Builder()
+        val aspectRatio = android.util.Rational(9, 16)
+        val params = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+          android.app.PictureInPictureParams.Builder()
             .setAspectRatio(aspectRatio)
             .setAutoEnterEnabled(true)
             .build()
         } else {
-          PictureInPictureParams.Builder()
+          android.app.PictureInPictureParams.Builder()
             .setAspectRatio(aspectRatio)
             .build()
         }
         enterPictureInPictureMode(params)
       } catch (e: Exception) {
-        // Fallback
+        // Safe fallback
       }
     }
   }
