@@ -288,22 +288,21 @@ export default function App() {
       }
       if (data?.type === 'OPEN_NAVIGATION') {
         const { lat, lng, address } = data;
-        let navTarget = '';
-        if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
-          navTarget = `${Number(lat)},${Number(lng)}`;
-        } else if (address) {
-          navTarget = encodeURIComponent(address);
-        }
-        if (navTarget) {
-          const navUrl = `google.navigation:q=${navTarget}&mode=d`;
+        const hasCoords = lat !== null && lng !== null && lat !== undefined && lng !== undefined && !isNaN(Number(lat)) && !isNaN(Number(lng)) && Number(lat) !== 0 && Number(lng) !== 0;
+        
+        if (hasCoords) {
+          const navUrl = `google.navigation:q=${Number(lat)},${Number(lng)}&mode=d`;
           Linking.canOpenURL(navUrl).then((supported) => {
             if (supported) {
               return Linking.openURL(navUrl);
             }
-            return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${navTarget}&travelmode=driving`);
+            return Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}&travelmode=driving`);
           }).catch(() => {
-            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${navTarget}&travelmode=driving`).catch(() => {});
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}&travelmode=driving`).catch(() => {});
           });
+        } else if (address) {
+          const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}&travelmode=driving`;
+          Linking.openURL(dirUrl).catch(() => {});
         }
         return;
       }

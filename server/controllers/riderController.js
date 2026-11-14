@@ -266,6 +266,16 @@ exports.updateJobStatus = async (req, res) => {
         status: status,
         booking: updatedBooking
       });
+
+      if (status === 'Arrived at Pickup') {
+        io.to(`track_${booking.trackingId}`).emit('captain_arrived_pickup', {
+          trackingId: booking.trackingId,
+          status: 'Arrived at Pickup',
+          title: '🔔 Captain is waiting for you!',
+          message: 'Your ZyperGo Captain has arrived at your pickup location.',
+          booking: updatedBooking
+        });
+      }
     } catch (sockErr) {
       console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
     }
@@ -345,6 +355,16 @@ exports.handleTranshipment = async (req, res) => {
         status: status,
         booking: updatedBooking
       });
+
+      if (status === 'Arrived at Pickup') {
+        io.to(`track_${booking.trackingId}`).emit('captain_arrived_pickup', {
+          trackingId: booking.trackingId,
+          status: 'Arrived at Pickup',
+          title: '🔔 Captain is waiting for you!',
+          message: 'Your ZyperGo Captain has arrived at your pickup location.',
+          booking: updatedBooking
+        });
+      }
     } catch (sockErr) {
       console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
     }
@@ -412,6 +432,16 @@ exports.acceptHandover = async (req, res) => {
         status: status,
         booking: updatedBooking
       });
+
+      if (status === 'Arrived at Pickup') {
+        io.to(`track_${booking.trackingId}`).emit('captain_arrived_pickup', {
+          trackingId: booking.trackingId,
+          status: 'Arrived at Pickup',
+          title: '🔔 Captain is waiting for you!',
+          message: 'Your ZyperGo Captain has arrived at your pickup location.',
+          booking: updatedBooking
+        });
+      }
     } catch (sockErr) {
       console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
     }

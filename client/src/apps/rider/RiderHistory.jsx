@@ -134,7 +134,7 @@ export default function RiderHistory({ user }) {
       if (ride.status === 'Rider Assigned') {
         await api.post(`/rider/jobs/${ride._id}/update-status`, {
           status: 'Rider On the Way',
-          reason: 'Rider started navigation to pickup location',
+          reason: 'Captain started navigation to pickup location',
           userId: user?._id || user?.id
         });
         await fetchRiderHistory();
@@ -149,7 +149,29 @@ export default function RiderHistory({ user }) {
     }
   };
 
-  // 2. Verify Pickup OTP from customer & update status to Picked Up
+  // 1B. Arrived at Pickup Location -> Updates status to 'Arrived at Pickup' and alerts customer
+  const handleArrivedAtPickup = async (ride) => {
+    setActionLoading(true);
+    try {
+      const res = await api.post(`/rider/jobs/${ride._id}/update-status`, {
+        status: 'Arrived at Pickup',
+        reason: 'Captain arrived at pickup location. Waiting for customer.',
+        userId: user?._id || user?.id
+      });
+      if (res.data?.success) {
+        setActionSuccessNotice('Arrived at Pickup! Customer has been notified.');
+        setTimeout(() => setActionSuccessNotice(''), 3500);
+        await fetchRiderHistory();
+      }
+    } catch (err) {
+      setActionSuccessNotice(err.response?.data?.error || 'Failed to update status');
+      setTimeout(() => setActionSuccessNotice(''), 3500);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // 2. Verify Pickup OTP from customer & update status to Picked Up + Immediately Launch Drop Navigation
   const handleVerifyPickupOtp = async (ride) => {
     const enteredOtp = otpInputs[ride._id] || '';
     if (!enteredOtp || enteredOtp.trim().length < 4) {
@@ -170,9 +192,15 @@ export default function RiderHistory({ user }) {
 
       if (res.data?.success) {
         setOtpInputs(prev => ({ ...prev, [ride._id]: '' }));
-        setActionSuccessNotice('Parcel Picked Up Successfully! Ready to navigate to drop location.');
+        setActionSuccessNotice('OTP Verified! Launching Google Maps to Drop Location...');
         setTimeout(() => setActionSuccessNotice(''), 4000);
         await fetchRiderHistory();
+
+        // Immediately launch Google Maps navigation to drop location without asking anything
+        const dropLat = ride.dropLocation?.lat;
+        const dropLng = ride.dropLocation?.lng;
+        const dropAddr = ride.dropLocation?.address || '';
+        openTurnByTurnNavigation({ lat: dropLat, lng: dropLng, address: dropAddr });
       }
     } catch (err) {
       const errMsg = err.response?.data?.error || 'Invalid OTP. Please check with customer and try again.';
@@ -549,66 +577,91 @@ export default function RiderHistory({ user }) {
                   {isOngoing && (
                     <div className="pt-2 border-t border-slate-100 space-y-2.5">
                       
-                      {/* Step A: Start Ride to Pickup */}
-                      {isAtPickupStage && (
+                      {/* Step A: Heading to Pickup Stage */}
+                      {['Rider Assigned', 'Rider On the Way'].includes(ride.status) && (
                         <div className="space-y-2">
                           <button 
                             type="button"
                             disabled={actionLoading}
                             onClick={() => handleStartRideToPickup(ride)}
-                            className="w-full py-2.5 bg-black hover:bg-slate-800 text-[#FFB703] font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                            className="w-full py-3 bg-black hover:bg-slate-800 text-[#FFB703] font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer border border-[#FFB703]/30"
                           >
-                            <Navigation size={14} className="text-[#FFB703]" />
-                            <span>START RIDE TO PICKUP (GOOGLE MAPS)</span>
+                            <Navigation size={15} className="text-[#FFB703]" />
+                            <span>GO TO PICKUP LOCATION (GOOGLE MAPS)</span>
                             <ArrowRight size={14} />
                           </button>
 
-                          {/* Pickup OTP Input Box */}
-                          <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 space-y-2">
+                          <button 
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => handleArrivedAtPickup(ride)}
+                            className="w-full py-2.5 bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            <CheckCircle2 size={15} />
+                            <span>ARRIVED AT PICKUP LOCATION</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Step B: Arrived at Pickup -> Enter OTP & Start Ride */}
+                      {ride.status === 'Arrived at Pickup' && (
+                        <div className="space-y-2">
+                          <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-3.5 space-y-2.5 shadow-xs">
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase text-amber-900 flex items-center gap-1">
-                                <KeyRound size={12} />
-                                <span>Enter Customer Pickup OTP</span>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                                <KeyRound size={13} className="text-amber-600" />
+                                <span>Customer Pickup OTP</span>
                               </span>
-                              <span className="text-[10px] text-amber-700 font-bold">4 Digits</span>
+                              <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">4 Digits</span>
                             </div>
+
+                            <p className="text-[10.5px] text-amber-800 font-medium">Ask sender for the 4-digit start OTP, enter it below to start ride:</p>
 
                             <div className="flex gap-2">
                               <input 
                                 type="text" 
                                 maxLength={4}
-                                placeholder="e.g. 1234"
+                                placeholder="----"
                                 value={otpInputs[ride._id] || ''}
                                 onChange={(e) => {
                                   const val = e.target.value.replace(/\D/g, '').slice(0, 4);
                                   setOtpInputs(prev => ({ ...prev, [ride._id]: val }));
                                 }}
-                                className="w-32 px-3 py-2 bg-white border border-amber-300 rounded-lg text-center font-mono font-black text-sm tracking-widest outline-none focus:ring-2 focus:ring-amber-400"
+                                className="w-28 px-3 py-2 bg-white border border-amber-300 rounded-xl text-center font-mono font-black text-lg tracking-widest outline-none focus:ring-2 focus:ring-amber-400"
                               />
                               <button
                                 type="button"
-                                disabled={actionLoading}
+                                disabled={actionLoading || (otpInputs[ride._id] || '').length < 4}
                                 onClick={() => handleVerifyPickupOtp(ride)}
-                                className="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-60"
+                                className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                               >
-                                {actionLoading ? <Loader2 size={13} className="animate-spin" /> : <PackageCheck size={14} />}
-                                <span>VERIFY &amp; PICKUP</span>
+                                {actionLoading ? <Loader2 size={13} className="animate-spin" /> : <Navigation size={14} />}
+                                <span>START RIDE (TO DROP LOCATION)</span>
                               </button>
                             </div>
                           </div>
+
+                          <button 
+                            type="button"
+                            onClick={() => handleStartRideToPickup(ride)}
+                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <Navigation size={12} />
+                            <span>Re-open Pickup Map</span>
+                          </button>
                         </div>
                       )}
 
-                      {/* Step B: Start Ride to Drop Location */}
+                      {/* Step C: Drop Stage -> Nav to Drop + Complete Delivery */}
                       {isAtDropStage && (
                         <div className="space-y-2">
                           <button 
                             type="button"
                             disabled={actionLoading}
                             onClick={() => handleStartRideToDrop(ride)}
-                            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
                           >
-                            <Navigation size={14} />
+                            <Navigation size={15} />
                             <span>START RIDE TO DROP (GOOGLE MAPS)</span>
                             <ArrowRight size={14} />
                           </button>
@@ -617,9 +670,9 @@ export default function RiderHistory({ user }) {
                             type="button"
                             disabled={actionLoading}
                             onClick={() => promptCompleteDelivery(ride)}
-                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
                           >
-                            <CheckCircle2 size={14} />
+                            <CheckCircle2 size={15} />
                             <span>COMPLETE DELIVERY</span>
                           </button>
                         </div>

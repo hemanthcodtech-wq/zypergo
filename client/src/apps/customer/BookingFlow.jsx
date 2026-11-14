@@ -490,11 +490,15 @@ export default function BookingFlow() {
       const payload = {
         pickupLocation: { 
           address: formData.pickupAddress, 
-          pincode: '560004'
+          lat: (Array.isArray(pickupCoords) && Number.isFinite(pickupCoords[0])) ? Number(pickupCoords[0]) : 17.3850,
+          lng: (Array.isArray(pickupCoords) && Number.isFinite(pickupCoords[1])) ? Number(pickupCoords[1]) : 78.4867,
+          pincode: formData.pickupPincode || '500097'
         },
         dropLocation: { 
-          address: formData.dropAddress || 'Mysore, Karnataka 570001', 
-          pincode: '570001'
+          address: formData.dropAddress || 'Destination Point', 
+          lat: (Array.isArray(dropCoords) && Number.isFinite(dropCoords[0])) ? Number(dropCoords[0]) : 17.4120,
+          lng: (Array.isArray(dropCoords) && Number.isFinite(dropCoords[1])) ? Number(dropCoords[1]) : 78.5040,
+          pincode: formData.dropPincode || '500001'
         },
         sender: currentUser._id || currentUser.id || undefined,
         senderDetails: { 
@@ -1346,40 +1350,186 @@ export default function BookingFlow() {
                  <button onClick={() => setStep(1)} className="text-[#0052CC] font-bold text-xs uppercase tracking-wider hover:underline">Edit</button>
                </div>
 
-               <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Date</h3>
-               <div className="flex gap-2.5 overflow-x-auto pb-2 mb-5 scrollbar-hide whitespace-nowrap">
-                  {[
-                    { label: 'Today', value: 'Today' },
-                    { label: 'Tomorrow', value: 'Tomorrow' },
-                    { label: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
-                    { label: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }
-                  ].map(date => (
-                    <button 
-                      key={date.value}
-                      onClick={() => setFormData({...formData, pickupDate: date.value})}
-                      className={`shrink-0 py-2.5 px-5 rounded-xl border text-xs font-bold transition-colors ${formData.pickupDate === date.value ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50'}`}
-                    >
-                      {date.label}
-                    </button>
-                  ))}
-               </div>
+               {/* Pickup Date with Full Calendar Option */}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-black text-slate-900">Pickup Date</h3>
+                  <label className="text-xs font-bold text-[#0052CC] flex items-center gap-1 cursor-pointer hover:underline bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                    <CalendarIcon size={13} />
+                    <span>Open Calendar</span>
+                    <input 
+                      type="date"
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const d = new Date(e.target.value + 'T00:00:00');
+                          const formatted = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                          setFormData(prev => ({ ...prev, pickupDate: formatted }));
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex gap-2.5 overflow-x-auto pb-2 mb-5 scrollbar-hide whitespace-nowrap">
+                   {[
+                     { label: 'Today', value: 'Today' },
+                     { label: 'Tomorrow', value: 'Tomorrow' },
+                     { label: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
+                     { label: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
+                     ...(formData.pickupDate && !['Today', 'Tomorrow'].includes(formData.pickupDate) && !formData.pickupDate.includes(new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) ? [{ label: '📅 ' + formData.pickupDate, value: formData.pickupDate }] : [])
+                   ].map(date => (
+                     <button 
+                       key={date.value}
+                       type="button"
+                       onClick={() => setFormData(prev => ({ ...prev, pickupDate: date.value }))}
+                       className={'shrink-0 py-2.5 px-5 rounded-xl border text-xs font-bold transition-all cursor-pointer ' + (formData.pickupDate === date.value ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50')}
+                     >
+                       {date.label}
+                     </button>
+                   ))}
+                </div>
             </div>
 
             <div>
-               <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Time Slot</h3>
-               <div className="grid grid-cols-2 gap-2.5 mb-5">
-                  {['9 AM - 12 PM', '12 PM - 3 PM', '3 PM - 6 PM', '6 PM - 9 PM'].map(slot => (
-                    <button 
-                      key={slot}
-                      onClick={() => setFormData({...formData, pickupTimeSlot: slot})}
-                      className={`py-3 rounded-xl border text-xs font-bold transition-colors ${formData.pickupTimeSlot === slot ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50'}`}
-                    >
-                      {slot}
-                    </button>
-                  ))}
-               </div>
+                {/* Pickup Time with AM / PM & Specific Time Input */}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-black text-slate-900">Pickup Time</h3>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    Selected: <span className="text-[#0052CC] font-black">{formData.pickupTimeSlot}</span>
+                  </span>
+                </div>
 
-               <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Instructions (Optional)</h3>
+                {/* Specific Custom Time Selector (AM / PM) */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 mb-3 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#0052CC] flex items-center justify-center shrink-0">
+                      <Clock size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Select Specific Time</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Choose exact hour, minute &amp; AM/PM</p>
+                    </div>
+                  </div>
+                  <input 
+                    type="time"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const [hStr, mStr] = e.target.value.split(':');
+                        let hour = parseInt(hStr, 10);
+                        const minute = mStr;
+                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                        hour = hour % 12;
+                        if (hour === 0) hour = 12;
+                        const formattedTime = hour + ':' + minute + ' ' + ampm;
+                        setFormData(prev => ({ ...prev, pickupTimeSlot: formattedTime }));
+                      }
+                    }}
+                    className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-800 shadow-xs outline-none focus:border-[#0052CC] cursor-pointer"
+                  />
+                </div>
+
+                {/* Flexible Time Slots */}
+                <div className="grid grid-cols-2 gap-2 mb-5">
+                   {['09:00 AM - 12:00 PM', '12:00 PM - 03:00 PM', '03:00 PM - 06:00 PM', '06:00 PM - 09:00 PM'].map(slot => (
+                     <button 
+                       key={slot}
+                       type="button"
+                       onClick={() => setFormData(prev => ({ ...prev, pickupTimeSlot: slot }))}
+                       className={'py-2.5 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ' + (formData.pickupTimeSlot === slot ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50')}
+                     >
+                       {slot}
+                     </button>
+                   ))}
+                </div>
+
+                {/* Loader & Unloader (Hamali) Option for 9ft, 17ft & Commercial Trucks */}
+                {formData.vehicle !== 'Scooter' && (
+                  <div className="bg-gradient-to-r from-amber-50/90 to-orange-50/70 rounded-2xl border-2 border-amber-300 p-4 mb-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs">
+                          <Users size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-900 leading-tight">Add Loader &amp; Unloader (Hamali)</h4>
+                          <p className="text-[10px] font-semibold text-amber-900 mt-0.5">Heavy goods assistance for {formData.vehicle}</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.helpersNeeded} 
+                          onChange={(e) => setFormData(prev => ({ ...prev, helpersNeeded: e.target.checked }))} 
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0052CC]"></div>
+                      </label>
+                    </div>
+
+                    {formData.helpersNeeded && (
+                      <div className="pt-3 border-t border-amber-200/80 space-y-3 animate-in fade-in duration-200">
+                        <div>
+                          <p className="text-[10.5px] font-black text-slate-800 uppercase tracking-wider mb-2">
+                            Select Labour Scope
+                          </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { id: 'Load Only', label: 'Load Only', sub: 'At Pickup', rate: 200 },
+                              { id: 'Unload Only', label: 'Unload Only', sub: 'At Drop', rate: 200 },
+                              { id: 'Both Load & Unload', label: 'Both', sub: 'Load & Unload', rate: 350 }
+                            ].map((wt) => {
+                              const active = formData.helperWorkType === wt.id;
+                              return (
+                                <button
+                                  key={wt.id}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, helperWorkType: wt.id }))}
+                                  className={'p-2.5 rounded-xl border text-center transition-all cursor-pointer ' + (
+                                    active 
+                                      ? 'bg-amber-100 border-amber-500 text-amber-950 font-black shadow-xs ring-2 ring-amber-400' 
+                                      : 'bg-white border-amber-200 text-slate-700 font-bold hover:bg-amber-50'
+                                  )}
+                                >
+                                  <span className="text-[11px] block">{wt.label}</span>
+                                  <span className="text-[9px] text-slate-500 block font-medium">{wt.sub}</span>
+                                  <span className="text-[10px] font-black text-amber-900 block mt-0.5">₹{wt.rate}/person</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Helper Count Selector */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <p className="text-xs font-black text-slate-900">Number of Helpers</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Extra manpower for rapid shifting</p>
+                          </div>
+                          <div className="flex items-center gap-2 bg-white border border-amber-300 rounded-xl px-2 py-1 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, helperCount: Math.max(1, (Number(prev.helperCount) || 1) - 1) }))}
+                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 flex items-center justify-center font-black cursor-pointer"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="w-6 text-center font-black text-sm text-slate-900">{formData.helperCount || 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, helperCount: Math.min(4, (Number(prev.helperCount) || 1) + 1) }))}
+                              className="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 flex items-center justify-center font-black cursor-pointer"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <h3 className="text-sm font-black text-slate-900 mb-2">Pickup Instructions (Optional)</h3>
                <textarea 
                  name="instructions"
                  value={formData.instructions}

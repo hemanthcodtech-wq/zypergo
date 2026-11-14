@@ -270,11 +270,26 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                 <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Pickup Journey</h2>
                 <p className="text-slate-500 text-sm mb-8 font-medium">Head to the sender's location.</p>
                 <button 
+                  onClick={() => {
+                    updateStatus('Rider On the Way');
+                    openTurnByTurnNavigation({
+                      lat: activeJob.pickupLocation?.lat,
+                      lng: activeJob.pickupLocation?.lng,
+                      address: activeJob.pickupLocation?.address || ''
+                    });
+                  }}
+                  className="w-full bg-black hover:bg-slate-800 text-[#FFB703] font-black py-4 rounded-2xl text-sm flex justify-center items-center gap-2 shadow-md transition-all active:scale-[0.98] mb-3 border border-[#FFB703]/30 cursor-pointer"
+                >
+                  <Navigation size={18} className="text-[#FFB703]" />
+                  <span>GO TO PICKUP LOCATION (GOOGLE MAPS)</span>
+                </button>
+
+                <button 
                   onClick={() => updateStatus('Arrived at Pickup')} 
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-[#0F172A] to-slate-800 text-white font-black py-4.5 rounded-2xl text-lg flex justify-center items-center gap-2 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-1 transition-all disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-purple-700 to-indigo-800 text-white font-black py-4.5 rounded-2xl text-lg flex justify-center items-center gap-2 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-1 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  Mark 'Arrived at Pickup' <ArrowRight size={20}/>
+                  <span>ARRIVED AT PICKUP LOCATION</span> <ArrowRight size={20}/>
                 </button>
 
                 <button 
@@ -308,11 +323,19 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                 />
                 
                 <button 
-                  onClick={() => verifyOtp(3)} 
+                  onClick={async () => {
+                    await verifyOtp(3);
+                    openTurnByTurnNavigation({
+                      lat: activeJob.dropLocation?.lat,
+                      lng: activeJob.dropLocation?.lng,
+                      address: activeJob.dropLocation?.address || ''
+                    });
+                  }} 
                   disabled={otp.length !== 4 || loading}
-                  className="w-full bg-gradient-to-r from-[#006D77] to-teal-700 text-white font-black py-4.5 rounded-2xl text-lg shadow-[0_8px_20px_-6px_rgba(0,109,119,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(0,109,119,0.6)] hover:-translate-y-1 transition-all disabled:opacity-50 disabled:hover:translate-y-0 mb-4"
+                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black py-4.5 rounded-2xl text-base shadow-md hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 mb-4 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  Verify OTP
+                  <Navigation size={18} />
+                  <span>START RIDE (TO DROP LOCATION)</span>
                 </button>
 
                 <button 
@@ -398,11 +421,25 @@ export default function RiderTaskFlow({ activeJob, onCompleteJob }) {
                 </div>
 
                 <button 
+                  onClick={() => {
+                    openTurnByTurnNavigation({
+                      lat: isHubDrop ? activeJob.metadata?.sourceHub?.lat : activeJob.dropLocation?.lat,
+                      lng: isHubDrop ? activeJob.metadata?.sourceHub?.lng : activeJob.dropLocation?.lng,
+                      address: isHubDrop ? (activeJob.metadata?.sourceHub?.addressLine1 || activeJob.metadata?.sourceHub?.name || 'ZyperGo Hub') : (activeJob.dropLocation?.address || '')
+                    });
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl text-base flex justify-center items-center gap-2 mb-3 shadow-md transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <Navigation size={18} />
+                  <span>START RIDE TO DROP (GOOGLE MAPS)</span>
+                </button>
+
+                <button 
                   onClick={() => updateStatus('Out for Delivery')} 
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-[#0F172A] to-slate-800 text-white font-black py-4.5 rounded-2xl text-lg flex justify-center items-center gap-2 mb-6 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-1 transition-all disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-[#0F172A] to-slate-800 text-white font-black py-4 rounded-2xl text-base flex justify-center items-center gap-2 mb-4 shadow-[0_8px_20px_-6px_rgba(15,23,42,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(15,23,42,0.6)] hover:-translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  Mark 'Arrived at Drop' <ArrowRight size={20}/>
+                  <span>Mark 'Arrived at Drop'</span> <ArrowRight size={18}/>
                 </button>
                 
                 <button 

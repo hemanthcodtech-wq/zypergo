@@ -145,6 +145,7 @@ export default function TrackingTimeline() {
   const [riderLocation, setRiderLocation] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [showArrivalBanner, setShowArrivalBanner] = useState(false);
+  const [arrivalBannerText, setArrivalBannerText] = useState('Your ZyperGo Captain is waiting for you at pickup location.');
   const [liveStatusText, setLiveStatusText] = useState('');
   const socketRef = useRef(null);
   const hasNotifiedArrivalRef = useRef(false);
@@ -180,8 +181,8 @@ export default function TrackingTimeline() {
       });
   };
 
-  // 100-Meter Geofence Arrival Alert Trigger
-  const triggerCaptainArrivedNotification = () => {
+  // 100-Meter Geofence & Captain Arrival Alert Trigger
+  const triggerCaptainArrivedNotification = (customTitle = '🔔 Captain is waiting for you!', customBody = 'Your ZyperGo Captain has arrived at your pickup location. Share OTP to start trip.') => {
     // A. Audio chime using Web Audio API (cross-platform, zero asset dependency)
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -208,8 +209,8 @@ export default function TrackingTimeline() {
       try {
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'CAPTAIN_ARRIVED_NOTIFICATION',
-          title: '🔔 Captain Arrived!',
-          body: 'Your ZyperGo Captain is at your pickup location. Share OTP to start trip.',
+          title: customTitle,
+          body: customBody,
           trackingId
         }));
       } catch (e) {}
@@ -220,8 +221,8 @@ export default function TrackingTimeline() {
       const targetUrl = window.location.pathname.startsWith('/customer') ? '/customer/notifications' : '/notifications';
       const showSystemNotification = () => {
         try {
-          const notif = new Notification('🔔 Captain Arrived!', {
-            body: 'Your ZyperGo Captain is at your pickup location. Share OTP to start trip.',
+          const notif = new Notification(customTitle, {
+            body: customBody,
             icon: '/favicon.ico',
             tag: 'captain-arrived',
             requireInteraction: true
@@ -243,6 +244,7 @@ export default function TrackingTimeline() {
     }
 
     // E. Prominent In-App Heads-up Alert Banner
+    setArrivalBannerText(customBody);
     setShowArrivalBanner(true);
   };
 
@@ -282,6 +284,15 @@ export default function TrackingTimeline() {
         if (data?.status) {
           setBooking(prev => prev ? { ...prev, status: data.status } : prev);
         }
+        fetchBooking();
+      });
+
+      // Real-Time Captain Arrived & Waiting Notification
+      socket.on('captain_arrived_pickup', (data) => {
+        triggerCaptainArrivedNotification(
+          data?.title || '🔔 Captain is waiting for you!',
+          data?.message || 'Your ZyperGo Captain has arrived at your pickup location. Share OTP to start trip.'
+        );
         fetchBooking();
       });
 
@@ -555,8 +566,8 @@ export default function TrackingTimeline() {
               <Bell size={18} className="text-white" />
             </div>
             <div>
-              <h4 className="text-xs font-black tracking-wide">🔔 Captain Arrived!</h4>
-              <p className="text-[10px] text-emerald-100 font-semibold leading-tight">Within 100m at your pickup location. Share OTP to start trip.</p>
+              <h4 className="text-xs font-black tracking-wide">🔔 Captain Alert</h4>
+              <p className="text-[10px] text-emerald-100 font-semibold leading-tight">{arrivalBannerText}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
