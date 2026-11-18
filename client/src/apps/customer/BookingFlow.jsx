@@ -535,8 +535,8 @@ export default function BookingFlow() {
         helpers: {
           needed: Boolean(formData.helpersNeeded),
           count: formData.helpersNeeded ? (Number(formData.helperCount) || 1) : 0,
-          workType: formData.helpersNeeded ? formData.helperWorkType : 'None',
-          ratePerHelper: formData.helpersNeeded ? (formData.helperWorkType === 'Both Load & Unload' ? 350 : 200) : 0,
+          workType: formData.helpersNeeded ? (formData.helperWorkType === 'Both Load & Unload' ? 'Load & Unload' : formData.helperWorkType) : 'None',
+          ratePerHelper: formData.helpersNeeded ? ((formData.helperWorkType === 'Both Load & Unload' || formData.helperWorkType === 'Load & Unload') ? 350 : 200) : 0,
           totalFee: calculatedHelperFee
         },
         pricing: {
@@ -1350,15 +1350,33 @@ export default function BookingFlow() {
                  <button onClick={() => setStep(1)} className="text-[#0052CC] font-bold text-xs uppercase tracking-wider hover:underline">Edit</button>
                </div>
 
-               {/* Pickup Date with Full Calendar Option */}
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-black text-slate-900">Pickup Date</h3>
-                  <label className="text-xs font-bold text-[#0052CC] flex items-center gap-1 cursor-pointer hover:underline bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                    <CalendarIcon size={13} />
-                    <span>Open Calendar</span>
+               {/* Pickup Date - Clean Single Calendar Selection */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-black text-slate-900">Pickup Date</h3>
+                    <span className="text-[11px] font-bold text-slate-500">
+                      Selected: <span className="text-[#0052CC] font-black">{formData.pickupDate || 'Select Date'}</span>
+                    </span>
+                  </div>
+                  <label className="bg-slate-50 border-2 border-dashed border-[#0052CC]/30 hover:border-[#0052CC] rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-2xs cursor-pointer transition-all">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0052CC] flex items-center justify-center shrink-0">
+                        <CalendarIcon size={18} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-slate-900">
+                          {formData.pickupDate || 'Choose Pickup Date'}
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-medium">Tap to open calendar</p>
+                      </div>
+                    </div>
+                    <div className="px-3 py-1.5 bg-[#0052CC] text-white rounded-xl text-xs font-black shadow-xs">
+                      Calendar
+                    </div>
                     <input 
                       type="date"
                       min={new Date().toISOString().split('T')[0]}
+                      defaultValue={new Date().toISOString().split('T')[0]}
                       onChange={(e) => {
                         if (e.target.value) {
                           const d = new Date(e.target.value + 'T00:00:00');
@@ -1370,49 +1388,30 @@ export default function BookingFlow() {
                     />
                   </label>
                 </div>
-
-                <div className="flex gap-2.5 overflow-x-auto pb-2 mb-5 scrollbar-hide whitespace-nowrap">
-                   {[
-                     { label: 'Today', value: 'Today' },
-                     { label: 'Tomorrow', value: 'Tomorrow' },
-                     { label: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
-                     { label: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: new Date(Date.now() + 86400000 * 3).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) },
-                     ...(formData.pickupDate && !['Today', 'Tomorrow'].includes(formData.pickupDate) && !formData.pickupDate.includes(new Date(Date.now() + 86400000 * 2).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })) ? [{ label: '📅 ' + formData.pickupDate, value: formData.pickupDate }] : [])
-                   ].map(date => (
-                     <button 
-                       key={date.value}
-                       type="button"
-                       onClick={() => setFormData(prev => ({ ...prev, pickupDate: date.value }))}
-                       className={'shrink-0 py-2.5 px-5 rounded-xl border text-xs font-bold transition-all cursor-pointer ' + (formData.pickupDate === date.value ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50')}
-                     >
-                       {date.label}
-                     </button>
-                   ))}
-                </div>
             </div>
 
-            <div>
-                {/* Pickup Time with AM / PM & Specific Time Input */}
+            <div className="mb-5">
+                {/* Pickup Time - Clean Single Time Selection (AM / PM) */}
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-black text-slate-900">Pickup Time</h3>
                   <span className="text-[11px] font-bold text-slate-500">
-                    Selected: <span className="text-[#0052CC] font-black">{formData.pickupTimeSlot}</span>
+                    Selected: <span className="text-[#0052CC] font-black">{formData.pickupTimeSlot || 'Select Time'}</span>
                   </span>
                 </div>
 
-                {/* Specific Custom Time Selector (AM / PM) */}
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 mb-3 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-2xs">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#0052CC] flex items-center justify-center shrink-0">
-                      <Clock size={16} />
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0052CC] flex items-center justify-center shrink-0">
+                      <Clock size={18} />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-800">Select Specific Time</p>
-                      <p className="text-[10px] text-slate-400 font-medium">Choose exact hour, minute &amp; AM/PM</p>
+                      <p className="text-xs font-black text-slate-800">Set Exact Time</p>
+                      <p className="text-[10px] text-slate-400 font-medium">Hour, Minute with AM/PM</p>
                     </div>
                   </div>
                   <input 
                     type="time"
+                    defaultValue="10:00"
                     onChange={(e) => {
                       if (e.target.value) {
                         const [hStr, mStr] = e.target.value.split(':');
@@ -1425,22 +1424,8 @@ export default function BookingFlow() {
                         setFormData(prev => ({ ...prev, pickupTimeSlot: formattedTime }));
                       }
                     }}
-                    className="px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-800 shadow-xs outline-none focus:border-[#0052CC] cursor-pointer"
+                    className="px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 shadow-xs outline-none focus:border-[#0052CC] cursor-pointer"
                   />
-                </div>
-
-                {/* Flexible Time Slots */}
-                <div className="grid grid-cols-2 gap-2 mb-5">
-                   {['09:00 AM - 12:00 PM', '12:00 PM - 03:00 PM', '03:00 PM - 06:00 PM', '06:00 PM - 09:00 PM'].map(slot => (
-                     <button 
-                       key={slot}
-                       type="button"
-                       onClick={() => setFormData(prev => ({ ...prev, pickupTimeSlot: slot }))}
-                       className={'py-2.5 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ' + (formData.pickupTimeSlot === slot ? 'bg-[#0052CC] border-[#0052CC] text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-[#0052CC]/50')}
-                     >
-                       {slot}
-                     </button>
-                   ))}
                 </div>
 
                 {/* Loader & Unloader (Hamali) Option for 9ft, 17ft & Commercial Trucks */}

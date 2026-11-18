@@ -14,16 +14,54 @@ exports.getAvailableJobs = async (req, res) => {
     
     if (userId) {
       const user = await User.findById(userId);
-      if (!user?.riderDetails?.isOnline || !user?.riderDetails?.isOnShift) {
+      // Captain is active if isOnline is true and not on break (do not block on legacy isOnShift flag)
+      const isOnline = user?.riderDetails?.isOnline && !user?.riderDetails?.isOnBreak;
+      if (!isOnline) {
         return res.status(200).json({ success: true, data: [] });
       }
       
-      // Filter by the partner's mode & specific vehicle type
+      // Filter by the partner's mode & specific vehicle type with flexible matching
       if (user.riderDetails?.partnerMode === 'Helper') {
         // Independent Helpers see all jobs where loading/unloading assistance is requested
         query['helpers.needed'] = true;
       } else if (user.riderDetails?.vehicleType) {
-        query['metadata.vehicleType'] = user.riderDetails.vehicleType;
+        const vType = (user.riderDetails.vehicleType || '').trim();
+        const lowerV = vType.toLowerCase();
+
+        // 2-Wheeler (Bike / Scooter)
+        if (lowerV.includes('bike') || lowerV.includes('scooter') || lowerV.includes('2-wheeler') || lowerV.includes('two wheeler')) {
+          query['metadata.vehicleType'] = { 
+            $in: ['Scooter', 'Bike', '2 Wheeler', '2-Wheeler', 'Two Wheeler', 'Two-Wheeler', new RegExp('scooter|bike|2-wheeler|two wheeler', 'i')] 
+          };
+        }
+        // 3-Wheeler (Auto / Mini 3W / 3 Wheeler)
+        else if (lowerV.includes('3w') || lowerV.includes('3 wheeler') || lowerV.includes('auto') || lowerV.includes('three wheeler')) {
+          query['metadata.vehicleType'] = { 
+            $in: ['Mini 3W', '3 Wheeler', '3-Wheeler', 'Auto', new RegExp('3 wheeler|mini 3w|auto', 'i')] 
+          };
+        }
+        // Tata Ace
+        else if (lowerV.includes('tata ace') || lowerV.includes('ace')) {
+          query['metadata.vehicleType'] = { $in: ['Tata Ace', new RegExp('tata ace', 'i')] };
+        }
+        // Pickup 8ft
+        else if (lowerV.includes('8ft')) {
+          query['metadata.vehicleType'] = { $in: ['Pickup 8ft', new RegExp('8ft', 'i')] };
+        }
+        // Pickup 9ft
+        else if (lowerV.includes('9ft')) {
+          query['metadata.vehicleType'] = { $in: ['Pickup 9ft', new RegExp('9ft', 'i')] };
+        }
+        // 14ft Truck
+        else if (lowerV.includes('14ft')) {
+          query['metadata.vehicleType'] = { $in: ['14ft', '14ft Truck', new RegExp('14ft', 'i')] };
+        }
+        // 17ft Truck
+        else if (lowerV.includes('17ft')) {
+          query['metadata.vehicleType'] = { $in: ['17ft', '17ft Truck', new RegExp('17ft', 'i')] };
+        } else {
+          query['metadata.vehicleType'] = { $in: [vType, new RegExp(vType, 'i')] };
+        }
       }
     }
     
@@ -517,9 +555,13 @@ exports.updateShift = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    if (isOnline !== undefined) user.riderDetails.isOnline = isOnline;
-    if (isOnShift !== undefined) user.riderDetails.isOnShift = isOnShift;
-    if (isOnBreak !== undefined) user.riderDetails.isOnBreak = isOnBreak;
+    if (!user.riderDetails) user.riderDetails = {};
+    if (isOnline !== undefined) {
+      user.riderDetails.isOnline = !!isOnline;
+      user.riderDetails.isOnShift = !!isOnline; // Keep in sync
+    }
+    if (isOnShift !== undefined) user.riderDetails.isOnShift = !!isOnShift;
+    if (isOnBreak !== undefined) user.riderDetails.isOnBreak = !!isOnBreak;
 
     await user.save();
     

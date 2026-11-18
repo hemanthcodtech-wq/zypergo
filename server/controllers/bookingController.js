@@ -129,15 +129,18 @@ exports.createBooking = async (req, res) => {
     let helperFee = 0;
     if (bookingData.helpers?.needed) {
       const count = Number(bookingData.helpers.count) || 1;
-      const workType = bookingData.helpers.workType || 'Both Load & Unload';
-      const ratePerHelper = (workType === 'Both Load & Unload' || workType === 'Load & Unload') ? 350 : 200;
+      let rawWorkType = bookingData.helpers.workType || 'Load & Unload';
+      if (rawWorkType === 'Both Load & Unload' || rawWorkType === 'Both') rawWorkType = 'Load & Unload';
+      const ratePerHelper = (rawWorkType === 'Load & Unload') ? 350 : 200;
       helperFee = count * ratePerHelper;
+      const helperPayout = Math.round(helperFee * 0.80);
       bookingData.helpers = {
         needed: true,
         count,
-        workType,
+        workType: rawWorkType,
         ratePerHelper,
-        totalFee: helperFee
+        totalFee: helperFee,
+        helperPayout: helperPayout
       };
     } else {
       bookingData.helpers = {
@@ -145,7 +148,8 @@ exports.createBooking = async (req, res) => {
         count: 0,
         workType: 'None',
         ratePerHelper: 0,
-        totalFee: 0
+        totalFee: 0,
+        helperPayout: 0
       };
     }
 
@@ -153,7 +157,7 @@ exports.createBooking = async (req, res) => {
     let baseCharge = isIntracity ? 50 : 200;
     
     let volumetricWeight = 0;
-    if (bookingData.packageDetails.dimensions && bookingData.packageDetails.dimensions.length) {
+    if (bookingData.packageDetails?.dimensions && bookingData.packageDetails.dimensions.length) {
       const { length, width, height } = bookingData.packageDetails.dimensions;
       volumetricWeight = (length * width * height) / 5000;
     }
@@ -168,7 +172,8 @@ exports.createBooking = async (req, res) => {
     }
 
     const totalBeforeSpeed = baseCharge + distanceCharge + weightCharge;
-    const total = bookingData.pricing?.total ? bookingData.pricing.total : (Math.round(totalBeforeSpeed * speedModifier) + helperFee);
+    const calculatedTotal = Math.round(totalBeforeSpeed * speedModifier) + helperFee;
+    const finalTotal = bookingData.pricing?.total ? Number(bookingData.pricing.total) : calculatedTotal;
 
     bookingData.pricing = {
       base: baseCharge,
@@ -176,7 +181,9 @@ exports.createBooking = async (req, res) => {
       weight: weightCharge,
       volumetric: volumetricWeight,
       helperFee: helperFee,
-      total: total
+      riderPayout: Math.round(finalTotal * 0.70),
+      helperPayout: bookingData.helpers?.helperPayout || 0,
+      total: finalTotal
     };
 
     // Tracking & Confirmation Rules

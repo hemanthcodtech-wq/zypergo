@@ -115,21 +115,54 @@ exports.getAllBookings = async (req, res) => {
 exports.updateBookingAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body; // e.g., { status, assignedPartner }
+    const updates = req.body;
 
-    const booking = await Booking.findByIdAndUpdate(id, updates, { new: true });
-    
+    const booking = await Booking.findById(id);
+    if (!booking) return res.status(404).json({ success: false, error: 'Booking not found' });
+
+    if (updates.pricing) {
+      booking.pricing = { ...(booking.pricing?.toObject() || {}), ...updates.pricing };
+    }
+    if (updates.helpers) {
+      booking.helpers = { ...(booking.helpers?.toObject() || {}), ...updates.helpers };
+    }
+    if (updates.helperPayout !== undefined) {
+      if (!booking.pricing) booking.pricing = {};
+      booking.pricing.helperPayout = Number(updates.helperPayout);
+      if (!booking.helpers) booking.helpers = {};
+      booking.helpers.helperPayout = Number(updates.helperPayout);
+    }
+    if (updates.riderPayout !== undefined) {
+      if (!booking.pricing) booking.pricing = {};
+      booking.pricing.riderPayout = Number(updates.riderPayout);
+    }
+    if (updates.totalPrice !== undefined) {
+      if (!booking.pricing) booking.pricing = {};
+      booking.pricing.total = Number(updates.totalPrice);
+    }
+    if (updates.paymentStatus) {
+      if (!booking.payment) booking.payment = {};
+      booking.payment.status = updates.paymentStatus;
+    }
     if (updates.status) {
-       booking.trackingHistory.push({
-         status: updates.status,
-         description: 'Updated by Admin manually.'
-       });
-       await booking.save();
+      booking.status = updates.status;
+      booking.trackingHistory.push({
+        status: updates.status,
+        description: updates.description || 'Updated by Admin manually.'
+      });
     }
 
+    // Apply any other top-level fields
+    Object.keys(updates).forEach(key => {
+      if (!['pricing', 'helpers', 'helperPayout', 'riderPayout', 'totalPrice', 'paymentStatus', 'status'].includes(key)) {
+        booking[key] = updates[key];
+      }
+    });
+
+    await booking.save();
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to update booking' });
+    res.status(500).json({ success: false, error: 'Failed to update booking', details: error.message });
   }
 };
 

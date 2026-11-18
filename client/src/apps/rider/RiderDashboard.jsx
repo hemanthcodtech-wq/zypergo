@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Truck, Navigation, CheckCircle2, MapPin, Package, AlertTriangle, Bell, Settings, Phone, Camera, ArrowRight, ShieldCheck, Clock, LayoutDashboard, Wallet, User as UserIcon, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import api from '../../api';
 import RiderTaskFlow from './RiderTaskFlow';
 import RiderHeader from './RiderHeader';
 import { reverseGeocode } from '../../utils/locationService';
 
-export default function RiderDashboard({ user, onLogout }) {
+export default function RiderDashboard({ user, onLogout, onStatusChange }) {
   const [availableJobs, setAvailableJobs] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
   const [activeJob, setActiveJob] = useState(null);

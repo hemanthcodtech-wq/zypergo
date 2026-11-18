@@ -70,14 +70,17 @@ const bookingSchema = new mongoose.Schema({
     weight: { type: Number, default: 0 },
     volumetric: { type: Number, default: 0 },
     helperFee: { type: Number, default: 0 },
+    riderPayout: { type: Number, default: 0 },
+    helperPayout: { type: Number, default: 0 },
     total: { type: Number, default: 0 }
   },
   helpers: {
     needed: { type: Boolean, default: false },
     count: { type: Number, default: 0 },
-    workType: { type: String, enum: ['Load Only', 'Unload Only', 'Load & Unload', 'None'], default: 'None' },
+    workType: { type: String, enum: ['Load Only', 'Unload Only', 'Load & Unload', 'Both Load & Unload', 'None'], default: 'None' },
     ratePerHelper: { type: Number, default: 0 },
-    totalFee: { type: Number, default: 0 }
+    totalFee: { type: Number, default: 0 },
+    helperPayout: { type: Number, default: 0 }
   },
   deliveryMode: {
     type: String,

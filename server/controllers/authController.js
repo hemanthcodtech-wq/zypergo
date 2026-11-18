@@ -85,9 +85,11 @@ exports.sendOtp = async (req, res) => {
       if (!user.riderDetails) user.riderDetails = {};
       if (riderDetails.vehicleType) user.riderDetails.vehicleType = riderDetails.vehicleType;
       if (riderDetails.partnerMode) user.riderDetails.partnerMode = riderDetails.partnerMode;
-      user.riderDetails.approvalStatus = 'Pending';
-      user.riderDetails.isOnline = false;
-      user.riderDetails.isOnShift = false;
+      if (!user.riderDetails.approvalStatus || user.riderDetails.approvalStatus === 'Pending') {
+        user.riderDetails.approvalStatus = 'Approved'; // Instant activation
+      }
+      user.riderDetails.isOnline = true;
+      user.riderDetails.isOnShift = true;
     }
     
     await user.save();
@@ -464,7 +466,7 @@ exports.riderApply = async (req, res) => {
             documents: docs,
             approvalStatus: 'Approved',
             isOnline: true,
-            isOnShift: false
+            isOnShift: true
           }
         });
       }
@@ -799,7 +801,7 @@ exports.googleLogin = async (req, res) => {
           riderDetails: {
             approvalStatus: 'Approved',
             isOnline: true,
-            isOnShift: false
+            isOnShift: true
           }
         } : {})
       });

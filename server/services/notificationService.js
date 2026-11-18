@@ -37,8 +37,14 @@ class NotificationService {
     const authKey = process.env.MSG91_AUTH_KEY;
     const templateId = process.env.MSG91_TEMPLATE_ID;
 
-    // Extract OTP digits if not explicitly passed
-    const otpCode = otp || (message && message.match(/\d{4,6}/) ? message.match(/\d{4,6}/)[0] : '1234');
+    // Strictly require explicit OTP parameter for OTP SMS dispatch
+    // Do NOT regex-extract digits from arbitrary message text (which turned tracking IDs into fake OTPs!)
+    if (!otp) {
+      console.log(`[SMS] General SMS notification (suppressed MSG91 OTP flow to avoid sending tracking number as OTP): ${message}`);
+      return { success: true, suppressed: true };
+    }
+
+    const otpCode = String(otp);
 
     if (!authKey || !templateId) {
       console.warn(`[SMS][MSG91] Credentials missing. Mock sent to ${cleanPhone}: ${message}`);

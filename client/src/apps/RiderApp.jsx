@@ -64,7 +64,14 @@ function RiderLayout({ children, onLogout, user }) {
 
 export default function RiderApp() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('zypergo_token'));
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('zypergo_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -75,6 +82,23 @@ export default function RiderApp() {
     setIsAuthenticated(false);
     setUser(null);
     navigate(isPrefix ? '/rider/login' : '/login', { replace: true });
+  };
+
+  const handleUserStatusChange = (statusUpdates) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = {
+        ...prev,
+        riderDetails: {
+          ...(prev.riderDetails || {}),
+          ...statusUpdates
+        }
+      };
+      try {
+        localStorage.setItem('zypergo_user', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   useEffect(() => {
@@ -88,8 +112,16 @@ export default function RiderApp() {
              const userId = u.id || u._id;
              const res = await api.get(`/rider/me?userId=${userId}`);
              if (res.data.success) {
-                setUser(res.data.data);
-                localStorage.setItem('zypergo_user', JSON.stringify(res.data.data));
+                // Preserve local online status if active to avoid resetting to offline
+                const serverData = res.data.data;
+                const localIsOnline = u.riderDetails?.isOnline;
+                if (localIsOnline && !serverData.riderDetails?.isOnline) {
+                  serverData.riderDetails.isOnline = true;
+                  serverData.riderDetails.isOnShift = true;
+                  api.post('/rider/shift', { userId, isOnline: true, isOnShift: true, isOnBreak: false }).catch(() => {});
+                }
+                setUser(serverData);
+                localStorage.setItem('zypergo_user', JSON.stringify(serverData));
              }
           }
         } catch (err) {
@@ -117,7 +149,7 @@ export default function RiderApp() {
     <ProtectedRoute requiredRole="Rider">
       <RiderLayout onLogout={handleClearAuth} user={user}>
         {approvalStatus === 'Approved' ? (
-          <RiderDashboard user={user} onLogout={handleClearAuth} />
+          <RiderDashboard user={user} onLogout={handleClearAuth} onStatusChange={handleUserStatusChange} />
         ) : (
           <div className="min-h-full bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
             <div className="bg-white p-6 rounded-2xl shadow-lg max-w-sm w-full">

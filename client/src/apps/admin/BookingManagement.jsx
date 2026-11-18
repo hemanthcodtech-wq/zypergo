@@ -19,6 +19,52 @@ export default function BookingManagement() {
   // Transit Form
   const [transitData, setTransitData] = useState({ carrierName: '', vehicleNumber: '', dispatchTime: '', arrivalTime: '' });
 
+  // Pricing & Helper Payout Edit State
+  const [isEditingPricing, setIsEditingPricing] = useState(false);
+  const [pricingFormData, setPricingFormData] = useState({
+    totalPrice: 0,
+    riderPayout: 0,
+    helperPayout: 0,
+    paymentStatus: 'Completed'
+  });
+  const [savingPricing, setSavingPricing] = useState(false);
+
+  useEffect(() => {
+    if (selectedBooking) {
+      setPricingFormData({
+        totalPrice: selectedBooking.pricing?.total || 0,
+        riderPayout: selectedBooking.pricing?.riderPayout || Math.round((selectedBooking.pricing?.total || 0) * 0.7),
+        helperPayout: selectedBooking.helpers?.helperPayout || selectedBooking.pricing?.helperPayout || selectedBooking.helpers?.totalFee || 0,
+        paymentStatus: selectedBooking.payment?.status || 'Completed'
+      });
+      setIsEditingPricing(false);
+    }
+  }, [selectedBooking]);
+
+  const handleSavePricing = async (e) => {
+    e.preventDefault();
+    if (!selectedBooking) return;
+    setSavingPricing(true);
+    try {
+      const res = await api.put(`/admin/bookings/${selectedBooking._id}`, {
+        totalPrice: Number(pricingFormData.totalPrice),
+        riderPayout: Number(pricingFormData.riderPayout),
+        helperPayout: Number(pricingFormData.helperPayout),
+        paymentStatus: pricingFormData.paymentStatus
+      });
+      if (res.data?.success) {
+        setSelectedBooking(res.data.data);
+        fetchBookings();
+        setIsEditingPricing(false);
+        alert('Pricing and Helper Payout updated successfully!');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update pricing');
+    } finally {
+      setSavingPricing(false);
+    }
+  };
+
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -297,6 +343,126 @@ export default function BookingManagement() {
                 )}
               </div>
             )}
+
+            {/* Pricing & Payouts Management (Rider & Helper) */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5">
+                  <FileText size={14} className="text-[#006D77]" /> Pricing &amp; Payouts (Rider &amp; Helper)
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPricing(!isEditingPricing)}
+                  className="px-2.5 py-1 text-xs font-black rounded-lg border border-[#006D77] text-[#006D77] hover:bg-[#006D77]/10 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Edit2 size={12} />
+                  <span>{isEditingPricing ? 'Cancel' : 'Edit Payouts'}</span>
+                </button>
+              </div>
+
+              {isEditingPricing ? (
+                <form onSubmit={handleSavePricing} className="bg-white p-4 rounded-xl border border-amber-300 shadow-sm space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                        Total Order Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={pricingFormData.totalPrice}
+                        onChange={(e) => setPricingFormData({ ...pricingFormData, totalPrice: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-black text-slate-900 outline-none focus:border-[#006D77]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                        Rider Payout (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={pricingFormData.riderPayout}
+                        onChange={(e) => setPricingFormData({ ...pricingFormData, riderPayout: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-black text-slate-900 outline-none focus:border-[#006D77]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                        Helper Payout (Hamali ₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={pricingFormData.helperPayout}
+                        onChange={(e) => setPricingFormData({ ...pricingFormData, helperPayout: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-black text-slate-900 outline-none focus:border-[#006D77]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-600 uppercase mb-1">
+                        Payment Status
+                      </label>
+                      <select
+                        value={pricingFormData.paymentStatus}
+                        onChange={(e) => setPricingFormData({ ...pricingFormData, paymentStatus: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 outline-none focus:border-[#006D77] cursor-pointer"
+                      >
+                        <option value="Completed">Completed (Paid)</option>
+                        <option value="Pending">Pending (COD Unpaid)</option>
+                        <option value="Cash Collected">Cash Collected</option>
+                        <option value="Failed">Failed</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPricing(false)}
+                      className="flex-1 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingPricing}
+                      className="flex-1 py-2 rounded-lg bg-[#006D77] hover:bg-[#00555d] text-white text-xs font-black cursor-pointer disabled:opacity-50 shadow-xs"
+                    >
+                      {savingPricing ? 'Saving...' : 'Save Pricing & Payout'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-bold">Total Customer Price:</span>
+                    <span className="font-black text-slate-900 text-sm">₹{selectedBooking.pricing?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <span className="text-slate-500 font-bold">Rider Payout:</span>
+                    <span className="font-black text-emerald-700">₹{selectedBooking.pricing?.riderPayout || Math.round((selectedBooking.pricing?.total || 0) * 0.7)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <div>
+                      <span className="text-slate-500 font-bold">Helper Payout (Hamali):</span>
+                      {selectedBooking.helpers?.needed && (
+                        <p className="text-[10px] text-slate-400 font-semibold">{selectedBooking.helpers?.count} helper(s) · {selectedBooking.helpers?.workType}</p>
+                      )}
+                    </div>
+                    <span className="font-black text-amber-700">₹{selectedBooking.helpers?.helperPayout || selectedBooking.pricing?.helperPayout || selectedBooking.helpers?.totalFee || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-bold">Payment Mode / Status:</span>
+                    <span className="font-bold text-slate-800">
+                      {selectedBooking.payment?.mode || 'UPI'} · <span className={selectedBooking.payment?.status === 'Completed' ? 'text-emerald-600 font-black' : 'text-amber-600 font-black'}>{selectedBooking.payment?.status || 'Pending'}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Package Details */}
             <div>

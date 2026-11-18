@@ -770,7 +770,8 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
                   </div>
                 </div>
 
-                {/* Register Helpers Under Captain (Optional) */}
+                {/* Register Helpers Under Captain (Only for 3-Wheeler and Trucks; Hidden for 2-Wheeler / Bike) */}
+                {!['scooter', 'bike', '2-wheeler'].some((s) => (vehicleType || '').toLowerCase().includes(s)) && (
                 <div className="pt-3 border-t border-slate-100 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-black text-slate-900 uppercase tracking-wider">
@@ -884,6 +885,7 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
 

@@ -708,20 +708,44 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
 
               {/* Registered Vehicle Type - ONLY single user selected vehicle */}
               <div>
-                <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1.5">
-                  Vehicle Type
-                </label>
-                <div className="flex items-center gap-3 p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl">
-                  <div className="w-10 h-10 rounded-xl bg-[#FFB703] text-slate-950 flex items-center justify-center shrink-0 shadow-xs font-black">
-                    {getVehicleIcon(editForm.vehicleType || currentVehicleType)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-black text-slate-900 capitalize">{editForm.vehicleType || currentVehicleType || 'Bike'}</h4>
-                    <p className="text-[10px] text-amber-800 font-semibold">Registered vehicle during signup</p>
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-wider bg-white text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={10} /> Verified
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                    Select Delivery Vehicle
+                  </label>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                    Selected: {editForm.vehicleType || currentVehicleType}
                   </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {[
+                    { id: 'Scooter', name: 'Scooter / Bike', cap: 'Up to 20 kg' },
+                    { id: 'Mini 3W', name: 'Mini 3W', cap: 'Up to 90 kg' },
+                    { id: '3 Wheeler', name: '3 Wheeler', cap: 'Up to 500 kg' },
+                    { id: 'Tata Ace', name: 'Tata Ace', cap: 'Up to 750 kg' },
+                    { id: 'Pickup 8ft', name: 'Pickup 8ft', cap: 'Up to 1200 kg' },
+                    { id: 'Pickup 9ft', name: 'Pickup 9ft', cap: 'Up to 1700 kg' },
+                    { id: '14ft Truck', name: '14ft Truck', cap: 'Up to 2500 kg' },
+                    { id: '17ft Truck', name: '17ft Truck', cap: 'Up to 4000 kg' }
+                  ].map((v) => {
+                    const isSelected = (editForm.vehicleType || currentVehicleType) === v.id || 
+                      ((editForm.vehicleType || currentVehicleType) === 'Bike' && v.id === 'Scooter');
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setEditForm(prev => ({ ...prev, vehicleType: v.id }))}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-50 border-amber-500 shadow-xs ring-2 ring-amber-400/40 text-slate-900 font-black'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <p className="text-xs font-black truncate">{v.name}</p>
+                        <p className="text-[9px] text-slate-400 font-medium">{v.cap}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1102,7 +1126,8 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
           </button>
         </div>
 
-        {/* Registered Helpers Under Captain */}
+        {/* Registered Helpers Under Captain (Hidden for 2-Wheeler / Bike) */}
+        {!['scooter', 'bike', '2-wheeler'].some((s) => (currentVehicleType || '').toLowerCase().includes(s)) && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -1210,6 +1235,7 @@ export default function RiderProfile({ user: initialUser, onLogout }) {
             </div>
           )}
         </div>
+        )}
         </>
         )}
 
