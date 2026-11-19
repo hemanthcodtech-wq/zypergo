@@ -13,6 +13,9 @@ function App() {
       if (width < 340 && width > 40) {
         const baseWidth = 380;
         const scale = width / baseWidth;
+        root.style.position = 'fixed';
+        root.style.top = '0';
+        root.style.left = '0';
         root.style.width = `${baseWidth}px`;
         root.style.height = `${Math.round(height / scale)}px`;
         root.style.transform = `scale(${scale})`;
@@ -22,6 +25,9 @@ function App() {
         document.documentElement.style.overflow = 'hidden';
         document.body.classList.add('pip-mode-active');
       } else {
+        root.style.position = '';
+        root.style.top = '';
+        root.style.left = '';
         root.style.width = '';
         root.style.height = '';
         root.style.transform = '';

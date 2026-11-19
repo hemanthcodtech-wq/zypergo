@@ -10,7 +10,17 @@ const { upsertHelperAccount } = require('../utils/partnerHelper');
 exports.getAvailableJobs = async (req, res) => {
   try {
     const { userId } = req.query;
-    let query = { status: { $in: ['Booking Confirmed', 'Pending', 'Relay Handoff Pending', 'Transhipment Pending'] } };
+    // Only fetch unassigned, active bookings created within the last 15 minutes
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+    let query = { 
+      status: { $in: ['Booking Confirmed', 'Pending', 'Relay Handoff Pending', 'Transhipment Pending'] },
+      $or: [
+        { createdAt: { $gte: fifteenMinutesAgo } },
+        { status: { $in: ['Relay Handoff Pending', 'Transhipment Pending'] } }
+      ],
+      assignedRider: null,
+      currentRider: null
+    };
     
     if (userId) {
       const user = await User.findById(userId);

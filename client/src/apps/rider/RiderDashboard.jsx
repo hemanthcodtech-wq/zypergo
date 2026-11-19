@@ -14,20 +14,32 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
   
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  const getInitialOnlineState = () => {
+    const storedOnline = localStorage.getItem('zypergo_captain_online');
+    if (storedOnline !== null) {
+      return storedOnline === 'true';
+    }
+    return user?.riderDetails?.isOnline || false;
+  };
+
   const [riderDetails, setRiderDetails] = useState({
-    isOnline: user?.riderDetails?.isOnline || false,
+    isOnline: getInitialOnlineState(),
     isOnBreak: user?.riderDetails?.isOnBreak || false,
-    isOnShift: user?.riderDetails?.isOnShift || false
+    isOnShift: getInitialOnlineState()
   });
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user?.riderDetails) {
-      setRiderDetails({
-        isOnline: user.riderDetails.isOnline || false,
+      const storedOnline = localStorage.getItem('zypergo_captain_online');
+      const isOnlineVal = storedOnline !== null ? storedOnline === 'true' : (user.riderDetails.isOnline || false);
+      setRiderDetails(prev => ({
+        ...prev,
+        isOnline: isOnlineVal,
         isOnBreak: user.riderDetails.isOnBreak || false,
-        isOnShift: user.riderDetails.isOnShift || false
-      });
+        isOnShift: isOnlineVal
+      }));
     }
   }, [user]);
 
@@ -279,6 +291,46 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
     };
   }, [user?._id]);
 
+  // Real-time cancellation & order removal listener
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+    const socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('join_available_riders');
+      const userId = user?._id || user?.id;
+      if (userId) {
+        socket.emit('join_rider', { riderId: userId });
+      }
+    });
+
+    const handleCancelledOrRemoved = (data) => {
+      const bId = data?.bookingId;
+      const tId = data?.trackingId;
+      if (bId || tId) {
+        setAvailableJobs((prev) => prev.filter((j) => String(j._id) !== String(bId) && String(j.trackingId) !== String(tId)));
+        setActiveJob((prev) => {
+          if (prev && (String(prev._id) === String(bId) || String(prev.trackingId) === String(tId))) {
+            return null;
+          }
+          return prev;
+        });
+      }
+      // Stop buzzer audio immediately if playing
+      stopBuzzer();
+      fetchJobs();
+    };
+
+    socket.on('booking_cancelled', handleCancelledOrRemoved);
+    socket.on('booking_removed', handleCancelledOrRemoved);
+    socket.on('booking_accepted_by_other', handleCancelledOrRemoved);
+    socket.on('new_job_available', () => fetchJobs());
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?._id, user?.id]);
+
   const handleStatusUpdate = async (newStatus, payload = {}) => {
     if (!activeJob) return;
     setLoading(true);
@@ -441,7 +493,11 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
           onLogout={onLogout}
           onShowEarnings={() => {}}
           onStatusChange={(status) => {
+            if (status.isOnline !== undefined) {
+              localStorage.setItem('zypergo_captain_online', status.isOnline ? 'true' : 'false');
+            }
             setRiderDetails((prev) => ({ ...prev, ...status }));
+            if (onStatusChange) onStatusChange(status);
             fetchJobs();
           }}
         />
@@ -594,7 +650,11 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
         onLogout={onLogout} 
         onShowEarnings={() => {}} 
         onStatusChange={(status) => {
+          if (status.isOnline !== undefined) {
+            localStorage.setItem('zypergo_captain_online', status.isOnline ? 'true' : 'false');
+          }
           setRiderDetails(prev => ({ ...prev, ...status }));
+          if (onStatusChange) onStatusChange(status);
           fetchJobs();
         }} 
       />

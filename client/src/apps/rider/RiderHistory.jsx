@@ -123,35 +123,31 @@ export default function RiderHistory({ user }) {
     fetchRiderHistory();
   }, []);
 
-  // 1. Start Ride to Pickup -> Open Turn-by-Turn GPS Navigation & Update Status to Rider On the Way
-  const handleStartRideToPickup = async (ride) => {
+  // 1. Start Ride to Pickup -> Open Turn-by-Turn GPS Navigation IMMEDIATELY on first click!
+  const handleStartRideToPickup = (ride) => {
     const pickupAddr = ride.pickupLocation?.address || '';
     const lat = ride.pickupLocation?.lat;
     const lng = ride.pickupLocation?.lng;
 
-    setActionLoading(true);
-    try {
-      if (ride.status === 'Rider Assigned') {
-        await api.post(`/rider/jobs/${ride._id}/update-status`, {
-          status: 'Rider On the Way',
-          reason: 'Captain started navigation to pickup location',
-          userId: user?._id || user?.id
-        });
-        await fetchRiderHistory();
-      }
-      openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
-      setActionSuccessNotice('Starting Turn-by-Turn Navigation to Pickup!');
-      setTimeout(() => setActionSuccessNotice(''), 3500);
-    } catch (err) {
-      openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
-    } finally {
-      setActionLoading(false);
+    // Instant Navigation on first touch
+    openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
+    setActionSuccessNotice('Starting Turn-by-Turn Navigation to Pickup!');
+    setTimeout(() => setActionSuccessNotice(''), 3500);
+
+    // Sync status in background
+    if (ride.status === 'Rider Assigned') {
+      api.post(`/rider/jobs/${ride._id}/update-status`, {
+        status: 'Rider On the Way',
+        reason: 'Captain started navigation to pickup location',
+        userId: user?._id || user?.id
+      }).then(() => fetchRiderHistory()).catch(() => {});
     }
   };
 
   // 1B. Arrived at Pickup Location -> Updates status to 'Arrived at Pickup' and alerts customer
   const handleArrivedAtPickup = async (ride) => {
     setActionLoading(true);
+    setActionSuccessNotice('Alerting Customer of Arrival...');
     try {
       const res = await api.post(`/rider/jobs/${ride._id}/update-status`, {
         status: 'Arrived at Pickup',
@@ -160,14 +156,13 @@ export default function RiderHistory({ user }) {
       });
       if (res.data?.success) {
         setActionSuccessNotice('Arrived at Pickup! Customer has been notified.');
-        setTimeout(() => setActionSuccessNotice(''), 3500);
         await fetchRiderHistory();
       }
     } catch (err) {
       setActionSuccessNotice(err.response?.data?.error || 'Failed to update status');
-      setTimeout(() => setActionSuccessNotice(''), 3500);
     } finally {
       setActionLoading(false);
+      setTimeout(() => setActionSuccessNotice(''), 3500);
     }
   };
 
@@ -211,29 +206,24 @@ export default function RiderHistory({ user }) {
     }
   };
 
-  // 3. Start Ride to Drop Location -> Open Turn-by-Turn GPS Navigation & Update Status to In Transit
-  const handleStartRideToDrop = async (ride) => {
+  // 3. Start Ride to Drop Location -> Open Turn-by-Turn GPS Navigation IMMEDIATELY on first click!
+  const handleStartRideToDrop = (ride) => {
     const dropAddr = ride.dropLocation?.address || '';
     const lat = ride.dropLocation?.lat;
     const lng = ride.dropLocation?.lng;
 
-    setActionLoading(true);
-    try {
-      if (ride.status === 'Picked Up') {
-        await api.post(`/rider/jobs/${ride._id}/update-status`, {
-          status: 'In Transit',
-          reason: 'Rider navigating to drop destination',
-          userId: user?._id || user?.id
-        });
-        await fetchRiderHistory();
-      }
-      openTurnByTurnNavigation({ lat, lng, address: dropAddr });
-      setActionSuccessNotice('Starting Turn-by-Turn Navigation to Drop Location!');
-      setTimeout(() => setActionSuccessNotice(''), 3500);
-    } catch (err) {
-      openTurnByTurnNavigation({ lat, lng, address: dropAddr });
-    } finally {
-      setActionLoading(false);
+    // Instant Navigation on first touch
+    openTurnByTurnNavigation({ lat, lng, address: dropAddr });
+    setActionSuccessNotice('Starting Turn-by-Turn Navigation to Drop Location!');
+    setTimeout(() => setActionSuccessNotice(''), 3500);
+
+    // Sync status in background
+    if (ride.status === 'Picked Up') {
+      api.post(`/rider/jobs/${ride._id}/update-status`, {
+        status: 'In Transit',
+        reason: 'Rider navigating to drop destination',
+        userId: user?._id || user?.id
+      }).then(() => fetchRiderHistory()).catch(() => {});
     }
   };
 

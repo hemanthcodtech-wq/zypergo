@@ -432,20 +432,21 @@ exports.cancelBooking = async (req, res) => {
       const socketService = require('../socket');
       const io = socketService.getIO();
       if (io) {
-        if (previousRiderId) {
-          io.to(`rider_${previousRiderId}`).emit('booking_cancelled', {
-            bookingId: booking._id,
-            trackingId: booking.trackingId,
-            message: 'Order has been cancelled by the customer.'
-          });
-        }
-        io.to(`booking_${booking._id}`).emit('booking_cancelled', {
+        const payload = {
           bookingId: booking._id,
-          trackingId: booking.trackingId
-        });
-        io.to('available_riders').emit('booking_removed', {
-          bookingId: booking._id
-        });
+          trackingId: booking.trackingId,
+          message: 'Order has been cancelled by the customer.'
+        };
+
+        if (previousRiderId) {
+          io.to(`rider_${previousRiderId}`).emit('booking_cancelled', payload);
+        }
+        io.to(`booking_${booking._id}`).emit('booking_cancelled', payload);
+        io.to(`track_${booking.trackingId}`).emit('booking_cancelled', payload);
+        io.to('available_riders').emit('booking_removed', payload);
+        io.to('available_riders').emit('booking_cancelled', payload);
+        io.emit('booking_cancelled', payload);
+        io.emit('booking_removed', payload);
       }
     } catch (sErr) {
       console.warn('Socket broadcast warning on cancel:', sErr.message);

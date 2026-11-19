@@ -73,8 +73,43 @@ h1, h2, h3, h4, h5, h6 {
     height: 100vh;
   }
 }
+/* Instant Mobile Touch & Zero-Delay Tap Optimization */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, [role="button"], a, input, select, textarea {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+
+/* Picture-in-Picture Floating Mode Layout Guard */
 .pip-mode-active {
   overflow: hidden !important;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.pip-mode-active #root {
+  width: 380px !important;
+  min-width: 380px !important;
+  max-width: 380px !important;
+  transform-origin: top left !important;
+}
+
+/* In PiP mode, prevent horizontal wrapping and jumbled bottom navigation */
+.pip-mode-active nav,
+.pip-mode-active header,
+.pip-mode-active footer {
+  width: 380px !important;
+  white-space: nowrap !important;
+}
+
+.pip-mode-active nav span,
+.pip-mode-active header span {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* Custom Global Scrollbar */
