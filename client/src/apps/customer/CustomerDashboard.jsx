@@ -10,24 +10,11 @@ import L from 'leaflet';
 import api from '../../api';
 import { reverseGeocode } from '../../utils/locationService';
 import PinLocationModal from '../../components/common/PinLocationModal';
+import { createLiveVehicleMarkerIcon } from '../../utils/mapVehicleIcons';
 
-// Custom Rapido-style captain bike icon
-const createRiderIcon = (heading = 45) => {
-  return L.divIcon({
-    className: 'custom-rider-icon',
-    html: `
-      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;" class="relative flex items-center justify-center">
-        <div style="background: linear-gradient(135deg, #FDB813, #F59E0B); box-shadow: 0 4px 10px rgba(0,0,0,0.25);" class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-slate-900">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-          </svg>
-        </div>
-        <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white"></span>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-  });
+// Custom dynamic captain vehicle icon (Bike, 3W, Tata Ace, Truck)
+const createRiderIcon = (heading = 45, vehicleType = 'Bike') => {
+  return createLiveVehicleMarkerIcon(vehicleType, heading, 34);
 };
 
 // Pulsing user beacon icon
@@ -348,7 +335,7 @@ export default function CustomerDashboard() {
               <Marker
                 key={c.id || idx}
                 position={[c.lat, c.lng]}
-                icon={createRiderIcon(45 + (idx * 60) % 360)}
+                icon={createRiderIcon(45 + (idx * 60) % 360, c.vehicleType)}
               >
                 <Popup>
                   <div className="text-xs p-1">

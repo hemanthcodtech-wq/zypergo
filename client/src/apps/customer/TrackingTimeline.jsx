@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { io } from 'socket.io-client';
 import api from '../../api';
+import { createLiveVehicleMarkerIcon, getVehicleConfig } from '../../utils/mapVehicleIcons';
 
 // Custom Leaflet Icons for Rapido-like Live Tracking
 const createCustomPinIcon = (label, bgHex) => L.divIcon({
@@ -35,59 +36,8 @@ const createCustomPinIcon = (label, bgHex) => L.divIcon({
 const pickupPinIcon = createCustomPinIcon('A', '#16A34A');
 const dropPinIcon = createCustomPinIcon('B', '#DC2626');
 
-// Rapido Captain Moving Vehicle (Bike/Scooter) Marker with Live Radar Ring
-const captainVehicleIcon = L.divIcon({
-  className: 'captain-moving-bike-marker',
-  html: `
-    <div style="position: relative; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;">
-      <!-- Pulsating Radar Ring -->
-      <div style="
-        position: absolute;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: rgba(0, 82, 204, 0.25);
-        animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-      "></div>
-
-      <!-- Vehicle Circle -->
-      <div style="
-        position: relative;
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: #0052CC;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.5);
-        border: 2.5px solid white;
-      ">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="18.5" cy="17.5" r="3.5"/>
-          <circle cx="5.5" cy="17.5" r="3.5"/>
-          <circle cx="15" cy="5" r="1"/>
-          <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
-        </svg>
-
-        <!-- Live Online Dot -->
-        <span style="
-          position: absolute;
-          top: -2px;
-          right: -2px;
-          width: 11px;
-          height: 11px;
-          background: #22C55E;
-          border-radius: 50%;
-          border: 2px solid white;
-        "></span>
-      </div>
-    </div>
-  `,
-  iconSize: [46, 46],
-  iconAnchor: [23, 23]
-});
+// Rapido Captain Moving Vehicle (Bike/Scooter/Auto/Truck) Marker with Live Radar Ring
+const captainVehicleIcon = createLiveVehicleMarkerIcon('Bike');
 
 // Haversine formula to calculate accurate real-time distance in kilometers
 function calculateHaversineKm(lat1, lon1, lat2, lon2) {
@@ -683,19 +633,31 @@ export default function TrackingTimeline() {
             </Marker>
           )}
 
-          {/* LIVE MOVING VEHICLE (Rapido Captain Bike/Scooter Marker) */}
-          {riderLocation && riderLocation.lat && riderLocation.lng && (
-            <Marker position={[riderLocation.lat, riderLocation.lng]} icon={captainVehicleIcon}>
-              <Popup>
-                <div className="text-xs font-sans">
-                  <p className="font-black text-[#0052CC] flex items-center gap-1">
-                    <span>🏍️ {booking.currentRider?.name || 'ZyperGo Captain'}</span>
-                  </p>
-                  <p className="text-slate-500 text-[10px] mt-0.5 font-bold">🟢 Moving Live on Route</p>
-                </div>
-              </Popup>
-            </Marker>
-          )}
+          {/* LIVE MOVING VEHICLE (Dynamic Vehicle Marker: Bike, 3W, Tata Ace, Truck) */}
+          {riderLocation && riderLocation.lat && riderLocation.lng && (() => {
+            const rawVehicleType = booking?.metadata?.vehicleType || 
+              (booking?.currentRider || booking?.assignedRider)?.riderDetails?.vehicleType || 
+              booking?.packageDetails?.vehicleType || 
+              'Bike';
+            const vConf = getVehicleConfig(rawVehicleType);
+            const dynamicIcon = createLiveVehicleMarkerIcon(rawVehicleType, 0, 48);
+
+            return (
+              <Marker position={[riderLocation.lat, riderLocation.lng]} icon={dynamicIcon}>
+                <Popup>
+                  <div className="text-xs font-sans p-1">
+                    <p className="font-black text-slate-900 flex items-center gap-1.5 text-sm">
+                      <span>{vConf.emoji}</span>
+                      <span>{booking.currentRider?.name || booking.assignedRider?.name || 'ZyperGo Captain'}</span>
+                    </p>
+                    <p className="text-slate-500 text-[11px] mt-0.5 font-bold">
+                      {vConf.displayName} &bull; <span className="text-emerald-600 font-bold">Live Moving</span>
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })()}
         </MapContainer>
 
         {/* Floating Top Controls */}
