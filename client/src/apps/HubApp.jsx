@@ -63,6 +63,16 @@ export default function HubApp() {
           <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/hub-login" element={
+        <PublicRoute requiredRole="HubManager">
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/hublogin" element={
+        <PublicRoute requiredRole="HubManager">
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
 
       {/* Protected Routes */}
       <Route path="/dashboard" element={renderDashboard()}>

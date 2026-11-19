@@ -95,7 +95,23 @@ function AppRouter() {
       return 'hub';
     }
 
-    // 3. Check path prefix directly (e.g. /admin, /customer, /rider, /hub)
+    // 3. Direct clean URL paths (e.g. /admin, /hub, /customer, /rider)
+    if (pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/admin-login' || pathname === '/adminlogin') {
+      sessionStorage.setItem('zypergo_portal', 'admin');
+      return 'admin';
+    }
+    if (pathname === '/hub' || pathname.startsWith('/hub/') || pathname === '/hub-login' || pathname === '/hublogin') {
+      sessionStorage.setItem('zypergo_portal', 'hub');
+      return 'hub';
+    }
+    if (pathname === '/rider' || pathname.startsWith('/rider/') || pathname === '/captain' || pathname.startsWith('/captain/') || pathname === '/rider-login') {
+      sessionStorage.setItem('zypergo_portal', 'rider');
+      return 'rider';
+    }
+    if (pathname === '/customer' || pathname.startsWith('/customer/') || pathname === '/customer-login') {
+      sessionStorage.setItem('zypergo_portal', 'customer');
+      return 'customer';
+    }
     for (const portal of validPortals) {
       if (pathname === `/${portal}` || pathname.startsWith(`/${portal}/`)) {
         sessionStorage.setItem('zypergo_portal', portal);

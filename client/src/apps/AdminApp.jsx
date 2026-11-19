@@ -63,6 +63,16 @@ function AdminApp() {
           <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
+      <Route path="/admin-login" element={
+        <PublicRoute requiredRole="SuperAdmin">
+          <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/adminlogin" element={
+        <PublicRoute requiredRole="SuperAdmin">
+          <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
       <Route path="/login" element={
         <PublicRoute requiredRole="SuperAdmin">
           <AdminLoginScreen onLoginSuccess={handleLoginSuccess} />
