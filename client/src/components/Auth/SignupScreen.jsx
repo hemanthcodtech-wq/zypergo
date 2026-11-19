@@ -49,6 +49,7 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
+  const [hubName, setHubName] = useState('');
 
   // Rider Vehicle State
   const [vehicleType, setVehicleType] = useState('Scooter');
@@ -74,10 +75,11 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
 
   const isPrefixCustomer = window.location.pathname.startsWith('/customer');
   const isPrefixRider = window.location.pathname.startsWith('/rider');
+  const isPrefixHub = window.location.pathname.startsWith('/hub') || role === 'HubManager';
   const loginModeQuery = partnerMode === 'Helper' ? 'helper' : 'captain';
   const loginUrl = role === 'Rider' 
     ? `${isPrefixRider ? '/rider/login' : '/login'}?mode=${loginModeQuery}` 
-    : (isPrefixCustomer ? '/customer/login' : '/login');
+    : (isPrefixHub ? '/hub/login' : (isPrefixCustomer ? '/customer/login' : '/login'));
 
   const handleHelperPhotoUpload = async (e, idx) => {
     const file = e.target.files?.[0];
@@ -242,13 +244,15 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
           navigate(loginUrl);
         }
       } else {
-        // Customer Account Creation
+        // Customer or HubManager Account Creation
+        const effectiveRole = (role === 'HubManager' || isPrefixHub) ? 'HubManager' : 'Customer';
         const res = await api.post('/auth/register', {
           name,
           email,
           phone,
           profilePhoto,
-          role: 'Customer'
+          role: effectiveRole,
+          hubName: effectiveRole === 'HubManager' ? hubName : undefined
         });
 
         const data = res.data;
@@ -256,7 +260,7 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
           localStorage.setItem('zypergo_token', data.token);
           localStorage.setItem('zypergo_user', JSON.stringify(data.data));
           if (onLoginSuccess) onLoginSuccess(data.data);
-          else navigate('/dashboard');
+          else navigate(effectiveRole === 'HubManager' ? '/hub/dashboard' : '/dashboard');
         } else {
           navigate(loginUrl);
         }
@@ -290,25 +294,35 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
           <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-[11px] font-black tracking-wide mb-2 ${
             role === 'Rider' && partnerMode === 'Helper'
               ? 'bg-teal-50 text-[#006D77] border-teal-200'
+              : role === 'HubManager' || isPrefixHub
+              ? 'bg-orange-50 text-[#EA580C] border-orange-200'
               : 'bg-blue-50 text-[#0052CC] border-blue-200'
           }`}>
             <span>
               {role === 'Rider'
                 ? (partnerMode === 'Helper' ? 'Helper Partner Onboarding' : 'Captain Partner Onboarding')
+                : role === 'HubManager' || isPrefixHub
+                ? 'Hub Manager Onboarding'
                 : 'Customer Account Creation'}
             </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 leading-tight">
             {role === 'Rider'
               ? (partnerMode === 'Helper' ? 'Join as Helper with' : 'Drive & Earn with')
+              : role === 'HubManager' || isPrefixHub
+              ? 'Register as Hub Manager at'
               : 'Create Account on'}<br />
-            <span className="text-[#FF6B00]">ZyperGo Logistics.</span>
+            <span className={role === 'HubManager' || isPrefixHub ? 'text-[#EA580C]' : 'text-[#FF6B00]'}>
+              {role === 'HubManager' || isPrefixHub ? 'ZyperGo Logistics Hub.' : 'ZyperGo Logistics.'}
+            </span>
           </h1>
           <p className="text-slate-500 text-[11px] font-semibold mt-1">
             {role === 'Rider' 
               ? (partnerMode === 'Helper'
                   ? 'Register for parcel loading and unloading work and access your dedicated Helper panel.'
                   : 'Complete onboarding with vehicle details and optionally register helpers under you.')
+              : role === 'HubManager' || isPrefixHub
+              ? 'Create your Hub Manager credentials to operate scanning, bag sorting, vehicle manifests, and hub dispatch.'
               : 'Enter your details below to create your account and book shipments.'}
           </p>
         </div>
@@ -484,6 +498,26 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
                 />
               </div>
             </div>
+
+            {/* Hub Name (For Hub Managers) */}
+            {(role === 'HubManager' || isPrefixHub) && (
+              <div>
+                <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                  Hub Name / Location
+                </label>
+                <div className="relative">
+                  <Package className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                  <input 
+                    type="text" 
+                    value={hubName} 
+                    onChange={(e) => setHubName(e.target.value)} 
+                    placeholder="e.g. Hyderabad Central Hub or Warangal Hub" 
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#EA580C] outline-none font-semibold text-xs text-slate-900 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Helper Specific Fields */}
             {role === 'Rider' && partnerMode === 'Helper' && (
@@ -896,6 +930,8 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
               className={`w-full font-black py-3.5 rounded-xl shadow-md active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm mt-3 cursor-pointer ${
                 role === 'Rider' 
                   ? (partnerMode === 'Helper' ? 'bg-[#006D77] hover:bg-[#00555d] text-white' : 'bg-black hover:bg-slate-800 text-[#FFB703]')
+                  : role === 'HubManager' || isPrefixHub
+                  ? 'bg-[#EA580C] hover:bg-[#C2410C] text-white'
                   : 'bg-[#0052CC] hover:bg-[#0047cc] text-white'
               }`}
             >
@@ -909,6 +945,8 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
                   <span>
                     {role === 'Rider'
                       ? (partnerMode === 'Helper' ? 'Create Helper Account' : 'Submit & Create Captain Account')
+                      : role === 'HubManager' || isPrefixHub
+                      ? 'Create Hub Manager Account'
                       : 'Create Customer Account'}
                   </span>
                   <ArrowRight size={17} />
@@ -929,6 +967,8 @@ export default function SignupScreen({ role = 'Customer', initialMode = null, on
               <span>
                 Log In to {role === 'Rider'
                   ? (partnerMode === 'Helper' ? 'Helper Partner Portal' : 'Captain Partner Portal')
+                  : role === 'HubManager' || isPrefixHub
+                  ? 'Hub Manager Portal'
                   : 'Customer Account'}
               </span>
               <ArrowRight size={13} />

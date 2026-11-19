@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import HubManagerDashboard from './hub/HubManagerDashboard';
 import LoginScreen from '../components/Auth/LoginScreen';
+import SignupScreen from '../components/Auth/SignupScreen';
 import HubWelcome from './hub/HubWelcome';
 import { ProtectedRoute, PublicRoute } from '../components/Auth/RouteGuards';
 import HubScan from './hub/HubScan';
@@ -39,12 +40,12 @@ export default function HubApp() {
       {/* Public Routes */}
       <Route path="/" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
         </PublicRoute>
       } />
       <Route path="/hub" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
         </PublicRoute>
       } />
       <Route path="/hub/welcome" element={
@@ -55,22 +56,44 @@ export default function HubApp() {
       
       <Route path="/login" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
         </PublicRoute>
       } />
       <Route path="/hub/login" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
         </PublicRoute>
       } />
       <Route path="/hub-login" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
         </PublicRoute>
       } />
       <Route path="/hublogin" element={
         <PublicRoute requiredRole="HubManager">
-          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+          <LoginScreen role="HubManager" onLoginSuccess={handleLoginSuccess} hideSwitchRole={true} />
+        </PublicRoute>
+      } />
+
+      {/* Hub Signup Routes */}
+      <Route path="/hub/signup" element={
+        <PublicRoute requiredRole="HubManager">
+          <SignupScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/hub-signup" element={
+        <PublicRoute requiredRole="HubManager">
+          <SignupScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/hubsignup" element={
+        <PublicRoute requiredRole="HubManager">
+          <SignupScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
+        </PublicRoute>
+      } />
+      <Route path="/signup" element={
+        <PublicRoute requiredRole="HubManager">
+          <SignupScreen role="HubManager" onLoginSuccess={handleLoginSuccess} />
         </PublicRoute>
       } />
 

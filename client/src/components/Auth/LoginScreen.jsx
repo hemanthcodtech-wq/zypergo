@@ -224,10 +224,18 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
 
   const isPrefixCustomer = window.location.pathname.startsWith('/customer');
   const isPrefixRider = window.location.pathname.startsWith('/rider');
-  const loginBasePath = isPrefixRider ? '/rider/login' : '/login';
-  const signupUrl = role === 'Rider' 
-    ? `${isPrefixRider ? '/rider/signup' : '/signup'}?mode=${effectiveRiderLoginMode}` 
-    : (isPrefixCustomer ? '/customer/signup' : '/signup');
+  const isPrefixHub = window.location.pathname.startsWith('/hub') || role === 'HubManager';
+  const loginBasePath = isPrefixRider ? '/rider/login' : (isPrefixHub ? '/hub/login' : '/login');
+  let signupUrl = '/signup';
+  if (role === 'Rider') {
+    signupUrl = `${isPrefixRider ? '/rider/signup' : '/signup'}?mode=${effectiveRiderLoginMode}`;
+  } else if (role === 'HubManager' || isPrefixHub) {
+    signupUrl = '/hub/signup';
+  } else if (isPrefixCustomer) {
+    signupUrl = '/customer/signup';
+  }
+
+  const shouldHideSwitchRole = hideSwitchRole || role === 'HubManager' || isPrefixHub || role === 'SuperAdmin';
 
   const isEmail = identifier.includes('@');
 
@@ -455,7 +463,7 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2" />
           <div className="flex items-center gap-2">
-            {!hideSwitchRole && window.location.port !== '8081' && window.location.port !== '8082' && (
+            {!shouldHideSwitchRole && window.location.port !== '8081' && window.location.port !== '8082' && (
               <button 
                 type="button"
                 onClick={handleSwitchRole}
@@ -621,19 +629,27 @@ export default function LoginScreen({ role = 'Customer', partnerMode = null, onL
               {/* Bottom Sign Up Link / Button as requested */}
               <div className="mt-5 pt-3.5 border-t border-slate-100 text-center">
                 <p className="text-xs text-slate-500 font-semibold">
-                  {role === 'Customer' ? "Don't have a Customer account?" : (role === 'Rider' ? "New to ZyperGo Fleet?" : "Don't have an account?")}
+                  {role === 'Customer'
+                    ? "Don't have a Customer account?"
+                    : role === 'Rider'
+                    ? "New to ZyperGo Fleet?"
+                    : role === 'HubManager' || isPrefixHub
+                    ? "Need Hub Manager Access?"
+                    : "Don't have an account?"}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate(signupUrl)}
                   className="mt-2 inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 text-xs font-black transition-all active:scale-[0.98] shadow-xs cursor-pointer"
                 >
-                  <UserPlus size={15} className={isHelperLogin ? 'text-[#006D77]' : 'text-[#FF6B00]'} />
+                  <UserPlus size={15} className={role === 'HubManager' || isPrefixHub ? 'text-[#EA580C]' : isHelperLogin ? 'text-[#006D77]' : 'text-[#FF6B00]'} />
                   <span>
                     {role === 'Customer'
                       ? 'New Customer Sign Up'
                       : role === 'Rider'
                         ? (isHelperLogin ? 'Register as New Helper (Sign Up)' : 'Apply as New Captain (Sign Up)')
+                        : role === 'HubManager' || isPrefixHub
+                        ? 'Register as New Hub Manager'
                         : 'Create New Account'}
                   </span>
                   <ArrowRight size={14} className="text-slate-400" />

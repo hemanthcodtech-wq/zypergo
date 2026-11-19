@@ -100,7 +100,7 @@ function AppRouter() {
       sessionStorage.setItem('zypergo_portal', 'admin');
       return 'admin';
     }
-    if (pathname === '/hub' || pathname.startsWith('/hub/') || pathname === '/hub-login' || pathname === '/hublogin') {
+    if (pathname === '/hub' || pathname.startsWith('/hub/') || pathname === '/hub-login' || pathname === '/hublogin' || pathname === '/hub-signup' || pathname === '/hubsignup') {
       sessionStorage.setItem('zypergo_portal', 'hub');
       return 'hub';
     }
