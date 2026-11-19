@@ -8,13 +8,30 @@ import {
 import api from '../../api';
 
 const TABS = [
+  { id: 'vehicles', label: 'Vehicle Per-Km Pricing', icon: Truck },
   { id: 'rules', label: 'Pricing Rules', icon: Settings },
   { id: 'simulator', label: 'Price Simulator', icon: Calculator },
   { id: 'partner-costs', label: 'Partner Costs', icon: DollarSign }
 ];
 
 export default function FinancePricing() {
-  const [activeTab, setActiveTab] = useState('rules');
+  const [activeTab, setActiveTab] = useState('vehicles');
+
+  // Vehicle Per-Km Pricing State
+  const [vehicles, setVehicles] = useState([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(true);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
+  const [vehicleFormData, setVehicleFormData] = useState({
+    baseFare: 50,
+    baseKm: 3,
+    perKm: 7,
+    helperFee: 0,
+    minimumCharge: 50,
+    maxWeight: 20,
+    isActive: true
+  });
+  const [savingVehicle, setSavingVehicle] = useState(false);
 
   // Rules Tab State
   const [rules, setRules] = useState([]);
@@ -40,9 +57,52 @@ export default function FinancePricing() {
   const [simLoading, setSimLoading] = useState(false);
 
   useEffect(() => {
+    if (activeTab === 'vehicles') fetchVehicles();
     if (activeTab === 'rules') fetchRules();
     if (activeTab === 'simulator') handleSimulate();
   }, [activeTab]);
+
+  const fetchVehicles = async () => {
+    setVehiclesLoading(true);
+    try {
+      const res = await api.get('/pricing/vehicles');
+      setVehicles(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch vehicle pricing:', err);
+    } finally {
+      setVehiclesLoading(false);
+    }
+  };
+
+  const openVehicleModal = (veh) => {
+    setEditingVehicle(veh);
+    setVehicleFormData({
+      baseFare: veh.baseFare ?? 50,
+      baseKm: veh.baseKm ?? 3,
+      perKm: veh.perKm ?? 7,
+      helperFee: veh.helperFee ?? 0,
+      minimumCharge: veh.minimumCharge ?? veh.baseFare ?? 50,
+      maxWeight: veh.maxWeight ?? 20,
+      isActive: veh.isActive !== false
+    });
+    setShowVehicleModal(true);
+  };
+
+  const handleSaveVehicle = async (e) => {
+    e.preventDefault();
+    if (!editingVehicle) return;
+    setSavingVehicle(true);
+    try {
+      const targetId = editingVehicle._id || editingVehicle.vehicleType;
+      await api.put(`/pricing/vehicles/${targetId}`, vehicleFormData);
+      setShowVehicleModal(false);
+      fetchVehicles();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update vehicle pricing');
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
 
   const fetchRules = async () => {
     setRulesLoading(true);
@@ -126,6 +186,102 @@ export default function FinancePricing() {
           ))}
         </div>
       </div>
+
+      {/* ═══ TAB: VEHICLE PER-KM PRICING ═══ */}
+      {activeTab === 'vehicles' && (
+        <div className="space-y-4 animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-2xl shadow-sm border border-slate-200 gap-3">
+            <div>
+              <h2 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                <Truck size={20} className="text-[#0052CC]" /> Vehicle Per-KM Pricing &amp; Base Rates
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Set base fare, free included distance, per-km rate, and helper fees. Changes reflect instantly on customer ride booking and estimation.
+              </p>
+            </div>
+            <button 
+              onClick={fetchVehicles} 
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+            >
+              <RefreshCcw size={14} className={vehiclesLoading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
+
+          {vehiclesLoading ? (
+            <div className="py-16 flex justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {vehicles.map(veh => {
+                const isBike = veh.vehicleType === 'Scooter';
+                const isAuto = veh.vehicleType.includes('3W') || veh.vehicleType.includes('3 Wheeler');
+                const isTruck = veh.vehicleType.includes('14ft') || veh.vehicleType.includes('17ft');
+                const emoji = isBike ? '🛵' : isAuto ? '🛺' : isTruck ? '🚚' : '🛻';
+                const badgeColor = isBike ? 'bg-amber-50 text-amber-700 border-amber-200' : isAuto ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : isTruck ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200';
+
+                return (
+                  <div key={veh._id || veh.vehicleType} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition">
+                    <div className="p-4 border-b border-slate-100 flex items-start justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="text-2xl p-2 rounded-xl bg-slate-50 border border-slate-100">
+                          {emoji}
+                        </div>
+                        <div>
+                          <h3 className="font-black text-slate-900 text-sm">{veh.displayName || veh.vehicleType}</h3>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                            Max {veh.maxWeight} kg
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${veh.isActive !== false ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                        {veh.isActive !== false ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 space-y-3 flex-1">
+                      <div className="grid grid-cols-2 gap-2 pb-3 border-b border-slate-100 text-center">
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          <p className="text-[10px] uppercase font-bold text-slate-400">Base Fare</p>
+                          <p className="text-lg font-black text-slate-900">₹{veh.baseFare ?? 50}</p>
+                          <p className="text-[9px] text-slate-500 font-medium">first {veh.baseKm ?? 3} km included</p>
+                        </div>
+                        <div className="bg-blue-50/60 p-2.5 rounded-xl border border-blue-100">
+                          <p className="text-[10px] uppercase font-bold text-[#0052CC]">Per Extra KM</p>
+                          <p className="text-lg font-black text-[#0052CC]">₹{veh.perKm ?? 7} <span className="text-[10px] font-normal">/km</span></p>
+                          <p className="text-[9px] text-blue-600 font-medium">after {veh.baseKm ?? 3} km</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs text-slate-600">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 font-bold">Helper / Labour:</span>
+                          <span className="font-bold text-slate-800">{veh.helperFee ? `₹${veh.helperFee}` : isBike ? 'N/A (2W)' : '₹0 (Free)'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 font-bold">Minimum Charge:</span>
+                          <span className="font-bold text-slate-800">₹{veh.minimumCharge || veh.baseFare || 50}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 font-bold">Avg Arrival ETA:</span>
+                          <span className="font-bold text-slate-800">{veh.etaText || '10 mins'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50/80 border-t border-slate-100">
+                      <button 
+                        onClick={() => openVehicleModal(veh)} 
+                        className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition active:scale-98 shadow-2xs cursor-pointer"
+                      >
+                        <Edit2 size={13} className="text-[#0052CC]" /> Edit Rates
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══ TAB: RULES ═══ */}
       {activeTab === 'rules' && (
@@ -358,6 +514,138 @@ export default function FinancePricing() {
           <h2 className="text-xl font-bold text-slate-900 mb-2">Partner Rate Sheets</h2>
           <p className="text-slate-500 max-w-md mx-auto">Future integration: Upload Excel sheets of 3PL partner rates here to automatically update internal cost bases.</p>
         </div>
+      )}
+
+      {/* ═══ MODAL: EDIT VEHICLE PRICING ═══ */}
+      {showVehicleModal && editingVehicle && createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4 mt-0 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95">
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
+              <div className="flex items-center gap-2">
+                <Truck size={18} className="text-[#0052CC]" />
+                <h3 className="font-black text-slate-900 text-base">Edit {editingVehicle.displayName || editingVehicle.vehicleType} Rates</h3>
+              </div>
+              <button onClick={() => setShowVehicleModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveVehicle} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Base Fare (₹)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    required
+                    value={vehicleFormData.baseFare} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, baseFare: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Minimum base rate</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Included Base KMs</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    required
+                    value={vehicleFormData.baseKm} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, baseKm: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Covered in Base Fare</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Rate Per Extra KM (₹)</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    required
+                    value={vehicleFormData.perKm} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, perKm: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Charged after base kms</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Helper / Labour Fee (₹)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={vehicleFormData.helperFee} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, helperFee: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Loading/unloading fee</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Minimum Total Trip (₹)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={vehicleFormData.minimumCharge} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, minimumCharge: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Floor price</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Max Payload (KG)</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={vehicleFormData.maxWeight} 
+                    onChange={e => setVehicleFormData({ ...vehicleFormData, maxWeight: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#0052CC]/20 focus:border-[#0052CC] outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 font-medium">Weight limit</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <input 
+                  type="checkbox" 
+                  id="vehActive"
+                  checked={vehicleFormData.isActive} 
+                  onChange={e => setVehicleFormData({ ...vehicleFormData, isActive: e.target.checked })} 
+                  className="w-4 h-4 accent-[#0052CC] rounded cursor-pointer"
+                />
+                <label htmlFor="vehActive" className="text-xs font-bold text-slate-700 cursor-pointer">
+                  Vehicle Available for Customer Booking
+                </label>
+              </div>
+
+              <div className="flex gap-2.5 pt-3">
+                <button 
+                  type="button" 
+                  onClick={() => setShowVehicleModal(false)} 
+                  className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={savingVehicle}
+                  className="flex-1 py-2.5 text-xs font-black text-white bg-[#0052CC] hover:bg-blue-700 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {savingVehicle ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                  <span>Save Rates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal: Rule Editor */}

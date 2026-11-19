@@ -220,14 +220,20 @@ function calcDistanceKm(c1, c2) {
   return Math.max(1, Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))));
 }
 
-function getRecommendedVehicle(weightStr) {
+function getRecommendedVehicle(weightStr, vehicleList = DELIVERY_VEHICLES) {
   const w = parseFloat(weightStr) || 5;
-  return DELIVERY_VEHICLES.find((v) => v.maxKg >= w) || DELIVERY_VEHICLES[DELIVERY_VEHICLES.length - 1];
+  return vehicleList.find((v) => v.maxKg >= w) || vehicleList[vehicleList.length - 1];
 }
 
 function getVehicleEstimatedPrice(vehicleObj, distanceKm) {
-  const extraKm = Math.max(0, (distanceKm || 5) - 5);
-  return Math.round(vehicleObj.baseFare + extraKm * vehicleObj.perKm);
+  if (!vehicleObj) return 50;
+  const baseKm = vehicleObj.baseKm ?? 3;
+  const baseFare = vehicleObj.baseFare ?? 50;
+  const perKm = vehicleObj.perKm ?? 7;
+  const dist = distanceKm || baseKm;
+  const extraKm = Math.max(0, dist - baseKm);
+  const calculated = baseFare + (extraKm * perKm);
+  return Math.max(vehicleObj.minimumCharge || baseFare, Math.round(calculated));
 }
 
 function BookingHeader({ title, onBack }) {
@@ -258,6 +264,36 @@ export default function BookingFlow() {
   const [vehicleDetailModal, setVehicleDetailModal] = useState(null);
   const [assignCountdown, setAssignCountdown] = useState(120);
   const [liveBookingState, setLiveBookingState] = useState(null);
+  const [availableVehicles, setAvailableVehicles] = useState(DELIVERY_VEHICLES);
+
+  // Fetch Dynamic Vehicle Pricing from Backend Database
+  useEffect(() => {
+    api.get('/pricing/public-vehicles')
+      .then(res => {
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const dbList = res.data.data;
+          setAvailableVehicles(prev => prev.map(localV => {
+            const matched = dbList.find(d => d.vehicleType === localV.id);
+            if (matched) {
+              return {
+                ...localV,
+                displayName: matched.displayName || localV.displayName,
+                baseFare: matched.baseFare ?? localV.baseFare,
+                baseKm: matched.baseKm ?? localV.baseKm ?? 3,
+                perKm: matched.perKm ?? localV.perKm,
+                helperFee: matched.helperFee ?? localV.helperFee ?? 0,
+                minimumCharge: matched.minimumCharge ?? matched.baseFare ?? localV.baseFare,
+                maxKg: matched.maxWeight ?? localV.maxKg,
+                weightLabel: `Up to ${matched.maxWeight || localV.maxKg} kg`,
+                isActive: matched.isActive !== false
+              };
+            }
+            return localV;
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Rapido-Style Captain Assignment Timer, Instant Socket Listener & Auto Polling
   useEffect(() => {
@@ -493,7 +529,7 @@ export default function BookingFlow() {
   };
 
   useEffect(() => {
-    const selectedVeh = DELIVERY_VEHICLES.find((v) => v.id === formData.vehicle) || DELIVERY_VEHICLES[0];
+    const selectedVeh = availableVehicles.find((v) => v.id === formData.vehicle) || availableVehicles[0];
     const distKm = calcDistanceKm(pickupCoords, dropCoords);
     setEstimatedFare(getVehicleEstimatedPrice(selectedVeh, distKm));
 
@@ -1036,8 +1072,8 @@ export default function BookingFlow() {
 
       {step === 2 && (() => {
         const distanceKm = calcDistanceKm(pickupCoords, dropCoords);
-        const recommendedVehicle = getRecommendedVehicle(formData.weight);
-        const selectedVehicle = DELIVERY_VEHICLES.find((v) => v.id === formData.vehicle) || recommendedVehicle;
+        const recommendedVehicle = getRecommendedVehicle(formData.weight, availableVehicles);
+        const selectedVehicle = availableVehicles.find((v) => v.id === formData.vehicle) || recommendedVehicle;
         const selectedPrice = getVehicleEstimatedPrice(selectedVehicle, distanceKm);
 
         return (
@@ -1173,7 +1209,7 @@ export default function BookingFlow() {
 
               {/* 2-Vehicles-In-A-Row Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                {DELIVERY_VEHICLES.map((veh) => {
+                {availableVehicles.filter(veh => veh.isActive !== false).map((veh) => {
                   const isSelected = selectedVehicle.id === veh.id;
                   const isRecommended = recommendedVehicle.id === veh.id;
                   const price = getVehicleEstimatedPrice(veh, distanceKm);

@@ -1,4 +1,101 @@
 const PricingRule = require('../models/PricingRule');
+const VehicleConfig = require('../models/VehicleConfig');
+
+const DEFAULT_VEHICLES = [
+  { vehicleType: 'Scooter', displayName: 'Scooter (Bike)', maxWeight: 20, baseFare: 50, baseKm: 3, perKm: 7, helperFee: 0, minimumCharge: 50, etaText: '10 mins', dimensions: '45 × 35 × 35 cm', bestFor: 'Documents, food boxes & small urgent parcels' },
+  { vehicleType: 'Mini 3W', displayName: 'Mini 3W', maxWeight: 90, baseFare: 90, baseKm: 4, perKm: 9, helperFee: 100, minimumCharge: 90, etaText: '5 mins', dimensions: '110 × 90 × 90 cm', bestFor: 'Multiple cartons & medium home appliances' },
+  { vehicleType: '3 Wheeler', displayName: '3 Wheeler (Auto)', maxWeight: 500, baseFare: 160, baseKm: 4, perKm: 14, helperFee: 150, minimumCharge: 160, etaText: '5 mins', dimensions: '170 × 125 × 125 cm', bestFor: 'Bulk retail stock & wholesale crates' },
+  { vehicleType: 'Tata Ace', displayName: 'Tata Ace', maxWeight: 750, baseFare: 280, baseKm: 5, perKm: 18, helperFee: 250, minimumCharge: 280, etaText: '10 mins', dimensions: '215 × 145 × 140 cm', bestFor: 'Home shifting, furniture & commercial goods' },
+  { vehicleType: 'Pickup 8ft', displayName: 'Pickup 8ft', maxWeight: 1200, baseFare: 420, baseKm: 5, perKm: 22, helperFee: 300, minimumCharge: 420, etaText: '10 mins', dimensions: '245 × 150 × 150 cm', bestFor: 'Hardware, machinery & distributor dispatches' },
+  { vehicleType: 'Pickup 9ft', displayName: 'Pickup 9ft', maxWeight: 1700, baseFare: 520, baseKm: 5, perKm: 26, helperFee: 350, minimumCharge: 520, etaText: '10 mins', dimensions: '275 × 160 × 160 cm', bestFor: 'Heavy B2B cargo & warehouse transfers' },
+  { vehicleType: '14ft', displayName: '14ft Truck', maxWeight: 3500, baseFare: 800, baseKm: 10, perKm: 32, helperFee: 400, minimumCharge: 800, etaText: '15 mins', dimensions: '425 × 200 × 200 cm', bestFor: 'Large industrial freight & full loads' },
+  { vehicleType: '17ft', displayName: '17ft Truck', maxWeight: 6000, baseFare: 1200, baseKm: 10, perKm: 42, helperFee: 500, minimumCharge: 1200, etaText: '20 mins', dimensions: '520 × 215 × 215 cm', bestFor: 'Heavy intercity/intracity truckloads' }
+];
+
+async function ensureDefaultVehicles() {
+  const existing = await VehicleConfig.find();
+  if (!existing || existing.length === 0) {
+    await VehicleConfig.insertMany(DEFAULT_VEHICLES);
+    return await VehicleConfig.find().sort({ maxWeight: 1 });
+  }
+  for (const def of DEFAULT_VEHICLES) {
+    const found = existing.find(e => e.vehicleType === def.vehicleType);
+    if (!found) {
+      await VehicleConfig.create(def);
+    } else if (found.baseFare === undefined || found.perKm === undefined) {
+      found.baseFare = def.baseFare;
+      found.baseKm = def.baseKm || 3;
+      found.perKm = def.perKm;
+      found.helperFee = def.helperFee || 0;
+      found.minimumCharge = def.minimumCharge || def.baseFare;
+      found.displayName = found.displayName || def.displayName;
+      found.etaText = found.etaText || def.etaText;
+      found.dimensions = found.dimensions || def.dimensions;
+      found.bestFor = found.bestFor || def.bestFor;
+      await found.save();
+    }
+  }
+  return await VehicleConfig.find().sort({ maxWeight: 1 });
+}
+
+// --- DYNAMIC VEHICLE PER-KM PRICING CONTROLLERS ---
+
+// 1. GET ALL VEHICLE PRICING (Admin & Internal)
+exports.getVehiclePricing = async (req, res) => {
+  try {
+    const configs = await ensureDefaultVehicles();
+    res.status(200).json({ success: true, data: configs });
+  } catch (err) {
+    console.error('[Pricing getVehiclePricing]', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch vehicle pricing configs.' });
+  }
+};
+
+// 2. GET PUBLIC VEHICLE PRICING (Customer App)
+exports.getVehiclePricingPublic = async (req, res) => {
+  try {
+    const configs = await ensureDefaultVehicles();
+    res.status(200).json({ success: true, data: configs });
+  } catch (err) {
+    console.error('[Pricing getVehiclePricingPublic]', err);
+    res.status(200).json({ success: true, data: DEFAULT_VEHICLES });
+  }
+};
+
+// 3. UPDATE VEHICLE PRICING (Admin)
+exports.updateVehiclePricing = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { baseFare, baseKm, perKm, helperFee, minimumCharge, maxWeight, isActive, displayName, etaText, bestFor } = req.body;
+
+    let config = await VehicleConfig.findById(id);
+    if (!config) {
+      // Try searching by vehicleType
+      config = await VehicleConfig.findOne({ vehicleType: id });
+    }
+    if (!config) {
+      return res.status(404).json({ success: false, error: 'Vehicle config not found.' });
+    }
+
+    if (baseFare !== undefined) config.baseFare = Number(baseFare);
+    if (baseKm !== undefined) config.baseKm = Number(baseKm);
+    if (perKm !== undefined) config.perKm = Number(perKm);
+    if (helperFee !== undefined) config.helperFee = Number(helperFee);
+    if (minimumCharge !== undefined) config.minimumCharge = Number(minimumCharge);
+    if (maxWeight !== undefined) config.maxWeight = Number(maxWeight);
+    if (isActive !== undefined) config.isActive = Boolean(isActive);
+    if (displayName) config.displayName = displayName;
+    if (etaText) config.etaText = etaText;
+    if (bestFor) config.bestFor = bestFor;
+    config.configuredBy = req.user?.name || 'Super Admin';
+
+    await config.save();
+    res.status(200).json({ success: true, message: 'Vehicle pricing updated successfully.', data: config });
+  } catch (err) {
+    console.error('[Pricing updateVehiclePricing]', err);
+    res.status(500).json({ success: false, error: 'Failed to update vehicle pricing.' });
+  }
+};
 
 // --- GET ALL RULES ---
 exports.getRules = async (req, res) => {

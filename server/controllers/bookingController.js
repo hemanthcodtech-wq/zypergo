@@ -153,8 +153,13 @@ exports.createBooking = async (req, res) => {
       };
     }
 
-    // Pricing Calculation (Mock logic)
-    let baseCharge = isIntracity ? 50 : 200;
+    // Dynamic Vehicle Pricing Calculation from VehicleConfig in DB
+    const vConfig = await VehicleConfig.findOne({ vehicleType });
+    let baseCharge = vConfig?.baseFare || (isIntracity ? 50 : 200);
+    const baseKm = vConfig?.baseKm || (isIntracity ? 3 : 10);
+    const perKmRate = vConfig?.perKm || (isIntracity ? 7 : 15);
+    const extraKm = Math.max(0, distance - baseKm);
+    const distanceCharge = Math.round(extraKm * perKmRate);
     
     let volumetricWeight = 0;
     if (bookingData.packageDetails?.dimensions && bookingData.packageDetails.dimensions.length) {
@@ -163,8 +168,7 @@ exports.createBooking = async (req, res) => {
     }
     
     const chargeableWeight = Math.max(actualWeight, volumetricWeight);
-    const distanceCharge = distance * (isIntracity ? 10 : 3);
-    const weightCharge = chargeableWeight * 15;
+    const weightCharge = chargeableWeight > (vConfig?.maxWeight || 50) ? (chargeableWeight - (vConfig?.maxWeight || 50)) * 10 : 0;
     
     let speedModifier = 1;
     if (bookingData.preferences && bookingData.preferences.speed === 'Express') {
