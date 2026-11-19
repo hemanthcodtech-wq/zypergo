@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import RiderDashboard from './rider/RiderDashboard';
 import RiderProfile from './rider/RiderProfile';
 import RiderSettings from './rider/RiderSettings';
@@ -100,6 +101,67 @@ export default function RiderApp() {
       return updated;
     });
   };
+
+  // Persistent Global High-Accuracy GPS Tracker (Rapido/Swiggy Live Location Engine)
+  useEffect(() => {
+    const userId = user?._id || user?.id;
+    if (!isAuthenticated || !userId) return;
+
+    let socket = null;
+    try {
+      socket = io({
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 15
+      });
+
+      socket.on('connect', () => {
+        socket.emit('join_rider', { riderId: userId });
+      });
+    } catch (e) {}
+
+    let watchId = null;
+    let lastSent = 0;
+
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const heading = pos.coords.heading || 0;
+          const now = Date.now();
+
+          // Throttle network pings to once every 2.5 seconds for fluid real-time tracking
+          if (now - lastSent >= 2500) {
+            lastSent = now;
+            // 1. Instant zero-latency socket broadcast to tracking room
+            if (socket && socket.connected) {
+              socket.emit('location_update', {
+                riderId: userId,
+                lat,
+                lng,
+                heading
+              });
+            }
+            // 2. Background DB sync
+            api.post('/rider/location', { userId, lat, lng }).catch(() => {});
+          }
+        },
+        (err) => console.warn('[GPS] Watch position notice:', err.message),
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 6000 }
+      );
+    }
+
+    return () => {
+      if (watchId !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [isAuthenticated, user?._id, user?.id]);
 
   useEffect(() => {
     if (isAuthenticated) {

@@ -166,10 +166,11 @@ export default function TrackingTimeline() {
           const b = res.data.data;
           setBooking(b);
           // Seed rider location from populated booking if not already streaming
-          if (b.currentRider?.riderDetails?.currentLocation?.lat) {
+          const rObj = b.currentRider || b.assignedRider;
+          if (rObj?.riderDetails?.currentLocation?.lat) {
             setRiderLocation(prev => prev || {
-              lat: Number(b.currentRider.riderDetails.currentLocation.lat),
-              lng: Number(b.currentRider.riderDetails.currentLocation.lng)
+              lat: Number(rObj.riderDetails.currentLocation.lat),
+              lng: Number(rObj.riderDetails.currentLocation.lng)
             });
           }
         }
@@ -270,12 +271,17 @@ export default function TrackingTimeline() {
         if (data?.booking) {
           setBooking(data.booking);
         }
-        if (data?.rider?.riderDetails?.currentLocation?.lat) {
+        const r = data?.rider || data?.currentRider || data?.booking?.currentRider || data?.booking?.assignedRider;
+        if (r?.riderDetails?.currentLocation?.lat) {
           setRiderLocation({
-            lat: Number(data.rider.riderDetails.currentLocation.lat),
-            lng: Number(data.rider.riderDetails.currentLocation.lng)
+            lat: Number(r.riderDetails.currentLocation.lat),
+            lng: Number(r.riderDetails.currentLocation.lng)
           });
         }
+        triggerCaptainArrivedNotification(
+          '🎉 Captain Assigned!',
+          `${r?.name || 'Your Captain'} has accepted your booking and is on the way to pickup.`
+        );
         fetchBooking();
       });
 

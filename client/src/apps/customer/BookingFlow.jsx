@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { 
   ArrowLeft, ArrowRight, MapPin, Package, CheckCircle2, ChevronDown, ChevronRight, Check, Truck, Zap, 
   Calendar as CalendarIcon, FileText, AlertCircle, X, XCircle, Bike, Car, CarFront, 
@@ -271,10 +272,69 @@ export default function BookingFlow() {
   const [assignCountdown, setAssignCountdown] = useState(120);
   const [liveBookingState, setLiveBookingState] = useState(null);
 
-  // Rapido-Style Captain Assignment Timer & Auto Polling
+  // Rapido-Style Captain Assignment Timer, Instant Socket Listener & Auto Polling
   useEffect(() => {
     if (step !== 4 || !bookingResult?._id) return;
     setAssignCountdown(120);
+
+    const trackingId = bookingResult.trackingId;
+
+    // Instant Socket.io Listener for Real-Time Captain Acceptance Alert
+    let socket = null;
+    try {
+      socket = io({
+        path: '/socket.io/',
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10
+      });
+
+      socket.on('connect', () => {
+        if (trackingId) {
+          socket.emit('join_tracking', { trackingId });
+        }
+      });
+
+      socket.on('rider_assigned', (data) => {
+        if (data?.booking) {
+          setLiveBookingState(data.booking);
+          setBookingResult(data.booking);
+        } else if (data?.rider) {
+          setLiveBookingState(prev => ({
+            ...(prev || bookingResult),
+            status: 'Rider Assigned',
+            currentRider: data.rider
+          }));
+          setBookingResult(prev => ({
+            ...prev,
+            status: 'Rider Assigned',
+            currentRider: data.rider
+          }));
+        }
+        // Play notification chime
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.5);
+        } catch (e) {}
+      });
+
+      socket.on('order_status_update', (data) => {
+        if (data?.booking) {
+          setLiveBookingState(data.booking);
+          setBookingResult(data.booking);
+        }
+      });
+    } catch (e) {}
 
     const timer = setInterval(() => {
       setAssignCountdown((prev) => (prev > 0 ? prev - 1 : 0));
@@ -295,13 +355,14 @@ export default function BookingFlow() {
           }
         }
       } catch (e) {}
-    }, 3000);
+    }, 2500);
 
     return () => {
       clearInterval(timer);
       clearInterval(pollInterval);
+      if (socket) socket.disconnect();
     };
-  }, [step, bookingResult?._id]);
+  }, [step, bookingResult?._id, bookingResult?.trackingId]);
   
   // Rapido-Style Map Picker Modal State
   const [mapModal, setMapModal] = useState({ show: false, targetField: '' });

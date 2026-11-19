@@ -363,9 +363,15 @@ exports.getBookingDetails = async (req, res) => {
     
     // Check if it's a tracking ID (ZYP... or ZGO...) or an ObjectId
     if (id.startsWith('ZYP') || id.startsWith('ZGO')) {
-      booking = await Booking.findOne({ trackingId: id }).populate('currentRider', 'name phone riderDetails').populate('sender', 'name phone email pickupOtp');
+      booking = await Booking.findOne({ trackingId: id })
+        .populate('currentRider', 'name phone photoUrl avatar riderDetails')
+        .populate('assignedRider', 'name phone photoUrl avatar riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
     } else {
-      booking = await Booking.findById(id).populate('currentRider', 'name phone riderDetails').populate('sender', 'name phone email pickupOtp');
+      booking = await Booking.findById(id)
+        .populate('currentRider', 'name phone photoUrl avatar riderDetails')
+        .populate('assignedRider', 'name phone photoUrl avatar riderDetails')
+        .populate('sender', 'name phone email pickupOtp');
     }
     
     if (!booking) {

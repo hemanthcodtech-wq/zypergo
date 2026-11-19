@@ -30,14 +30,57 @@ exports.init = (server) => {
       console.log(`[Socket] User tracking booking: ${trackingId}`);
     });
 
-    // Rider emits live location update
-    socket.on('location_update', (data) => {
-      const { riderId, trackingId, lat, lng } = data;
-      // Broadcast to anyone in the tracking room
-      io.to(`track_${trackingId}`).emit('rider_location', {
-        riderId, lat, lng, timestamp: new Date()
-      });
-      // Optionally update rider's current location in DB here or via separate API
+    // Rider emits live location update (Rapido/Swiggy style real-time stream)
+    socket.on('location_update', async (data) => {
+      try {
+        const { riderId, trackingId, lat, lng, heading } = data;
+        if (!lat || !lng) return;
+
+        const payload = {
+          riderId,
+          lat: Number(lat),
+          lng: Number(lng),
+          heading: heading || 0,
+          timestamp: new Date()
+        };
+
+        // 1. Direct tracking room broadcast if trackingId provided
+        if (trackingId) {
+          io.to(`track_${trackingId}`).emit('rider_location', payload);
+        }
+
+        // 2. Also broadcast to active bookings associated with this rider
+        if (riderId) {
+          try {
+            const Booking = require('../models/Booking');
+            const activeBooking = await Booking.findOne({
+              $or: [{ currentRider: riderId }, { assignedRider: riderId }],
+              status: { $in: ['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup', 'Picked Up', 'In Transit', 'Out for Delivery'] }
+            }).select('trackingId status');
+
+            if (activeBooking && activeBooking.trackingId !== trackingId) {
+              io.to(`track_${activeBooking.trackingId}`).emit('rider_location', {
+                ...payload,
+                trackingId: activeBooking.trackingId,
+                status: activeBooking.status
+              });
+            }
+          } catch (bErr) {}
+
+          // 3. Update Rider's last known location in DB
+          try {
+            const User = require('../models/User');
+            await User.findByIdAndUpdate(riderId, {
+              'riderDetails.currentLocation.lat': Number(lat),
+              'riderDetails.currentLocation.lng': Number(lng),
+              'riderDetails.currentLocation.updatedAt': new Date(),
+              'riderDetails.lastLocationUpdate': new Date()
+            });
+          } catch (uErr) {}
+        }
+      } catch (err) {
+        console.warn('[Socket] location_update handling error:', err.message);
+      }
     });
 
     socket.on('disconnect', () => {

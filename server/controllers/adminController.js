@@ -178,11 +178,12 @@ exports.assignRider = async (req, res) => {
       {
         status: 'Rider Assigned',
         currentRider: riderId,
+        assignedRider: riderId,
         $push: {
           assignedRiders: { riderId, status: 'Active' },
           trackingHistory: {
             status: 'Rider Assigned',
-            description: 'A Rider has been assigned.',
+            description: 'Captain has accepted the booking and is on the way to pickup.',
             scannedBy: req.user?._id
           }
         }
@@ -192,8 +193,52 @@ exports.assignRider = async (req, res) => {
 
     if (!booking) return res.status(400).json({ success: false, error: 'Booking not available or already assigned' });
 
-    res.status(200).json({ success: true, data: booking });
+    // Populate full rider and customer details for real-time tracking broadcast
+    const fullBooking = await Booking.findById(booking._id)
+      .populate('currentRider', 'name phone photoUrl avatar riderDetails')
+      .populate('assignedRider', 'name phone photoUrl avatar riderDetails')
+      .populate('sender', 'name phone email pickupOtp');
+
+    // Real-Time Socket Broadcast to Customer Tracking Room
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      if (io) {
+        io.to(`track_${booking.trackingId}`).emit('rider_assigned', {
+          trackingId: booking.trackingId,
+          status: 'Rider Assigned',
+          rider: fullBooking?.currentRider || fullBooking?.assignedRider,
+          currentRider: fullBooking?.currentRider || fullBooking?.assignedRider,
+          booking: fullBooking
+        });
+        io.to(`track_${booking.trackingId}`).emit('order_status_update', {
+          trackingId: booking.trackingId,
+          status: 'Rider Assigned',
+          booking: fullBooking
+        });
+        io.to('available_riders').emit('booking_accepted_by_other', {
+          bookingId: booking._id,
+          trackingId: booking.trackingId
+        });
+      }
+    } catch (sockErr) {
+      console.warn('Socket broadcast error on assignRider:', sockErr.message);
+    }
+
+    // Trigger Customer Push Notification
+    try {
+      const NotificationService = require('../services/notificationService');
+      const customerPhone = fullBooking?.sender?.phone || booking?.customerPhone || booking?.pickupLocation?.phone;
+      if (NotificationService && customerPhone) {
+        NotificationService.notifyRiderAssigned(booking, customerPhone);
+      }
+    } catch (notifErr) {
+      console.warn('Notification error on assignRider:', notifErr.message);
+    }
+
+    res.status(200).json({ success: true, data: fullBooking || booking });
   } catch (error) {
+    console.error('Error in assignRider:', error);
     res.status(500).json({ success: false, error: 'Failed to assign rider' });
   }
 };
