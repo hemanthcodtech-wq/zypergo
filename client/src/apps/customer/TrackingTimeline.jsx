@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation, Radio, Bell } from 'lucide-react';
+import { Truck, CheckCircle2, FileText, Headphones, Info, Package, MapPin, Share2, ArrowLeft, Phone, Calendar, Clock, Navigation, Radio, Bell, XCircle, AlertTriangle } from 'lucide-react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -397,6 +397,37 @@ export default function TrackingTimeline() {
     }
   }, [riderLocation?.lat, riderLocation?.lng, booking?.status]);
 
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelBooking = async () => {
+    if (!booking?._id) return;
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    setCancelling(true);
+    try {
+      const res = await api.post(`/bookings/${booking._id}/cancel`);
+      if (res.data?.success) {
+        setBooking(prev => ({
+          ...prev,
+          status: 'Cancelled',
+          trackingHistory: [
+            {
+              status: 'Cancelled',
+              location: 'System',
+              description: 'Booking cancelled by customer.',
+              timestamp: new Date()
+            },
+            ...(prev?.trackingHistory || [])
+          ]
+        }));
+        alert('Booking has been cancelled successfully.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to cancel booking.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleShare = () => {
     const url = window.location.href;
     const text = `Track my ZyperGo parcel live! Tracking ID: ${booking?.trackingId}. Link: ${url}`;
@@ -780,6 +811,34 @@ export default function TrackingTimeline() {
             )}
           </div>
         )}
+
+        {/* Customer Cancel Order Option (Always available before parcel pickup, even after rider accepts) */}
+        {['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status) ? (
+          <div className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs space-y-1.5">
+            <button
+              type="button"
+              onClick={handleCancelBooking}
+              disabled={cancelling}
+              className="w-full py-3 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+            >
+              <XCircle size={16} />
+              <span>{cancelling ? 'Cancelling Booking...' : 'Cancel This Order'}</span>
+            </button>
+            <p className="text-[10.5px] text-slate-400 text-center font-semibold">
+              Free cancellation before parcel is picked up by Captain.
+            </p>
+          </div>
+        ) : booking.status === 'Cancelled' ? (
+          <div className="bg-red-50 rounded-2xl p-4 border border-red-200 text-center space-y-1">
+            <div className="flex items-center justify-center gap-1.5 text-red-700 font-black text-xs">
+              <XCircle size={16} />
+              <span>This Order Has Been Cancelled</span>
+            </div>
+            <p className="text-[11px] text-red-500 font-medium">
+              This shipment was cancelled. You can book a new delivery anytime.
+            </p>
+          </div>
+        ) : null}
 
         {/* Tracking Timeline Activity */}
         <div className="bg-white rounded-3xl p-4.5 border border-slate-100 shadow-xs">

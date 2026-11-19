@@ -65,6 +65,18 @@ h1, h2, h3, h4, h5, h6 {
   scrollbar-width: none;
 }
 
+/* Picture-in-Picture Responsive Optimization */
+@media (max-width: 340px) {
+  html, body {
+    overflow: hidden !important;
+    width: 100vw;
+    height: 100vh;
+  }
+}
+.pip-mode-active {
+  overflow: hidden !important;
+}
+
 /* Custom Global Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

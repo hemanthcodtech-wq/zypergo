@@ -60,6 +60,9 @@ function withPipMainActivity(config) {
       } catch (e: Exception) {}
     }
   }
+  override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+    super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+  }
 `;
 
     // Inject before the closing brace of MainActivity

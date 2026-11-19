@@ -395,31 +395,55 @@ exports.cancelBooking = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Booking is already cancelled' });
     }
 
-    // Cancellation logic based on status
-    let penalty = 0;
-    if (booking.status === 'Pending' || booking.status === 'Booking Confirmed') {
-      // Free cancellation
-      penalty = 0;
-    } else if (booking.status === 'Rider Assigned' || booking.status === 'Rider On the Way') {
-      // 20% penalty if a rider is already assigned
-      penalty = booking.pricing?.total ? booking.pricing.total * 0.20 : 0;
-    } else {
-      // No cancellation permitted once picked up
-      return res.status(400).json({ success: false, error: 'Cancellation not permitted at this stage.' });
+    // Customer can cancel anytime before package is picked up (even after rider accepted / arrived at pickup)
+    const nonCancellableStatuses = [
+      'Picked Up', 'Source Hub Received', 'Sorted', 'Partner Handover',
+      'In Transit', 'Destination Hub Received', 'Out for Delivery',
+      'Delivered', 'Returned'
+    ];
+
+    if (nonCancellableStatuses.includes(booking.status)) {
+      return res.status(400).json({ success: false, error: 'Cancellation not permitted once parcel is picked up.' });
     }
 
+    const previousRiderId = booking.assignedRider || booking.currentRider?._id || booking.currentRider;
     booking.status = 'Cancelled';
+    booking.assignedRider = null;
     booking.trackingHistory.push({
       status: 'Cancelled',
       location: 'System',
-      description: penalty > 0 ? `Cancelled with penalty of ₹${penalty}` : 'Cancelled by customer'
+      description: 'Booking cancelled by customer.'
     });
 
     await booking.save();
 
+    // Broadcast cancellation via Socket.io to rider and tracking rooms
+    try {
+      const socketService = require('../socket');
+      const io = socketService.getIO();
+      if (io) {
+        if (previousRiderId) {
+          io.to(`rider_${previousRiderId}`).emit('booking_cancelled', {
+            bookingId: booking._id,
+            trackingId: booking.trackingId,
+            message: 'Order has been cancelled by the customer.'
+          });
+        }
+        io.to(`booking_${booking._id}`).emit('booking_cancelled', {
+          bookingId: booking._id,
+          trackingId: booking.trackingId
+        });
+        io.to('available_riders').emit('booking_removed', {
+          bookingId: booking._id
+        });
+      }
+    } catch (sErr) {
+      console.warn('Socket broadcast warning on cancel:', sErr.message);
+    }
+
     res.status(200).json({
       success: true,
-      message: penalty > 0 ? `Booking cancelled. A cancellation fee of ₹${penalty} applies.` : 'Booking cancelled successfully.',
+      message: 'Booking cancelled successfully.',
       data: booking
     });
 

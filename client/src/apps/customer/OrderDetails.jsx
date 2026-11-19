@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Package, Phone, MessageCircle, Truck, Info, CreditCard, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Package, Phone, MessageCircle, Truck, Info, CreditCard, Clock, ChevronRight, XCircle } from 'lucide-react';
 import api from '../../api';
 
 export default function OrderDetails() {
@@ -8,6 +8,25 @@ export default function OrderDetails() {
   const navigate = useNavigate();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelOrder = async () => {
+    if (!booking?._id) return;
+    if (!window.confirm('Are you sure you want to cancel this order?')) return;
+    setCancelling(true);
+    try {
+      const res = await api.post(`/bookings/${booking._id}/cancel`);
+      if (res.data?.success) {
+        setBooking(prev => ({ ...prev, status: 'Cancelled' }));
+        alert('Order has been cancelled successfully.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to cancel order.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -150,6 +169,31 @@ export default function OrderDetails() {
             </div>
           </div>
         )}
+
+        {/* Customer Cancel Order Option */}
+        {['Pending', 'Booking Confirmed', 'Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(booking.status) ? (
+          <div className="bg-white rounded-3xl p-4 shadow-xs border border-slate-100 space-y-1.5">
+            <button
+              type="button"
+              onClick={handleCancelOrder}
+              disabled={cancelling}
+              className="w-full py-3 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+            >
+              <XCircle size={16} />
+              <span>{cancelling ? 'Cancelling Order...' : 'Cancel This Order'}</span>
+            </button>
+            <p className="text-[10.5px] text-slate-400 text-center font-semibold">
+              Free cancellation before package is picked up by Captain.
+            </p>
+          </div>
+        ) : booking.status === 'Cancelled' ? (
+          <div className="bg-red-50 rounded-3xl p-4 border border-red-200 text-center space-y-1">
+            <div className="flex items-center justify-center gap-1.5 text-red-700 font-black text-xs">
+              <XCircle size={16} />
+              <span>This Order Was Cancelled</span>
+            </div>
+          </div>
+        ) : null}
 
         {/* Route Details */}
         <div className="bg-white rounded-3xl p-5 shadow-xs border border-slate-100 space-y-4">

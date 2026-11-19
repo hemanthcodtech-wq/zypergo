@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, MapPin, Package, CheckCircle2, ChevronDown, ChevronRight, Check, Truck, Zap, 
-  Calendar as CalendarIcon, FileText, AlertCircle, X, Bike, Car, CarFront, 
+  Calendar as CalendarIcon, FileText, AlertCircle, X, XCircle, Bike, Car, CarFront, 
   Map, Bookmark, Home, Building2, Search, Navigation, Sparkles, Info, Clock,
   Users, Minus, Plus, Phone
 } from 'lucide-react';
@@ -1790,13 +1790,14 @@ export default function BookingFlow() {
                   >
                     Back to Home
                   </button>
-                  {!isCaptainAssigned && (
+                  {bookingResult?.status !== 'Picked Up' && bookingResult?.status !== 'Delivered' && bookingResult?.status !== 'Cancelled' && (
                     <button 
                       onClick={cancelBooking} 
                       disabled={loading} 
-                      className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-colors cursor-pointer"
+                      className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      {loading ? 'Cancelling...' : 'Cancel Order'}
+                      <XCircle size={14} />
+                      <span>{loading ? 'Cancelling...' : 'Cancel Order'}</span>
                     </button>
                   )}
                 </div>
