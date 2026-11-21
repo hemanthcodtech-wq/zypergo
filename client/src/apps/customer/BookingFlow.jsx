@@ -39,9 +39,9 @@ function MapCenterTracker({ onMoveEnd }) {
   return null;
 }
 
-// Dynamic Vehicle Marker icons (Bike, 3W, Tata Ace, Heavy Truck)
+// Dynamic Vehicle Marker icons (Realistic Bike, 3W, Tata Ace, Heavy Truck)
 const createCaptainIcon = (heading = 45, vehicleType = 'Bike') => {
-  return createLiveVehicleMarkerIcon(vehicleType, heading, 36);
+  return createLiveVehicleMarkerIcon(vehicleType, heading, 42);
 };
 
 const createPickupMarkerIcon = () => {

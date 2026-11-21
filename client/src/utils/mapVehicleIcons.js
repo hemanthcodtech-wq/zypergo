@@ -94,20 +94,58 @@ export const getVehicleConfig = (vehicleType = '') => {
     };
   }
 
-  // 4. Bike / Scooter / 2-Wheeler (Default)
+  // 4. Bike / Scooter / 2-Wheeler (Default) - Ultra-Realistic Delivery Motorcycle
   return {
     category: 'bike',
     displayName: 'Bike / Scooter',
-    emoji: '🛵',
-    bgGradient: 'linear-gradient(135deg, #F59E0B, #D97706)',
-    primaryColor: '#F59E0B',
-    ringColor: 'rgba(245, 158, 11, 0.35)',
+    emoji: '🏍️',
+    bgGradient: 'linear-gradient(135deg, #1E293B, #0F172A)',
+    primaryColor: '#FFB703',
+    ringColor: 'rgba(255, 183, 3, 0.45)',
     svg: `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="18.5" cy="17.5" r="3.5"/>
-        <circle cx="5.5" cy="17.5" r="3.5"/>
-        <circle cx="15" cy="5" r="1"/>
-        <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Rear Tire & Alloy Rim -->
+        <circle cx="10" cy="33" r="7.5" fill="#090D16" stroke="#94A3B8" stroke-width="1.8"/>
+        <circle cx="10" cy="33" r="4.2" fill="#334155" stroke="#CBD5E1" stroke-width="1.2"/>
+        <circle cx="10" cy="33" r="1.5" fill="#F8FAFC"/>
+        
+        <!-- Front Tire & Alloy Rim -->
+        <circle cx="37" cy="33" r="7.5" fill="#090D16" stroke="#94A3B8" stroke-width="1.8"/>
+        <circle cx="37" cy="33" r="4.2" fill="#334155" stroke="#CBD5E1" stroke-width="1.2"/>
+        <circle cx="37" cy="33" r="1.5" fill="#F8FAFC"/>
+
+        <!-- Chrome Exhaust Pipe -->
+        <path d="M12 34.5h11l4.5-3" stroke="#E2E8F0" stroke-width="2.4" stroke-linecap="round"/>
+        
+        <!-- Swingarm, Chassis & Chain Frame -->
+        <path d="M10 33l10-8h7l10 8" stroke="#475569" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        
+        <!-- Engine Block with Cooling Ribs -->
+        <rect x="17" y="27" width="9.5" height="7.5" rx="1.8" fill="#1E293B" stroke="#64748B" stroke-width="1"/>
+        <line x1="18.5" y1="29.5" x2="25" y2="29.5" stroke="#94A3B8" stroke-width="0.9"/>
+        <line x1="18.5" y1="31.8" x2="25" y2="31.8" stroke="#94A3B8" stroke-width="0.9"/>
+
+        <!-- Front Telescopic Hydraulic Forks -->
+        <path d="M37 33L31 16" stroke="#CBD5E1" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M36 29L31.5 17.5" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
+        
+        <!-- Aerodynamic Fuel Tank (ZyperGo Gold) -->
+        <path d="M20 21c2-5.5 7-6.5 11-4.2l2.2 3.2-8.2 3.2h-5z" fill="#FFB703" stroke="#F59E0B" stroke-width="1.2"/>
+        
+        <!-- Rider Leather Seat -->
+        <path d="M12 22c3.5-1.2 6.5-0.2 9.5 2.2l-2 3.2h-6.5c-1.5 0-2-3.8-1-5.4z" fill="#020617"/>
+        
+        <!-- Handlebars & View Mirror -->
+        <path d="M29 15h4.5" stroke="#F8FAFC" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="33.5" cy="13" r="1.4" fill="#38BDF8"/>
+        
+        <!-- Bright LED Headlight -->
+        <path d="M34.5 17.5l3.5 1.2-1.2 3.2" stroke="#FEF08A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="37" cy="19.2" r="1.3" fill="#FEF08A"/>
+
+        <!-- ZyperGo Courier Delivery Box -->
+        <rect x="7.5" y="15.5" width="9" height="8.5" rx="2" fill="#FB5C00" stroke="#FFFFFF" stroke-width="1.1"/>
+        <path d="M9.5 19.5h5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/>
       </svg>
     `
   };
@@ -118,6 +156,7 @@ export const getVehicleConfig = (vehicleType = '') => {
  */
 export const createLiveVehicleMarkerIcon = (vehicleType = 'Bike', heading = 0, size = 46) => {
   const conf = getVehicleConfig(vehicleType);
+  const flipX = (heading > 90 && heading < 270) ? -1 : 1;
   return L.divIcon({
     className: `live-vehicle-marker marker-${conf.category}`,
     html: `
@@ -129,23 +168,23 @@ export const createLiveVehicleMarkerIcon = (vehicleType = 'Bike', heading = 0, s
           height: ${size - 2}px;
           border-radius: 50%;
           background: ${conf.ringColor};
-          animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+          animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
         "></div>
 
         <!-- Vehicle Badge Circle -->
         <div style="
           position: relative;
-          width: ${size - 8}px;
-          height: ${size - 8}px;
+          width: ${size - 6}px;
+          height: ${size - 6}px;
           border-radius: 50%;
           background: ${conf.bgGradient};
           color: white;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
           border: 2.5px solid white;
-          transform: rotate(${heading}deg);
+          transform: scaleX(${flipX});
           transition: transform 0.4s ease;
         ">
           ${conf.svg}
@@ -160,6 +199,7 @@ export const createLiveVehicleMarkerIcon = (vehicleType = 'Bike', heading = 0, s
             background: #22C55E;
             border-radius: 50%;
             border: 2px solid white;
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
           "></span>
         </div>
       </div>

@@ -12,9 +12,9 @@ import { reverseGeocode } from '../../utils/locationService';
 import PinLocationModal from '../../components/common/PinLocationModal';
 import { createLiveVehicleMarkerIcon } from '../../utils/mapVehicleIcons';
 
-// Custom dynamic captain vehicle icon (Bike, 3W, Tata Ace, Truck)
+// Custom dynamic captain vehicle icon (Realistic Bike, 3W, Tata Ace, Truck)
 const createRiderIcon = (heading = 45, vehicleType = 'Bike') => {
-  return createLiveVehicleMarkerIcon(vehicleType, heading, 34);
+  return createLiveVehicleMarkerIcon(vehicleType, heading, 42);
 };
 
 // Pulsing user beacon icon
