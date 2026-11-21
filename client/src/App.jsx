@@ -44,7 +44,8 @@ function App() {
   }, [toast.show]);
 
   // 2. High-Fidelity Android Picture-in-Picture (PiP) Miniature Screen Scaler
-  // Transforms the full 390x780 mobile smartphone viewport into the PiP window without cropping
+  // Transforms the full 390x693 mobile smartphone viewport into the PiP window without cropping
+  // Strictly triggers ONLY when in floating PiP mode (w <= 260 && h <= 460) or when forcedPip is true
   useEffect(() => {
     const applyPipTransform = (forcedPip, forcedW, forcedH) => {
       const root = document.getElementById('root');
@@ -52,19 +53,18 @@ function App() {
 
       const w = forcedW || window.innerWidth;
       const h = forcedH || window.innerHeight;
-      const screenW = window.screen?.width || 412;
-      const screenH = window.screen?.height || 892;
 
-      // PiP condition: either explicitly signaled by React Native, or window is dramatically smaller than phone screen
-      const isPip = forcedPip !== undefined ? forcedPip : (w < 360 || (w < screenW * 0.85 && h < screenH * 0.75));
+      // PiP condition: Android PiP windows are small floating windows (width <= 260px, height <= 460px).
+      // Normal phone screens are NEVER <= 260px wide (minimum phone width is 360px).
+      const isPip = forcedPip === true || (forcedPip !== false && w <= 260 && h <= 460 && w > 40 && h > 40);
 
-      if (isPip && w > 40 && h > 40) {
-        // Standard high-density smartphone canvas (390 x 780, ~9:18 aspect ratio)
+      if (isPip) {
+        // Standard smartphone canvas (390 x 693, ~9:16 aspect ratio)
         const baseWidth = 390;
-        const baseHeight = 780;
+        const baseHeight = 693;
         const scaleX = w / baseWidth;
         const scaleY = h / baseHeight;
-        // Use uniform scale to preserve full visual UI fidelity
+        // Use uniform scale to preserve full visual UI fidelity without distortion
         const scale = Math.min(scaleX, scaleY);
 
         root.style.position = 'fixed';
@@ -76,7 +76,7 @@ function App() {
         root.style.minHeight = `${baseHeight}px`;
         root.style.maxWidth = `${baseWidth}px`;
         root.style.maxHeight = `${baseHeight}px`;
-        root.style.zoom = scale;
+        root.style.zoom = '';
         root.style.transform = `scale(${scale})`;
         root.style.transformOrigin = 'top left';
         root.style.overflow = 'hidden';
@@ -89,6 +89,7 @@ function App() {
         document.body.style.height = '100%';
         document.body.classList.add('pip-mode-active');
       } else {
+        // Fullscreen normal smartphone view: reset ALL styles completely
         root.style.position = '';
         root.style.top = '';
         root.style.left = '';
@@ -98,6 +99,7 @@ function App() {
         root.style.minHeight = '';
         root.style.maxWidth = '';
         root.style.maxHeight = '';
+        root.style.zoom = '';
         root.style.transform = '';
         root.style.transformOrigin = '';
         root.style.overflow = '';
