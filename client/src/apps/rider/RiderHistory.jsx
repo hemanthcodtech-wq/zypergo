@@ -129,41 +129,41 @@ export default function RiderHistory({ user }) {
     const lat = ride.pickupLocation?.lat;
     const lng = ride.pickupLocation?.lng;
 
-    // Instant Navigation on first touch
+    // Instant optimistic status update in UI (0ms delay)
+    setOngoingRides(prev => prev.map(r => r._id === ride._id ? { ...r, status: 'Rider On the Way' } : r));
+    setAllRides(prev => prev.map(r => r._id === ride._id ? { ...r, status: 'Rider On the Way' } : r));
+
+    // Instant Navigation launch
     openTurnByTurnNavigation({ lat, lng, address: pickupAddr });
     setActionSuccessNotice('Starting Turn-by-Turn Navigation to Pickup!');
-    setTimeout(() => setActionSuccessNotice(''), 3500);
+    setTimeout(() => setActionSuccessNotice(''), 3000);
 
-    // Sync status in background
+    // Sync status with server in background
     if (ride.status === 'Rider Assigned') {
       api.post(`/rider/jobs/${ride._id}/update-status`, {
         status: 'Rider On the Way',
         reason: 'Captain started navigation to pickup location',
         userId: user?._id || user?.id
-      }).then(() => fetchRiderHistory()).catch(() => {});
+      }).catch(err => console.warn('Background sync notice:', err));
     }
   };
 
   // 1B. Arrived at Pickup Location -> Updates status to 'Arrived at Pickup' and alerts customer
-  const handleArrivedAtPickup = async (ride) => {
-    setActionLoading(true);
-    setActionSuccessNotice('Alerting Customer of Arrival...');
-    try {
-      const res = await api.post(`/rider/jobs/${ride._id}/update-status`, {
-        status: 'Arrived at Pickup',
-        reason: 'Captain arrived at pickup location. Waiting for customer.',
-        userId: user?._id || user?.id
-      });
-      if (res.data?.success) {
-        setActionSuccessNotice('Arrived at Pickup! Customer has been notified.');
-        await fetchRiderHistory();
-      }
-    } catch (err) {
-      setActionSuccessNotice(err.response?.data?.error || 'Failed to update status');
-    } finally {
-      setActionLoading(false);
-      setTimeout(() => setActionSuccessNotice(''), 3500);
-    }
+  const handleArrivedAtPickup = (ride) => {
+    // 1. Instant Optimistic UI Update: immediately transition this ride to 'Arrived at Pickup' in state (0ms delay!)
+    setOngoingRides(prev => prev.map(r => r._id === ride._id ? { ...r, status: 'Arrived at Pickup' } : r));
+    setAllRides(prev => prev.map(r => r._id === ride._id ? { ...r, status: 'Arrived at Pickup' } : r));
+    setActionSuccessNotice('Arrived at Pickup! Customer has been notified.');
+    setTimeout(() => setActionSuccessNotice(''), 3500);
+
+    // 2. Perform API update in background
+    api.post(`/rider/jobs/${ride._id}/update-status`, {
+      status: 'Arrived at Pickup',
+      reason: 'Captain arrived at pickup location. Waiting for customer.',
+      userId: user?._id || user?.id
+    }).catch(err => {
+      console.warn('Status update sync error:', err);
+    });
   };
 
   // 2. Verify Pickup OTP from customer & update status to Picked Up + Immediately Launch Drop Navigation

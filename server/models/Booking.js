@@ -108,6 +108,10 @@ const bookingSchema = new mongoose.Schema({
     assignedAt: { type: Date, default: Date.now },
     status: { type: String, enum: ['Active', 'Handed Over'], default: 'Active' }
   }],
+  assignedRider: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   currentRider: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

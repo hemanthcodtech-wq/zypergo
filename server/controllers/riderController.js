@@ -218,9 +218,15 @@ exports.updateJobStatus = async (req, res) => {
     if (status === 'Arrived at Pickup') {
       const expectedOtp = booking.pickupOtp || booking.sender?.pickupOtp || booking.proofOfDelivery?.otp || '1234';
       const customerEmail = booking.sender?.email || booking.senderDetails?.email;
-      // Send email notification with the exact 4-digit OTP if email is present; suppress confusing 6-digit third-party SMS
+      // Send email notification asynchronously in background so API responds with zero delay
       if (customerEmail) {
-        NotificationService.notifyPickupOTP(null, customerEmail, expectedOtp, booking.trackingId);
+        setImmediate(() => {
+          try {
+            NotificationService.notifyPickupOTP(null, customerEmail, expectedOtp, booking.trackingId);
+          } catch (notifErr) {
+            console.warn('Background pickup OTP email notice:', notifErr.message);
+          }
+        });
       }
     }
 
@@ -344,14 +350,20 @@ exports.updateJobStatus = async (req, res) => {
       console.warn('Socket broadcast error on updateJobStatus:', sockErr.message);
     }
 
-    // Trigger Notifications based on status
+    // Trigger Notifications based on status asynchronously in background without blocking HTTP response
     const customerPhone = booking.sender?.phone || '9999999999';
     const receiverPhone = booking.receiver?.phone || '8888888888';
 
-    if (status === 'Picked Up') NotificationService.notifyPickedUp(booking, customerPhone, receiverPhone);
-    if (status === 'In Transit') NotificationService.notifyInTransit(booking, receiverPhone);
-    if (status === 'Delivered') NotificationService.notifyDelivered(booking, customerPhone, receiverPhone);
-    if (status === 'Failed' || status === 'Cancelled') NotificationService.notifyException(booking, '7777777777');
+    setImmediate(() => {
+      try {
+        if (status === 'Picked Up') NotificationService.notifyPickedUp(booking, customerPhone, receiverPhone);
+        if (status === 'In Transit') NotificationService.notifyInTransit(booking, receiverPhone);
+        if (status === 'Delivered') NotificationService.notifyDelivered(booking, customerPhone, receiverPhone);
+        if (status === 'Failed' || status === 'Cancelled') NotificationService.notifyException(booking, '7777777777');
+      } catch (notifErr) {
+        console.warn('Background notification error:', notifErr.message);
+      }
+    });
 
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
