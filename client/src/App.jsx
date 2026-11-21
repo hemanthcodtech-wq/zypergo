@@ -76,6 +76,7 @@ function App() {
         root.style.minHeight = `${baseHeight}px`;
         root.style.maxWidth = `${baseWidth}px`;
         root.style.maxHeight = `${baseHeight}px`;
+        root.style.zoom = scale;
         root.style.transform = `scale(${scale})`;
         root.style.transformOrigin = 'top left';
         root.style.overflow = 'hidden';
