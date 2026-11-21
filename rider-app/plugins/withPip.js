@@ -60,8 +60,28 @@ function withPipMainActivity(config) {
       } catch (e: Exception) {}
     }
   }
+  private fun findWebViews(view: android.view.View): List<android.webkit.WebView> {
+    val list = mutableListOf<android.webkit.WebView>()
+    if (view is android.webkit.WebView) {
+      list.add(view)
+    } else if (view is android.view.ViewGroup) {
+      for (i in 0 until view.childCount) {
+        list.addAll(findWebViews(view.getChildAt(i)))
+      }
+    }
+    return list
+  }
+
   override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
     super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+    try {
+      val webViews = findWebViews(window.decorView.rootView)
+      for (wv in webViews) {
+        wv.post {
+          wv.evaluateJavascript("(function(){ try { if (window.__setPipState) { window.__setPipState($isInPictureInPictureMode); } if ($isInPictureInPictureMode) { document.body.classList.add('pip-mode-active'); } else { document.body.classList.remove('pip-mode-active'); } } catch(e){} })();", null)
+        }
+      }
+    } catch (e: Exception) {}
   }
 `;
 

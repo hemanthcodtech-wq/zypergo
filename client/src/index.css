@@ -92,13 +92,15 @@ button, [role="button"], a, input, select, textarea {
 }
 
 .pip-mode-active #root {
+  zoom: 0.46 !important;
   width: 390px !important;
   min-width: 390px !important;
   max-width: 390px !important;
   overflow: hidden !important;
+  transform-origin: top left !important;
 }
 
-/* In PiP mode, prevent horizontal wrapping and jumbled bottom navigation */
+/* In PiP mode, prevent horizontal wrapping and ensure header/nav span full 390px canvas */
 .pip-mode-active nav,
 .pip-mode-active header,
 .pip-mode-active footer {
@@ -111,30 +113,6 @@ button, [role="button"], a, input, select, textarea {
 .pip-mode-active header span {
   display: inline-block;
   white-space: nowrap;
-}
-
-/* Engine-Level PiP Auto-Scaling Media Query (Runs natively in Chromium at 0ms delay) */
-/* Strictly matches only floating PiP windows (height <= 480px AND width <= 320px); NEVER matches full-screen phones (height >= 650px) */
-@media screen and (max-height: 480px) and (max-width: 320px) {
-  html, body {
-    width: 100vw !important;
-    height: 100vh !important;
-    overflow: hidden !important;
-  }
-  
-  #root {
-    zoom: 0.46 !important;
-    width: 390px !important;
-    min-width: 390px !important;
-    max-width: 390px !important;
-    overflow: hidden !important;
-  }
-
-  nav, header, footer {
-    width: 390px !important;
-    max-width: 390px !important;
-    white-space: nowrap !important;
-  }
 }
 
 /* Custom Global Scrollbar */

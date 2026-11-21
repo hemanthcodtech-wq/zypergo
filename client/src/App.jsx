@@ -46,35 +46,38 @@ function App() {
   // 2. High-Fidelity Android Picture-in-Picture (PiP) Miniature Screen Scaler
   // Scales the full 390px smartphone canvas down into the tiny PiP window without cropping
   useEffect(() => {
+    let currentPip = false;
+
     const applyPipTransform = (forcedPip, forcedW, forcedH) => {
       const root = document.getElementById('root');
       if (!root) return;
 
-      const w = forcedW || window.innerWidth;
-      const h = forcedH || window.innerHeight;
+      const vv = window.visualViewport;
+      const isVisualSmall = vv && (vv.width < 320 || vv.width < window.innerWidth * 0.82);
+      const isOuterSmall = (window.outerWidth > 50 && window.outerWidth < 320) || (window.outerHeight > 50 && window.outerHeight < 520);
+      const isInnerSmall = (window.innerWidth <= 320 && window.innerHeight <= 520 && window.innerWidth > 50);
 
-      // PiP condition:
-      // Normal full-screen phones ALWAYS have height >= 600px and width >= 360px in portrait.
-      // A floating PiP window ALWAYS has height <= 500px and width <= 320px.
-      const isPip = forcedPip === true || (forcedPip !== false && h <= 500 && w <= 320 && w > 40 && h > 40);
+      const isPip = forcedPip !== undefined ? forcedPip : (isVisualSmall || isOuterSmall || isInnerSmall);
+      currentPip = isPip;
 
       if (isPip) {
-        // Standard high-density smartphone canvas (390 x 700)
-        const baseWidth = 390;
-        const baseHeight = 700;
-        const scale = Math.min(w / baseWidth, h / baseHeight);
+        document.body.classList.add('pip-mode-active');
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
 
+        const baseWidth = 390;
+        const w = forcedW || (vv ? vv.width : window.innerWidth);
+        const scale = (w > 50 && w < 320) ? (w / baseWidth) : 0.46;
         root.style.zoom = scale;
         root.style.width = `${baseWidth}px`;
         root.style.minWidth = `${baseWidth}px`;
         root.style.maxWidth = `${baseWidth}px`;
         root.style.overflow = 'hidden';
-
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
-        document.body.classList.add('pip-mode-active');
       } else {
-        // Fullscreen normal smartphone view: reset ALL styles completely
+        document.body.classList.remove('pip-mode-active');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+
         root.style.position = '';
         root.style.top = '';
         root.style.left = '';
@@ -88,18 +91,9 @@ function App() {
         root.style.transform = '';
         root.style.transformOrigin = '';
         root.style.overflow = '';
-
-        document.documentElement.style.overflow = '';
-        document.documentElement.style.width = '';
-        document.documentElement.style.height = '';
-        document.body.style.overflow = '';
-        document.body.style.width = '';
-        document.body.style.height = '';
-        document.body.classList.remove('pip-mode-active');
       }
     };
 
-    // Global bridge function callable from React Native WebView on PiP transition
     window.__setPipState = (isPip, w, h) => {
       applyPipTransform(isPip, w, h);
     };
@@ -111,10 +105,27 @@ function App() {
     handleResize();
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+    }
+
+    const interval = setInterval(() => {
+      const vv = window.visualViewport;
+      if (vv) {
+        const detected = vv.width < window.innerWidth * 0.82 || vv.width < 320;
+        if (detected !== currentPip) {
+          applyPipTransform(detected);
+        }
+      }
+    }, 400);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      }
+      clearInterval(interval);
       delete window.__setPipState;
     };
   }, []);

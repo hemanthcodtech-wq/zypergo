@@ -424,7 +424,33 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
-      <View style={styles.webViewContainer}>
+      <View 
+        style={styles.webViewContainer}
+        onLayout={(e) => {
+          try {
+            const { width, height } = e.nativeEvent.layout;
+            const scr = Dimensions.get('screen');
+            const isPip = width < scr.width * 0.8 || height < scr.height * 0.7;
+            if (webViewRef.current) {
+              webViewRef.current.injectJavaScript(`
+                (function() {
+                  try {
+                    if (window.__setPipState) {
+                      window.__setPipState(${isPip}, ${width}, ${height});
+                    }
+                    if (${isPip}) {
+                      document.body.classList.add('pip-mode-active');
+                    } else {
+                      document.body.classList.remove('pip-mode-active');
+                    }
+                  } catch (e) {}
+                })();
+                true;
+              `);
+            }
+          } catch (err) {}
+        }}
+      >
         <WebView
           ref={webViewRef}
           source={{ uri: currentUrl }}
