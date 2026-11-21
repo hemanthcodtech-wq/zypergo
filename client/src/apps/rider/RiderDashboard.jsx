@@ -373,19 +373,23 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
 
   const acceptJob = async (job) => {
     stopBuzzer();
+    const captainId = user?._id || user?.id;
+
     if (job.status === 'Relay Handoff Pending' || job.status === 'Transhipment Pending') {
       const enteredOtp = window.prompt("Enter the 4-digit Handover OTP from the other Rider:");
       if (!enteredOtp) return;
       
       setLoading(true);
       try {
-        const res = await api.post(`/rider/jobs/${job._id}/accept-handover`, { newRiderId: user?._id, otp: enteredOtp });
+        const res = await api.post(`/rider/jobs/${job._id}/accept-handover`, { newRiderId: captainId, otp: enteredOtp });
         if (res.data.success) {
           fetchJobs();
           navigate('/rider/history', { state: { activeTab: 'ongoing' } });
         }
       } catch (err) {
-        alert(err.response?.data?.error || 'Failed to accept handover');
+        window.dispatchEvent(new CustomEvent('zypergo_toast', {
+          detail: { message: err.response?.data?.error || 'Failed to accept handover', type: 'error' }
+        }));
         fetchJobs(); 
       } finally {
         setLoading(false);
@@ -395,13 +399,26 @@ export default function RiderDashboard({ user, onLogout, onStatusChange }) {
 
     setLoading(true);
     try {
-      const res = await api.put(`/admin/bookings/${job._id}/assign-rider`, { riderId: user?._id });
-      if (res.data.success) {
+      // Primary: Call the dedicated rider accept endpoint
+      let res;
+      try {
+        res = await api.post(`/rider/jobs/${job._id}/accept`, { userId: captainId, riderId: captainId });
+      } catch (riderApiErr) {
+        // Fallback: Assign rider via admin/dispatch route
+        res = await api.put(`/admin/bookings/${job._id}/assign-rider`, { riderId: captainId });
+      }
+
+      if (res.data?.success) {
         fetchJobs();
         navigate('/rider/history', { state: { activeTab: 'ongoing' } });
+      } else {
+        throw new Error(res.data?.error || 'Failed to accept job');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to accept job');
+      const errMsg = err.response?.data?.error || err.message || 'Failed to accept job';
+      window.dispatchEvent(new CustomEvent('zypergo_toast', {
+        detail: { message: errMsg, type: 'error' }
+      }));
       fetchJobs(); 
     } finally {
       setLoading(false);

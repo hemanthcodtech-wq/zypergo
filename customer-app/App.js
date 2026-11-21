@@ -260,6 +260,21 @@ export default function App() {
     }
   };
 
+  // Suppress browser "The page at https://zypergo.com says:" alert dialogs in WebView
+  const INJECTED_SUPPRESS_ALERTS = `
+    (function() {
+      try {
+        window.alert = function(msg) {
+          console.warn('[WebView Native Alert Suppressed]:', msg);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('zypergo_toast', { detail: { message: msg, type: 'error' } }));
+          }
+        };
+      } catch (e) {}
+    })();
+    true;
+  `;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
@@ -270,6 +285,7 @@ export default function App() {
           source={{ uri: currentUrl }}
           style={styles.webView}
           userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36 ZyperGoCustomer/1.0"
+          injectedJavaScriptBeforeContentLoaded={INJECTED_SUPPRESS_ALERTS}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           geolocationEnabled={true}

@@ -92,17 +92,22 @@ button, [role="button"], a, input, select, textarea {
 }
 
 .pip-mode-active #root {
-  width: 380px !important;
-  min-width: 380px !important;
-  max-width: 380px !important;
+  width: 390px !important;
+  min-width: 390px !important;
+  max-width: 390px !important;
+  height: 780px !important;
+  min-height: 780px !important;
+  max-height: 780px !important;
   transform-origin: top left !important;
+  overflow: hidden !important;
 }
 
 /* In PiP mode, prevent horizontal wrapping and jumbled bottom navigation */
 .pip-mode-active nav,
 .pip-mode-active header,
 .pip-mode-active footer {
-  width: 380px !important;
+  width: 390px !important;
+  max-width: 390px !important;
   white-space: nowrap !important;
 }
 

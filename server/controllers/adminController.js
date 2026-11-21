@@ -170,10 +170,24 @@ exports.assignRider = async (req, res) => {
   try {
     const { id } = req.params;
     const { riderId } = req.body;
+    const mongoose = require('mongoose');
+
+    const validScannedBy = (req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) 
+      ? req.user._id 
+      : (mongoose.Types.ObjectId.isValid(riderId) ? riderId : undefined);
+
+    const historyEntry = {
+      status: 'Rider Assigned',
+      description: 'Captain has accepted the booking and is on the way to pickup.'
+    };
+    if (validScannedBy) {
+      historyEntry.scannedBy = validScannedBy;
+    }
+
     const booking = await Booking.findOneAndUpdate(
       { 
         _id: id, 
-        status: { $in: ['Pending', 'Booking Confirmed'] } 
+        status: { $in: ['Pending', 'Booking Confirmed', 'Relay Handoff Pending', 'Searching', 'Finding Captain', 'Booked'] } 
       },
       {
         status: 'Rider Assigned',
@@ -181,11 +195,7 @@ exports.assignRider = async (req, res) => {
         assignedRider: riderId,
         $push: {
           assignedRiders: { riderId, status: 'Active' },
-          trackingHistory: {
-            status: 'Rider Assigned',
-            description: 'Captain has accepted the booking and is on the way to pickup.',
-            scannedBy: req.user?._id
-          }
+          trackingHistory: historyEntry
         }
       },
       { new: true }

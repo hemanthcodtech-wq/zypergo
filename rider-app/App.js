@@ -15,7 +15,8 @@ import {
   Animated,
   ToastAndroid,
   Platform,
-  AppState
+  AppState,
+  Dimensions
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -80,6 +81,43 @@ export default function App() {
       subscription.remove();
     };
   }, []);
+
+  // Sync Activity/Window dimensions with WebView to trigger PiP miniature scaling
+  useEffect(() => {
+    const handleDimensions = ({ window: win, screen: scr }) => {
+      const isPip = win.width < scr.width * 0.85 || win.height < scr.height * 0.75;
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`
+          (function() {
+            try {
+              if (window.__setPipState) {
+                window.__setPipState(${isPip}, ${win.width}, ${win.height});
+              }
+            } catch (e) {}
+          })();
+          true;
+        `);
+      }
+    };
+
+    const sub = Dimensions.addEventListener('change', handleDimensions);
+    return () => sub?.remove?.();
+  }, []);
+
+  // Suppress browser "The page at https://zypergo.com says:" alert dialogs in WebView
+  const INJECTED_SUPPRESS_ALERTS = `
+    (function() {
+      try {
+        window.alert = function(msg) {
+          console.warn('[WebView Native Alert Suppressed]:', msg);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('zypergo_toast', { detail: { message: msg, type: 'error' } }));
+          }
+        };
+      } catch (e) {}
+    })();
+    true;
+  `;
 
   const sendTokenToWebView = (token) => {
     const pushToken = token || tokenRef.current;
@@ -392,7 +430,9 @@ export default function App() {
           source={{ uri: currentUrl }}
           style={styles.webView}
           userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36 ZyperGoRider/1.0"
-          scalesPageToFit={false}
+          injectedJavaScriptBeforeContentLoaded={INJECTED_SUPPRESS_ALERTS}
+          scalesPageToFit={true}
+          useWideViewPort={true}
           textZoom={100}
           javaScriptEnabled={true}
           domStorageEnabled={true}

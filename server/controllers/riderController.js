@@ -139,7 +139,7 @@ exports.acceptJob = async (req, res) => {
     const riderId = req.user ? req.user._id : (req.body.userId || req.body.riderId);
 
     const booking = await Booking.findOneAndUpdate(
-      { _id: id, status: { $in: ['Pending', 'Booking Confirmed', 'Relay Handoff Pending'] } },
+      { _id: id, status: { $in: ['Pending', 'Booking Confirmed', 'Relay Handoff Pending', 'Searching', 'Finding Captain', 'Booked'] } },
       { 
         status: 'Rider Assigned',
         currentRider: riderId,

@@ -349,12 +349,21 @@ export default function BookingFlow() {
           osc.start();
           osc.stop(audioCtx.currentTime + 0.5);
         } catch (e) {}
+
+        // Automatically redirect to Live Tracking Map screen on Captain Assignment
+        const assignedTrackId = data?.booking?.trackingId || data?.trackingId || trackingId;
+        if (assignedTrackId) {
+          navigate(`/track/${assignedTrackId}`, { replace: true });
+        }
       });
 
       socket.on('order_status_update', (data) => {
         if (data?.booking) {
           setLiveBookingState(data.booking);
           setBookingResult(data.booking);
+          if (['Rider Assigned', 'Rider On the Way', 'Arrived at Pickup'].includes(data.booking.status) && data.booking.trackingId) {
+            navigate(`/track/${data.booking.trackingId}`, { replace: true });
+          }
         }
       });
     } catch (e) {}
@@ -375,6 +384,9 @@ export default function BookingFlow() {
             fresh.currentRider;
           if (isAssigned) {
             setBookingResult(fresh);
+            if (fresh.trackingId) {
+              navigate(`/track/${fresh.trackingId}`, { replace: true });
+            }
           }
         }
       } catch (e) {}
@@ -1858,14 +1870,16 @@ export default function BookingFlow() {
 
               {/* Action Buttons */}
               <div className="space-y-2.5 pt-2">
-                <button 
-                  onClick={() => navigate(`/track/${activeBooking.trackingId}`)} 
-                  className="w-full py-3.5 bg-[#0052CC] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Navigation size={15} />
-                  <span>LIVE TRACK ON MAP</span>
-                  <ArrowRight size={15} />
-                </button>
+                {isCaptainAssigned && (
+                  <button 
+                    onClick={() => navigate(`/track/${activeBooking.trackingId}`)} 
+                    className="w-full py-3.5 bg-[#0052CC] hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Navigation size={15} />
+                    <span>LIVE TRACK ON MAP</span>
+                    <ArrowRight size={15} />
+                  </button>
+                )}
 
                 <div className="flex gap-2">
                   <button 
